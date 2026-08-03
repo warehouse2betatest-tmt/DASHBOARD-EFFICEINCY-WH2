@@ -16,11 +16,10 @@
   --org:#ff7a18;  --org2:#ff9945;  --org-soft:#fff3e8;
   --bg:#f6f8fc;   --card:#ffffff;  --line:#e3e9f2;
   --txt:#0b2447;  --muted:#7086a3;
-  --ok:#0f9d58; --warn:#ff7a18; --bad:#e03131;
+  --ok:#0f9d58; --bad:#e03131;
   --r:14px; --sh:0 2px 14px rgba(11,36,71,.07); --sh2:0 12px 34px rgba(11,36,71,.14);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html{scroll-behavior:smooth}
 body{font-family:'Kanit',sans-serif;background:var(--bg);color:var(--txt);font-size:14px;font-weight:300;
   -webkit-font-smoothing:antialiased}
 button{font-family:inherit;cursor:pointer;border:none}
@@ -32,7 +31,6 @@ input,select{font-family:inherit;font-size:14px;font-weight:300}
 ::-webkit-scrollbar-thumb:hover{background:var(--navy3)}
 ::selection{background:var(--org);color:#fff}
 
-/* ================= ANIMATIONS ================= */
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes pop{0%{transform:scale(.9);opacity:0}60%{transform:scale(1.03)}100%{transform:scale(1);opacity:1}}
@@ -42,12 +40,10 @@ input,select{font-family:inherit;font-size:14px;font-weight:300}
 @keyframes sp{to{transform:rotate(360deg)}}
 @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(255,122,24,.42)}50%{box-shadow:0 0 0 11px rgba(255,122,24,0)}}
 @keyframes slideBar{from{transform:scaleY(0)}to{transform:scaleY(1)}}
-
 .anim{animation:fadeUp .42s cubic-bezier(.2,.7,.3,1) both}
 .d1{animation-delay:.04s}.d2{animation-delay:.09s}.d3{animation-delay:.14s}
 .d4{animation-delay:.19s}.d5{animation-delay:.24s}.d6{animation-delay:.29s}
 
-/* ================= AUTH ================= */
 #authView,#pendView{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
   background:radial-gradient(circle at 15% 20%,#12376b 0%,transparent 55%),
              radial-gradient(circle at 85% 78%,#1d4f92 0%,transparent 52%),
@@ -59,8 +55,8 @@ input,select{font-family:inherit;font-size:14px;font-weight:300}
 .blob.b3{width:250px;height:250px;background:rgba(255,153,69,.2);top:52%;left:12%;animation:float1 21s ease-in-out infinite}
 
 .authbox{background:rgba(255,255,255,.98);border-radius:22px;padding:38px 34px;width:100%;max-width:430px;
-  box-shadow:0 28px 70px rgba(0,0,0,.42);position:relative;z-index:2;animation:pop .5s cubic-bezier(.2,.8,.3,1) both;
-  border-top:5px solid var(--org)}
+  box-shadow:0 28px 70px rgba(0,0,0,.42);position:relative;z-index:2;
+  animation:pop .5s cubic-bezier(.2,.8,.3,1) both;border-top:5px solid var(--org)}
 .logo{display:flex;align-items:center;gap:12px;margin-bottom:22px}
 .logo .mk{width:48px;height:48px;border-radius:13px;flex:none;position:relative;
   background:linear-gradient(135deg,var(--navy) 0%,var(--navy3) 100%);
@@ -68,49 +64,45 @@ input,select{font-family:inherit;font-size:14px;font-weight:300}
 .logo .mk::after{content:'';position:absolute;inset:auto 8px 8px auto;width:13px;height:13px;
   border-radius:4px;background:var(--org);box-shadow:0 0 12px rgba(255,122,24,.85)}
 .logo .mk span{color:#fff;font-weight:700;font-size:17px;letter-spacing:-.5px;margin-right:6px}
-.logo h1{font-size:17px;font-weight:600;line-height:1.25;letter-spacing:-.2px}
+.logo h1{font-size:17px;font-weight:600;line-height:1.25}
 .logo h1 b{color:var(--org);font-weight:700}
 .logo p{font-size:11px;color:var(--muted);font-weight:300}
 
-.tabs{display:flex;background:var(--navy-soft);border-radius:11px;padding:4px;margin-bottom:20px;position:relative}
+.tabs{display:flex;background:var(--navy-soft);border-radius:11px;padding:4px;margin-bottom:20px}
 .tabs button{flex:1;padding:10px;border-radius:8px;background:transparent;color:var(--muted);
-  font-weight:500;font-size:14px;transition:.22s;z-index:1;font-family:inherit}
+  font-weight:500;font-size:14px;transition:.22s}
 .tabs button.on{background:#fff;color:var(--navy);box-shadow:0 2px 9px rgba(11,36,71,.13)}
 .fld{margin-bottom:15px}
 .fld label{display:block;font-size:12px;font-weight:500;color:var(--navy2);margin-bottom:6px}
 .fld input,.fld select{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:11px;
   background:#fff;transition:.2s;color:var(--txt)}
-.fld input:focus,.fld select:focus{outline:none;border-color:var(--org);
-  box-shadow:0 0 0 4px rgba(255,122,24,.14)}
+.fld input:focus,.fld select:focus{outline:none;border-color:var(--org);box-shadow:0 0 0 4px rgba(255,122,24,.14)}
 .fld input:disabled{background:var(--navy-soft);color:var(--muted);border-color:transparent}
-.fld .hint{font-size:11px;color:var(--muted);margin-top:5px;font-weight:300}
+.fld .hint{font-size:11px;color:var(--muted);margin-top:5px}
 .row2{display:grid;grid-template-columns:1fr 1fr;gap:13px}
 .btn{width:100%;padding:13px;border-radius:11px;font-weight:500;font-size:15px;font-family:inherit;
   background:linear-gradient(135deg,var(--org) 0%,#ff5f00 100%);color:#fff;transition:.22s;
-  box-shadow:0 5px 16px rgba(255,122,24,.34);position:relative;overflow:hidden}
+  box-shadow:0 5px 16px rgba(255,122,24,.34)}
 .btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 9px 24px rgba(255,122,24,.45)}
-.btn:active:not(:disabled){transform:translateY(0)}
 .btn:disabled{opacity:.6;cursor:not-allowed;box-shadow:none}
 .btn.navy{background:linear-gradient(135deg,var(--navy2) 0%,var(--navy) 100%);box-shadow:0 5px 16px rgba(11,36,71,.3)}
-.btn.navy:hover:not(:disabled){box-shadow:0 9px 24px rgba(11,36,71,.4)}
 .btn.ghost{background:transparent;color:var(--muted);box-shadow:none;border:1.5px solid var(--line)}
 .btn.ghost:hover:not(:disabled){background:var(--navy-soft);color:var(--navy);transform:none;box-shadow:none}
 
-.msg{padding:12px 14px;border-radius:11px;font-size:13px;margin-bottom:15px;line-height:1.6;
-  animation:fadeUp .3s both;font-weight:300}
+.msg{padding:12px 14px;border-radius:11px;font-size:13px;margin-bottom:15px;line-height:1.6;animation:fadeUp .3s both}
 .msg.err{background:#fef2f2;color:#a41515;border-left:3px solid var(--bad)}
 .msg.ok{background:#effaf3;color:#0b6b3c;border-left:3px solid var(--ok)}
 .msg.info{background:var(--navy-soft);color:var(--navy2);border-left:3px solid var(--navy3)}
 .msg.warn{background:var(--org-soft);color:#93450a;border-left:3px solid var(--org)}
 
-/* ================= SHELL ================= */
 #appView{display:flex;min-height:100vh}
 aside{width:256px;display:flex;flex-direction:column;position:fixed;top:0;bottom:0;left:0;z-index:60;
-  background:linear-gradient(178deg,var(--navy) 0%,#081b36 100%);color:#b9cbe2;transition:transform .28s cubic-bezier(.2,.8,.3,1)}
+  background:linear-gradient(178deg,var(--navy) 0%,#081b36 100%);color:#b9cbe2;
+  transition:transform .28s cubic-bezier(.2,.8,.3,1)}
 aside::after{content:'';position:absolute;top:0;right:0;bottom:0;width:3px;
   background:linear-gradient(180deg,var(--org) 0%,transparent 45%)}
 .brand{padding:20px 18px;border-bottom:1px solid rgba(255,255,255,.09);display:flex;align-items:center;gap:11px}
-.brand .mk{width:40px;height:40px;border-radius:11px;flex:none;position:relative;
+.brand .mk{width:40px;height:40px;border-radius:11px;flex:none;
   background:linear-gradient(135deg,var(--org) 0%,#ff5f00 100%);
   display:flex;align-items:center;justify-content:center;box-shadow:0 4px 13px rgba(255,122,24,.45)}
 .brand .mk span{color:#fff;font-weight:700;font-size:15px}
@@ -123,8 +115,7 @@ nav a{display:flex;align-items:center;gap:11px;padding:11px 13px;border-radius:1
   color:#b9cbe2;text-decoration:none;font-size:13.5px;margin-bottom:3px;transition:.2s;font-weight:300}
 nav a .ic{font-size:16px;width:20px;text-align:center;flex:none}
 nav a:hover{background:rgba(255,255,255,.08);color:#fff;transform:translateX(3px)}
-nav a.on{background:linear-gradient(90deg,rgba(255,122,24,.2) 0%,rgba(255,122,24,.05) 100%);
-  color:#fff;font-weight:500}
+nav a.on{background:linear-gradient(90deg,rgba(255,122,24,.2) 0%,rgba(255,122,24,.05) 100%);color:#fff;font-weight:500}
 nav a.on::before{content:'';position:absolute;left:0;top:9px;bottom:9px;width:3.5px;border-radius:0 4px 4px 0;
   background:var(--org);box-shadow:0 0 11px var(--org);animation:slideBar .3s both}
 .me{padding:15px 16px;border-top:1px solid rgba(255,255,255,.09)}
@@ -140,11 +131,10 @@ nav a.on::before{content:'';position:absolute;left:0;top:9px;bottom:9px;width:3.
 main{flex:1;margin-left:256px;padding:24px 26px;max-width:100%;overflow-x:hidden}
 .topbar{display:flex;align-items:center;gap:14px;margin-bottom:20px;animation:fadeIn .3s both}
 #burger{display:none;padding:10px 13px;background:#fff;border-radius:11px;box-shadow:var(--sh);font-size:17px;color:var(--navy)}
-.topbar h1{font-size:22px;font-weight:600;letter-spacing:-.3px}
+.topbar h1{font-size:22px;font-weight:600}
 .topbar h1 .ac{color:var(--org)}
 .topbar p{color:var(--muted);font-size:12.5px;font-weight:300}
 
-/* ================= CARDS ================= */
 .card{background:var(--card);border-radius:var(--r);padding:20px;box-shadow:var(--sh);margin-bottom:17px;
   border:1px solid var(--line);transition:.24s}
 .card:hover{box-shadow:var(--sh2)}
@@ -159,12 +149,11 @@ main{flex:1;margin-left:256px;padding:24px 26px;max-width:100%;overflow-x:hidden
   background:var(--navy-soft);opacity:.65;transition:.3s}
 .kpi:hover{transform:translateY(-4px);box-shadow:var(--sh2)}
 .kpi:hover::after{transform:scale(1.28)}
-.kpi.o::before{background:var(--org)}   .kpi.o::after{background:var(--org-soft)}
-.kpi.g::before{background:var(--ok)}    .kpi.g::after{background:#e8f7ee}
-.kpi.r::before{background:var(--bad)}   .kpi.r::after{background:#fdeeee}
-.kpi .k{font-size:11px;color:var(--muted);font-weight:400;letter-spacing:.2px;position:relative;z-index:1}
-.kpi .v{font-size:27px;font-weight:600;margin:6px 0 3px;letter-spacing:-.6px;position:relative;z-index:1;
-  line-height:1.15}
+.kpi.o::before{background:var(--org)} .kpi.o::after{background:var(--org-soft)}
+.kpi.g::before{background:var(--ok)}  .kpi.g::after{background:#e8f7ee}
+.kpi.r::before{background:var(--bad)} .kpi.r::after{background:#fdeeee}
+.kpi .k{font-size:11px;color:var(--muted);font-weight:400;position:relative;z-index:1}
+.kpi .v{font-size:27px;font-weight:600;margin:6px 0 3px;letter-spacing:-.6px;position:relative;z-index:1;line-height:1.15}
 .kpi.o .v{color:var(--org)}
 .kpi .s{font-size:11px;color:var(--muted);position:relative;z-index:1;font-weight:300}
 
@@ -175,20 +164,19 @@ main{flex:1;margin-left:256px;padding:24px 26px;max-width:100%;overflow-x:hidden
 .filters{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:17px;
   background:#fff;padding:16px;border-radius:var(--r);box-shadow:var(--sh);border:1px solid var(--line)}
 .filters .fld{margin:0}
-.filters .fld input,.filters .fld select{padding:9px 12px}
+.filters .fld input{padding:9px 12px}
 .fbtn{padding:10px 20px;border-radius:10px;font-weight:400;font-size:13.5px;font-family:inherit;transition:.22s;
   background:linear-gradient(135deg,var(--org),#ff5f00);color:#fff;box-shadow:0 3px 11px rgba(255,122,24,.3)}
 .fbtn:hover{transform:translateY(-2px);box-shadow:0 7px 18px rgba(255,122,24,.4)}
 .fbtn.alt{background:#fff;color:var(--navy2);border:1.5px solid var(--line);box-shadow:none}
 .fbtn.alt:hover{background:var(--navy-soft);box-shadow:none}
 .fbtn.navy{background:linear-gradient(135deg,var(--navy2),var(--navy));box-shadow:0 3px 11px rgba(11,36,71,.26)}
+.fbtn.red{background:linear-gradient(135deg,#e03131,#b91c1c);box-shadow:0 3px 11px rgba(224,49,49,.26)}
 
-/* ================= TABLE ================= */
 .tw{overflow:auto;max-height:452px;border-radius:11px;border:1px solid var(--line)}
 table{width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap}
 th{background:var(--navy);color:#fff;padding:11px 13px;text-align:left;font-weight:400;
-  position:sticky;top:0;font-size:11.5px;z-index:2;letter-spacing:.2px}
-th:first-child{border-radius:0}
+  position:sticky;top:0;font-size:11.5px;z-index:2}
 td{padding:9px 13px;border-bottom:1px solid #eef2f8;font-weight:300}
 tbody tr{transition:.15s}
 tbody tr:hover{background:var(--org-soft)}
@@ -199,7 +187,6 @@ tbody tr:last-child td{border-bottom:none}
 .pill.r{background:#fdeeee;color:#a41515} .pill.b{background:var(--navy-soft);color:var(--navy2)}
 .pill.n{background:#f1f4f9;color:var(--muted)}
 
-/* ================= IMPORT ================= */
 .drop{border:2.5px dashed #c6d3e4;border-radius:16px;padding:48px 20px;text-align:center;
   background:linear-gradient(#fff,#fbfcfe);cursor:pointer;transition:.26s;position:relative;overflow:hidden}
 .drop::before{content:'';position:absolute;inset:0;opacity:0;transition:.26s;
@@ -209,7 +196,7 @@ tbody tr:last-child td{border-bottom:none}
 .drop .ic{font-size:46px;margin-bottom:12px;position:relative;transition:.26s}
 .drop:hover .ic{transform:translateY(-5px) scale(1.07)}
 .drop .t{font-weight:500;font-size:16px;margin-bottom:6px;position:relative}
-.drop .h{color:var(--muted);font-size:13px;position:relative;font-weight:300}
+.drop .h{color:var(--muted);font-size:13px;position:relative}
 .bar{height:9px;background:var(--navy-soft);border-radius:99px;overflow:hidden;margin:14px 0}
 .bar>div{height:100%;width:0;border-radius:99px;transition:width .3s cubic-bezier(.3,.8,.4,1);
   background:linear-gradient(90deg,var(--navy3),var(--org))}
@@ -235,8 +222,7 @@ details summary{cursor:pointer;user-select:none}
   aside{transform:translateX(-100%);box-shadow:0 0 44px rgba(0,0,0,.42)}
   aside.open{transform:translateX(0)}
   main{margin-left:0;padding:15px} #burger{display:block}
-  .topbar h1{font-size:18px}
-  .kpi .v{font-size:23px}
+  .topbar h1{font-size:18px} .kpi .v{font-size:23px}
 }
 </style>
 </head>
@@ -266,8 +252,7 @@ details summary{cursor:pointer;user-select:none}
 
     <form id="signupForm" class="hide" onsubmit="doSignup(event)">
       <div class="fld"><label>รหัสพนักงาน</label>
-        <input id="su_emp" required inputmode="numeric" autocomplete="username" placeholder="เช่น 66040027">
-        <div class="hint">ใช้รหัสนี้เป็นชื่อผู้ใช้สำหรับเข้าระบบ</div></div>
+        <input id="su_emp" required inputmode="numeric" autocomplete="username" placeholder="เช่น 66040027"></div>
       <div class="fld"><label>รหัสผ่าน</label>
         <input type="password" id="su_pass" required minlength="6" autocomplete="new-password">
         <div class="hint">อย่างน้อย 6 ตัวอักษร</div></div>
@@ -275,8 +260,7 @@ details summary{cursor:pointer;user-select:none}
         <input type="password" id="su_pass2" required minlength="6" autocomplete="new-password"></div>
       <button type="submit" class="btn" id="su_btn">สมัครสมาชิก</button>
       <p class="sm" style="margin-top:14px;text-align:center;line-height:1.6">
-        ชื่อ-นามสกุลจะดึงจากทะเบียนพนักงานอัตโนมัติ<br>
-        สมัครแล้วรอผู้ดูแลระบบอนุมัติก่อนเข้าใช้งาน</p>
+        ชื่อ-นามสกุลดึงจากทะเบียนพนักงานอัตโนมัติ<br>สมัครแล้วรอผู้ดูแลระบบอนุมัติก่อนเข้าใช้งาน</p>
     </form>
   </div>
 </div>
@@ -285,7 +269,7 @@ details summary{cursor:pointer;user-select:none}
 <div id="pendView" class="hide">
   <div class="blob b1"></div><div class="blob b2"></div>
   <div class="authbox" style="text-align:center">
-    <div style="font-size:54px;margin-bottom:14px;animation:glow 2s infinite;display:inline-block;
+    <div style="font-size:44px;margin-bottom:14px;animation:glow 2s infinite;display:inline-block;
                 width:82px;height:82px;line-height:82px;border-radius:50%;background:var(--org-soft)">⏳</div>
     <h1 style="font-size:22px;font-weight:600">รอการอนุมัติ</h1>
     <p class="sm" style="margin:9px 0 18px;line-height:1.7">บัญชีของคุณสมัครเรียบร้อยแล้ว<br>
@@ -320,7 +304,6 @@ details summary{cursor:pointer;user-select:none}
       <button onclick="doLogout()">ออกจากระบบ</button>
     </div>
   </aside>
-
   <main>
     <div class="topbar">
       <button id="burger" onclick="document.getElementById('side').classList.toggle('open')">☰</button>
@@ -332,18 +315,26 @@ details summary{cursor:pointer;user-select:none}
 
 <script>
 /* =========================================================================
-   CONFIG
+   CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const SUPABASE_URL  = 'https://ocdfmodlisgobvrmhqst.supabase.co';
-const SUPABASE_KEY  = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
-const EMAIL_DOMAIN  = 'wh2.local';   // รหัสพนักงานถูกแปลงเป็นอีเมลภายในระบบ เช่น 66040027@wh2.local
-const ADMIN_EMP     = '66040027';
-const MAX_ROWS      = 20000;
+const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
+const TOKEN_KEY    = 'wh2_token';
 
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-let ME = null, CHARTS = {}, PAGE = 'fg';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth:{ persistSession:false } });
+let ME = null, TOKEN = null, CHARTS = {}, PAGE = 'fg';
 
-const empToEmail = emp => String(emp).trim().toLowerCase() + '@' + EMAIL_DOMAIN;
+/* เรียก RPC พร้อมแนบ token — ถ้าเซสชันหมดอายุจะเด้งกลับหน้าล็อกอินอัตโนมัติ */
+async function rpc(fn, args = {}){
+  const {data,error} = await sb.rpc(fn, Object.assign({p_token: TOKEN}, args));
+  if(error){
+    const m = error.message || '';
+    if(/เซสชันหมดอายุ|ยังไม่ได้เข้าสู่ระบบ/.test(m)){ hardLogout(); throw new Error('เซสชันหมดอายุ'); }
+    throw new Error(m.replace(/^.*?ERROR:\s*/,''));
+  }
+  return data;
+}
+function hardLogout(){ localStorage.removeItem(TOKEN_KEY); location.reload(); }
 
 /* =========================================================================
    ตัวแปลงชนิดข้อมูล — ทำความสะอาดค่าจาก Excel ก่อนส่งขึ้น Postgres
@@ -375,8 +366,8 @@ function D(v){
   if(v instanceof Date) return isoD(v);
   if(typeof v==='number') return isoD(xlSerialToDate(v));
   let s = String(v).replace(NBSP,' ').trim().split(',')[0].trim();
-  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);            if(m) return m[0];
-  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);         // d/m/yyyy แบบไทย
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);        if(m) return m[0];
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);     // d/m/yyyy แบบไทย
   if(m) return m[3]+'-'+pad(m[2])+'-'+pad(m[1]);
   const d = new Date(s);
   return isNaN(d)? null : isoD(d);
@@ -420,20 +411,17 @@ function IV(v){          // interval — รองรับค่าติดล
    ผังคอลัมน์ 8 ชีท — อ่านตามลำดับคอลัมน์ (หัวตารางมี <br /> และชื่อซ้ำ)
    ========================================================================= */
 const SHEETS = {
-  'Master': { table:'master_material', mode:'replace', rpc:'replace_master_material',
-    label:'ทะเบียนสินค้า',
+  'Master': { table:'master_material', mode:'replace', label:'ทะเบียนสินค้า',
     cols:[['Mat.Code','mat_code',T],['Description','description',T],['Weight Spec','weight_spec',N],
           ['Group Sale','group_sale',T],['Group Product','group_product',T],
           ['Product Type','product_type',T],['Sloc.','sloc',T]],
     req:['mat_code'] },
 
-  'Customer': { table:'master_customer', mode:'replace', rpc:'replace_master_customer',
-    label:'ทะเบียนลูกค้า',
+  'Customer': { table:'master_customer', mode:'replace', label:'ทะเบียนลูกค้า',
     cols:[['รหัสลูกค้า','customer_code',T],['กลุ่มลูกค้า','customer_group',T]],
     req:['customer_code'] },
 
-  'User': { table:'master_employee', mode:'replace', rpc:'replace_master_employee',
-    label:'ทะเบียนพนักงาน',
+  'User': { table:'master_employee', mode:'replace', label:'ทะเบียนพนักงาน',
     cols:[['Employee ID','employee_id',T],['Name','name',T],['Surname','surname',T],
           ['Nickname','nickname',T],['Level','level',T]],
     req:['employee_id'] },
@@ -519,90 +507,74 @@ function authMsg(t,k){ el('authMsg').innerHTML = `<div class="msg ${k}">${t}</di
 
 async function doLogin(e){
   e.preventDefault();
-  const emp = el('li_emp').value.trim();
-  const b = el('li_btn'); b.disabled=true; b.textContent='กำลังเข้าสู่ระบบ…';
-  const {error} = await sb.auth.signInWithPassword({
-    email: empToEmail(emp), password: el('li_pass').value });
-  b.disabled=false; b.textContent='เข้าสู่ระบบ';
-  if(error){
-    authMsg(error.message.includes('Invalid login')
-      ? 'รหัสพนักงานหรือรหัสผ่านไม่ถูกต้อง'
-      : (error.message.includes('not confirmed')
-         ? 'บัญชียังไม่ถูกยืนยัน — ให้ผู้ดูแลระบบปิด <b>Confirm email</b> ใน Supabase'
-         : esc(error.message)), 'err');
-    return;
-  }
-  boot();
+  const b = el('li_btn'); b.disabled = true; b.textContent = 'กำลังเข้าสู่ระบบ…';
+  try{
+    const {data,error} = await sb.rpc('app_login',{
+      p_employee_id: el('li_emp').value.trim(), p_password: el('li_pass').value });
+    if(error) throw error;
+    if(!data.ok){ authMsg(esc(data.error), data.locked?'warn':'err'); return; }
+    TOKEN = data.token;
+    localStorage.setItem(TOKEN_KEY, TOKEN);
+    await boot();
+  }catch(ex){ authMsg(esc(ex.message||'เข้าสู่ระบบไม่สำเร็จ'),'err'); }
+  finally{ b.disabled = false; b.textContent = 'เข้าสู่ระบบ'; }
 }
 
 async function doSignup(e){
   e.preventDefault();
   const emp = el('su_emp').value.trim();
-  const p1  = el('su_pass').value, p2 = el('su_pass2').value;
-  if(!/^\d+$/.test(emp)){ authMsg('รหัสพนักงานต้องเป็นตัวเลขเท่านั้น','err'); return; }
-  if(p1!==p2){ authMsg('รหัสผ่านทั้งสองช่องไม่ตรงกัน','err'); return; }
-
-  const b = el('su_btn'); b.disabled=true; b.textContent='กำลังสมัคร…';
-  const {data,error} = await sb.auth.signUp({
-    email: empToEmail(emp), password: p1,
-    options:{ data:{ employee_id: emp } }
-  });
-  b.disabled=false; b.textContent='สมัครสมาชิก';
-
-  if(error){
-    let m = esc(error.message);
-    if(/already registered|already been registered/i.test(error.message))
-      m = 'รหัสพนักงานนี้ถูกใช้สมัครไปแล้ว — ไปที่แท็บเข้าสู่ระบบ';
-    else if(/invalid.*email/i.test(error.message))
-      m = 'ระบบไม่รับรูปแบบบัญชีนี้ — ให้ผู้ดูแลระบบตรวจค่า <code>EMAIL_DOMAIN</code> ในไฟล์ index.html';
-    else if(/duplicate key|employee_id/i.test(error.message))
-      m = 'รหัสพนักงานนี้ถูกใช้สมัครไปแล้ว';
-    authMsg(m,'err'); return;
-  }
-  if(!data.session){
-    authMsg('สมัครเรียบร้อย — แต่ระบบยังบังคับยืนยันบัญชีอยู่<br>'+
-            '<span class="sm">ให้ผู้ดูแลระบบปิด <b>Confirm email</b> ที่ Supabase → Authentication → Sign In / Providers → Email</span>','warn');
-    switchTab('login'); return;
-  }
-  boot();
+  if(el('su_pass').value !== el('su_pass2').value){
+    authMsg('รหัสผ่านทั้งสองช่องไม่ตรงกัน','err'); return; }
+  const b = el('su_btn'); b.disabled = true; b.textContent = 'กำลังสมัคร…';
+  try{
+    const {data,error} = await sb.rpc('app_signup',{p_employee_id: emp, p_password: el('su_pass').value});
+    if(error) throw error;
+    if(!data.ok){ authMsg(esc(data.error),'err'); return; }
+    el('li_emp').value = emp; el('li_pass').value = '';
+    switchTab('login');
+    authMsg(data.is_approved
+      ? 'สมัครเรียบร้อย และได้สิทธิ์ผู้ดูแลระบบ — เข้าสู่ระบบได้เลย'
+      : ('สมัครเรียบร้อย' + (data.found_in_registry
+          ? ` — พบในทะเบียนพนักงาน (${esc(data.reg_name)})` : ' — ไม่พบรหัสนี้ในทะเบียนพนักงาน')
+        ) + '<br>กรุณารอผู้ดูแลระบบอนุมัติก่อนเข้าใช้งาน', 'ok');
+  }catch(ex){ authMsg(esc(ex.message||'สมัครไม่สำเร็จ'),'err'); }
+  finally{ b.disabled = false; b.textContent = 'สมัครสมาชิก'; }
 }
 
-async function doLogout(){ await sb.auth.signOut(); location.reload(); }
+async function doLogout(){
+  try{ if(TOKEN) await sb.rpc('app_logout',{p_token:TOKEN}); }catch(_){}
+  hardLogout();
+}
 
 /* =========================================================================
    BOOT
    ========================================================================= */
 async function boot(){
-  const {data:{session}} = await sb.auth.getSession();
-  if(!session){ show('authView'); return; }
+  TOKEN = TOKEN || localStorage.getItem(TOKEN_KEY);
+  if(!TOKEN){ show('authView'); return; }
 
-  const {data:p,error} = await sb.from('profiles').select('*').eq('id',session.user.id).single();
-  if(error || !p){
-    show('authView');
-    authMsg('ไม่พบข้อมูลโปรไฟล์ กรุณาติดต่อผู้ดูแลระบบ','err');
-    await sb.auth.signOut(); return;
-  }
-  ME = p;
+  let me;
+  try{ me = await rpc('app_me'); }
+  catch(ex){ localStorage.removeItem(TOKEN_KEY); TOKEN = null; show('authView'); return; }
+  ME = me;
 
-  if(!p.is_approved){
-    el('pendInfo').innerHTML =
-      `<b>รหัสพนักงาน</b> ${esc(p.employee_id)}` +
-      ((p.name||p.surname) ? `<br><b>ชื่อ</b> ${esc(p.name||'')} ${esc(p.surname||'')}` : '');
+  if(!ME.is_approved){
+    el('pendInfo').innerHTML = `<b>รหัสพนักงาน</b> ${esc(ME.employee_id)}` +
+      ((ME.name||ME.surname) ? `<br><b>ชื่อ</b> ${esc(ME.name||'')} ${esc(ME.surname||'')}` : '');
     show('pendView'); return;
   }
 
-  const full = ((p.name||'')+' '+(p.surname||'')).trim();
-  el('meAv').textContent   = (p.nickname||p.name||p.employee_id).charAt(0).toUpperCase();
-  el('meName').textContent = full || ('รหัส '+p.employee_id);
-  el('meRole').textContent = (p.role==='admin'?'ผู้ดูแลระบบ':'ผู้ใช้งาน')+' · '+p.employee_id;
-  const adm = p.role==='admin';
+  const full = ((ME.name||'')+' '+(ME.surname||'')).trim();
+  el('meAv').textContent   = (ME.nickname||ME.name||ME.employee_id).charAt(0).toUpperCase();
+  el('meName').textContent = full || ('รหัส '+ME.employee_id);
+  el('meRole').textContent = (ME.role==='admin'?'ผู้ดูแลระบบ':'ผู้ใช้งาน')+' · '+ME.employee_id;
+  const adm = ME.role==='admin';
   el('navImport').classList.toggle('hide',!adm);
   el('navUsers').classList.toggle('hide',!adm);
   show('appView');
   go('fg');
 }
-function show(id){ ['authView','pendView','appView'].forEach(v=>
-  el(v).classList.toggle('hide', v!==id)); }
+function show(id){ ['authView','pendView','appView'].forEach(v=>el(v).classList.toggle('hide', v!==id)); }
 
 /* =========================================================================
    ROUTER
@@ -620,8 +592,8 @@ function go(p,e){
   if((p==='import'||p==='users') && ME.role!=='admin') p='fg';
   PAGE = p;
   document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.p===p));
-  el('pgTitle').innerHTML  = PAGES[p].t;
-  el('pgSub').textContent  = PAGES[p].s;
+  el('pgTitle').innerHTML = PAGES[p].t;
+  el('pgSub').textContent = PAGES[p].s;
   el('side').classList.remove('open');
   Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(_){}}); CHARTS={};
   el('pageBody').innerHTML = '<div class="skel"></div><div class="skel" style="height:250px"></div>';
@@ -638,21 +610,17 @@ function body(h){ el('pageBody').innerHTML = h; countUp(); }
 
 const PAL = ['#0b2447','#ff7a18','#1d4f92','#ff9945','#2d6ca8','#c85a00','#5b8fc4','#ffc78a','#12376b','#e0651a'];
 
-/* ตัวเลข KPI นับขึ้นตอนแสดงผล */
 function countUp(){
   document.querySelectorAll('.kpi .v').forEach(n=>{
-    const txt = n.textContent.trim();
-    const m = txt.match(/^-?[\d,]+(\.\d+)?/);
+    const txt = n.textContent.trim(), m = txt.match(/^-?[\d,]+(\.\d+)?/);
     if(!m) return;
     const target = parseFloat(m[0].replace(/,/g,''));
     if(!isFinite(target) || target===0) return;
-    const suffix = txt.slice(m[0].length);
-    const dec = (m[1]||'').length? m[1].length-1 : 0;
-    const t0 = performance.now(), dur = 620;
+    const suffix = txt.slice(m[0].length), dec = (m[1]||'').length? m[1].length-1 : 0;
+    const t0 = performance.now();
     (function step(t){
-      const k = Math.min(1,(t-t0)/dur), e = 1-Math.pow(1-k,3);
-      n.textContent = (target*e).toLocaleString('th-TH',
-        {minimumFractionDigits:dec,maximumFractionDigits:dec}) + suffix;
+      const k = Math.min(1,(t-t0)/620), e = 1-Math.pow(1-k,3);
+      n.textContent = (target*e).toLocaleString('th-TH',{minimumFractionDigits:dec,maximumFractionDigits:dec}) + suffix;
       if(k<1) requestAnimationFrame(step);
     })(t0);
   });
@@ -666,11 +634,11 @@ function chart(id,type,labels,datasets,opts={}){
       responsive:true, maintainAspectRatio:false,
       animation:{duration:750,easing:'easeOutQuart'},
       plugins:{
-        legend:{ display:datasets.length>1||type==='doughnut'||type==='pie',
-                 position:'bottom', labels:{font:{family:'Kanit',size:11,weight:'300'},boxWidth:12,padding:14} },
+        legend:{ display:datasets.length>1||type==='doughnut'||type==='pie', position:'bottom',
+                 labels:{font:{family:'Kanit',size:11,weight:'300'},boxWidth:12,padding:14} },
         tooltip:{ backgroundColor:'#0b2447', titleFont:{family:'Kanit',size:12,weight:'500'},
                   bodyFont:{family:'Kanit',size:12,weight:'300'}, padding:11, cornerRadius:9,
-                  borderColor:'#ff7a18', borderWidth:1.5, displayColors:true }
+                  borderColor:'#ff7a18', borderWidth:1.5 }
       },
       scales:(type==='doughnut'||type==='pie')?{}:{
         y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},
@@ -683,13 +651,13 @@ function chart(id,type,labels,datasets,opts={}){
 
 function groupSum(rows,keyFn,valFn){
   const m = new Map();
-  rows.forEach(r=>{ const k = keyFn(r) ?? 'ไม่ระบุ'; const v = valFn(r);
+  rows.forEach(r=>{ const k = keyFn(r) ?? 'ไม่ระบุ', v = valFn(r);
     if(v==null||isNaN(v)) return; m.set(k,(m.get(k)||0)+Number(v)); });
   return [...m.entries()].sort((a,b)=>b[1]-a[1]);
 }
 function groupAvg(rows,keyFn,valFn){
   const m = new Map();
-  rows.forEach(r=>{ const k = keyFn(r) ?? 'ไม่ระบุ'; const v = valFn(r);
+  rows.forEach(r=>{ const k = keyFn(r) ?? 'ไม่ระบุ', v = valFn(r);
     if(v==null||isNaN(v)) return; const e = m.get(k)||[0,0]; e[0]+=Number(v); e[1]++; m.set(k,e); });
   return [...m.entries()].map(([k,[s,c]])=>[k,s/c]).sort((a,b)=>b[1]-a[1]);
 }
@@ -716,15 +684,6 @@ function tableHTML(cols,rows,limit=200){
       ? `แสดง ${fmt(limit)} จากทั้งหมด ${fmt(rows.length)} แถว`
       : `ทั้งหมด ${fmt(rows.length)} แถว`}</p>`;
 }
-
-async function fetchAll(view,dateCol,from,to){
-  let q = sb.from(view).select('*').limit(MAX_ROWS);
-  if(dateCol && from) q = q.gte(dateCol,from);
-  if(dateCol && to)   q = q.lte(dateCol,to);
-  const {data,error} = await q;
-  if(error){ console.error(error); return {rows:[],error}; }
-  return {rows:data||[],error:null};
-}
 function dateFilterHTML(f,t,fn){
   return `<div class="filters anim">
     <div class="fld"><label>ตั้งแต่วันที่</label><input type="date" id="fFrom" value="${f||''}"></div>
@@ -733,16 +692,17 @@ function dateFilterHTML(f,t,fn){
     <button class="fbtn alt" onclick="el('fFrom').value='';el('fTo').value='';${fn}()">ล้างตัวกรอง</button>
   </div>`;
 }
-function errCard(e){ return `<div class="card anim"><div class="msg err">โหลดข้อมูลไม่สำเร็จ: ${esc(e.message)}</div></div>`; }
+function errCard(m){ return `<div class="card anim"><div class="msg err">โหลดข้อมูลไม่สำเร็จ: ${esc(m)}</div></div>`; }
 
 /* =========================================================================
    PAGE 1 — FG OUTBOUND VOLUME
    ========================================================================= */
 async function pageFG(){
-  const f = el('fFrom')?.value, t = el('fTo')?.value;
-  const {rows,error} = await fetchAll('v_fg_enriched','load_date',f,t);
+  const f = el('fFrom')?.value || null, t = el('fTo')?.value || null;
   const head = dateFilterHTML(f,t,'pageFG');
-  if(error){ body(head+errCard(error)); return; }
+  let rows;
+  try{ rows = await rpc('app_dash_fg',{p_from:f,p_to:t}); }
+  catch(ex){ body(head+errCard(ex.message)); return; }
   if(!rows.length){ body(head + emptyBox('ยังไม่มีข้อมูล FG ในช่วงที่เลือก')); return; }
 
   const totQty = rows.reduce((s,r)=>s+(+r.delivery_qty||0),0);
@@ -808,10 +768,11 @@ async function pageFG(){
    PAGE 2 — DO PREPARING
    ========================================================================= */
 async function pagePrepare(){
-  const f = el('fFrom')?.value, t = el('fTo')?.value;
-  const {rows,error} = await fetchAll('v_prepare_kpi','loading_date',f,t);
+  const f = el('fFrom')?.value || null, t = el('fTo')?.value || null;
   const head = dateFilterHTML(f,t,'pagePrepare');
-  if(error){ body(head+errCard(error)); return; }
+  let rows;
+  try{ rows = await rpc('app_dash_prepare',{p_from:f,p_to:t}); }
+  catch(ex){ body(head+errCard(ex.message)); return; }
   if(!rows.length){ body(head + emptyBox('ยังไม่มีข้อมูล Prepare ในช่วงที่เลือก')); return; }
 
   const done = rows.filter(r=>r.stage==='Completed');
@@ -885,14 +846,13 @@ async function pagePrepare(){
    PAGE 3 — MILK RUN & FACTORY TIMEOUT
    ========================================================================= */
 async function pageMilk(){
-  const f = el('fFrom')?.value, t = el('fTo')?.value;
-  const [mr,to] = await Promise.all([
-    fetchAll('v_milkrun_kpi','run_date',f,t),
-    fetchAll('v_timeout_kpi','work_date',f,t)
-  ]);
+  const f = el('fFrom')?.value || null, t = el('fTo')?.value || null;
   const head = dateFilterHTML(f,t,'pageMilk');
-  if(mr.error||to.error){ body(head+errCard(mr.error||to.error)); return; }
-  const R = mr.rows, O = to.rows;
+  let R,O;
+  try{ [R,O] = await Promise.all([
+        rpc('app_dash_milkrun',{p_from:f,p_to:t}),
+        rpc('app_dash_timeout',{p_from:f,p_to:t}) ]); }
+  catch(ex){ body(head+errCard(ex.message)); return; }
   if(!R.length && !O.length){ body(head + emptyBox('ยังไม่มีข้อมูล Milk Run / Timeout ในช่วงที่เลือก')); return; }
 
   const trips  = new Set(R.map(r=>r.milk_run_no)).size;
@@ -919,8 +879,7 @@ async function pageMilk(){
   const outSeries = facs.map((fc,i)=>({
     label:fc, data:dates.map(d=>{ const x=O.find(r=>r.factory===fc&&r.work_date===d); return x?x.time_out_hours:null; }),
     borderColor:PAL[i%PAL.length], backgroundColor:PAL[i%PAL.length], tension:.3, spanGaps:true,
-    pointRadius:3, borderWidth:2
-  }));
+    pointRadius:3, borderWidth:2 }));
   const recvByFac = groupSum(O,r=>r.factory,r=>r.receive_pd);
   const issByFac  = groupSum(O,r=>r.factory,r=>r.issue_pd);
   const facLabels = [...new Set([...recvByFac,...issByFac].map(x=>x[0]))];
@@ -936,7 +895,6 @@ async function pageMilk(){
       <div class="v">${avgOut==null?'—':(Math.floor(avgOut)+':'+pad(Math.round((avgOut%1)*60)))}</div>
       <div class="s">${fmt(O.length)} บันทึก · ${facs.length} โรง</div></div>
   </div>
-
   <div class="card anim d3"><h3>เวลาที่ใช้แต่ละช่วงของ Milk Run (นาทีเฉลี่ย)</h3>
     <div class="kpis" style="margin-bottom:0">
       <div class="kpi"><div class="k">รอหยิบสินค้า</div><div class="v">${seg.wait==null?'—':fmt(seg.wait,1)}</div><div class="s">นาที</div></div>
@@ -944,7 +902,6 @@ async function pageMilk(){
       <div class="kpi o"><div class="k">รอ Check-in</div><div class="v">${seg.chk==null?'—':fmt(seg.chk,1)}</div><div class="s">นาที</div></div>
       <div class="kpi g"><div class="k">ลงสินค้า</div><div class="v">${seg.unl==null?'—':fmt(seg.unl,1)}</div><div class="s">นาที</div></div>
     </div></div>
-
   <div class="grid2">
     <div class="card anim d4"><h3>จำนวนรายการตามเส้นทาง</h3><div class="chartbox"><canvas id="m1"></canvas></div></div>
     <div class="card anim d4"><h3>เวลาแต่ละช่วงแยกตามเส้นทาง (นาที)</h3><div class="chartbox"><canvas id="m2"></canvas></div></div>
@@ -958,7 +915,6 @@ async function pageMilk(){
     <div class="card anim d5"><h3>รับเข้า / จ่ายออก PD รายโรง</h3><div class="chartbox"><canvas id="m6"></canvas></div>
       <p class="sm" style="margin-top:11px">รับเข้ารวม <b>${fmt(totRecv)}</b> · จ่ายออกรวม <b>${fmt(totIssue,2)}</b></p></div>
   </div>
-
   <div class="card anim d6"><h3>รายการ Milk Run</h3>` + tableHTML([
     {h:'วันที่',k:'run_date'},{h:'Milk Run',k:'milk_run_no'},
     {h:'เส้นทาง',k:'route',raw:1,f:r=>`<span class="pill b">${esc(r.route)}</span>`},
@@ -972,7 +928,6 @@ async function pageMilk(){
     {h:'รวมเที่ยว',k:'trip_mins',n:1,f:r=>r.trip_mins==null?'—':fmt(r.trip_mins,0)},
     {h:'พนักงานขับ',k:'driver_name'}
   ],R) + `</div>
-
   <div class="card anim d6"><h3>บันทึกเวลาปิดงานรายโรง</h3>` + tableHTML([
     {h:'วันที่',k:'work_date'},{h:'โรง',k:'factory',raw:1,f:r=>`<span class="pill b">${esc(r.factory)}</span>`},
     {h:'เวลาปิด',k:'time_out'},
@@ -1039,18 +994,19 @@ function pageImport(){
 }
 
 async function loadImportLog(){
-  const {data,error} = await sb.from('import_log').select('*').order('created_at',{ascending:false}).limit(40);
-  if(error){ el('impLog').innerHTML = `<div class="msg err">${esc(error.message)}</div>`; return; }
+  let data;
+  try{ data = await rpc('app_import_log_list'); }
+  catch(ex){ el('impLog').innerHTML = `<div class="msg err">${esc(ex.message)}</div>`; return; }
   if(!data.length){ el('impLog').innerHTML = '<p class="sm">ยังไม่มีประวัติ</p>'; return; }
   el('impLog').innerHTML = tableHTML([
     {h:'เวลา',k:'created_at',f:r=>new Date(r.created_at).toLocaleString('th-TH')},
-    {h:'ไฟล์',k:'file_name'},{h:'ชีท',k:'sheet_name'},
+    {h:'โดย',k:'by_emp'},{h:'ไฟล์',k:'file_name'},{h:'ชีท',k:'sheet_name'},
     {h:'โหมด',k:'mode',raw:1,f:r=>`<span class="pill ${r.mode==='replace'?'o':'b'}">${r.mode==='replace'?'เขียนทับ':'สะสม'}</span>`},
     {h:'อ่านได้',k:'rows_in',n:1,f:r=>fmt(r.rows_in)},
     {h:'บันทึก',k:'rows_saved',n:1,f:r=>fmt(r.rows_saved)},
     {h:'สถานะ',k:'status',raw:1,f:r=>`<span class="pill ${r.status==='ok'?'g':'r'}">${r.status==='ok'?'สำเร็จ':'ผิดพลาด'}</span>`},
     {h:'หมายเหตุ',k:'message',f:r=>(r.message||'').slice(0,60)}
-  ],data,40);
+  ],data,50);
 }
 
 function cleanHdr(h){ return String(h??'').replace(/<br\s*\/?>/gi,' ').replace(NBSP,' ').replace(/\s+/g,' ').trim(); }
@@ -1164,22 +1120,22 @@ async function runImport(){
 
   const sheets = PARSED.out;
   let doneUnits = 0, okAll = true;
-  const totalUnits = sheets.reduce((s,x)=>s+Math.max(1,Math.ceil(x.rows.length/500)),0);
+  const CHUNK = 1000;
+  const totalUnits = sheets.reduce((s,x)=>s+Math.max(1,Math.ceil(x.rows.length/CHUNK)),0);
 
   for(const s of sheets){
     logLine(`▶ ${s.name} → ${s.cfg.table} (${fmt(s.rows.length)} แถว, ${s.cfg.mode==='replace'?'เขียนทับ':'สะสม'})`,'y');
     let saved = 0, err = null;
     try{
       if(s.cfg.mode==='replace'){
-        const {data,error} = await sb.rpc(s.cfg.rpc,{rows:s.rows});
-        if(error) throw error;
-        saved = data ?? s.rows.length; doneUnits++;
+        // เขียนทับต้องส่งทีเดียวทั้งชุด เพราะฟังก์ชันจะล้างของเดิมก่อน
+        saved = await rpc('app_import_replace',{p_table:s.cfg.table, p_rows:s.rows});
+        doneUnits++;
       }else{
-        for(let i=0;i<s.rows.length;i+=500){
-          const chunk = s.rows.slice(i,i+500);
-          const {error} = await sb.from(s.cfg.table).upsert(chunk,{onConflict:s.cfg.conflict,ignoreDuplicates:false});
-          if(error) throw error;
-          saved += chunk.length; doneUnits++;
+        for(let i=0;i<s.rows.length;i+=CHUNK){
+          saved += await rpc('app_import_upsert',
+            {p_table:s.cfg.table, p_rows:s.rows.slice(i,i+CHUNK)});
+          doneUnits++;
           el('impBar').style.width = Math.round(doneUnits/totalUnits*100)+'%';
         }
         if(!s.rows.length) doneUnits++;
@@ -1187,15 +1143,15 @@ async function runImport(){
       logLine(`  ✔ บันทึก ${fmt(saved)} แถว`,'g');
     }catch(ex){
       okAll = false; err = ex;
-      logLine(`  ✘ ผิดพลาด: ${esc(ex.message||String(ex))}`,'r');
-      if(ex.details) logLine(`     ${esc(ex.details)}`,'r');
+      logLine(`  ✘ ผิดพลาด: ${esc(ex.message)}`,'r');
     }
     el('impBar').style.width = Math.round(doneUnits/totalUnits*100)+'%';
 
-    await sb.from('import_log').insert({
-      user_id: ME.id, file_name: PARSED.fname, sheet_name: s.name, mode: s.cfg.mode,
-      rows_in: s.rows.length, rows_saved: saved,
-      status: err?'error':'ok', message: err? String(err.message||err).slice(0,400) : null });
+    try{
+      await rpc('app_import_log_add',{ p_file:PARSED.fname, p_sheet:s.name, p_mode:s.cfg.mode,
+        p_rows_in:s.rows.length, p_rows_saved:saved, p_status: err?'error':'ok',
+        p_message: err? String(err.message).slice(0,400) : null });
+    }catch(_){}
   }
 
   el('impBar').style.width = '100%';
@@ -1239,9 +1195,11 @@ function pageProfile(){
     <h3>เปลี่ยนรหัสผ่าน</h3>
     <div id="pwMsg"></div>
     <form onsubmit="changePw(event)">
+      <div class="fld"><label>รหัสผ่านเดิม</label>
+        <input type="password" id="pw0" required autocomplete="current-password"></div>
       <div class="fld"><label>รหัสผ่านใหม่</label>
         <input type="password" id="pw1" required minlength="6" autocomplete="new-password">
-        <div class="hint">อย่างน้อย 6 ตัวอักษร</div></div>
+        <div class="hint">อย่างน้อย 6 ตัวอักษร · เปลี่ยนแล้วอุปกรณ์อื่นจะถูกออกจากระบบ</div></div>
       <div class="fld"><label>ยืนยันรหัสผ่านใหม่</label>
         <input type="password" id="pw2" required minlength="6" autocomplete="new-password"></div>
       <button type="submit" class="btn navy" id="pw_btn">เปลี่ยนรหัสผ่าน</button>
@@ -1252,99 +1210,113 @@ function pageProfile(){
 async function saveProfile(e){
   e.preventDefault();
   const b = el('pr_btn'); b.disabled = true; b.textContent = 'กำลังบันทึก…';
-  const patch = {
-    name:     el('pr_name').value.trim() || null,
-    surname:  el('pr_sur').value.trim()  || null,
-    nickname: el('pr_nick').value.trim() || null,
-    level:    el('pr_lvl').value         || null };
-  const {error} = await sb.from('profiles').update(patch).eq('id',ME.id);
-  b.disabled = false; b.textContent = 'บันทึกการเปลี่ยนแปลง';
-  if(error){ el('prMsg').innerHTML = `<div class="msg err">${esc(error.message)}</div>`; return; }
-  Object.assign(ME,patch);
-  const full = ((ME.name||'')+' '+(ME.surname||'')).trim();
-  el('meName').textContent = full || ('รหัส '+ME.employee_id);
-  el('meAv').textContent   = (ME.nickname||ME.name||ME.employee_id).charAt(0).toUpperCase();
-  el('prMsg').innerHTML = '<div class="msg ok">บันทึกเรียบร้อย</div>';
+  try{
+    ME = await rpc('app_update_profile',{
+      p_name: el('pr_name').value, p_surname: el('pr_sur').value,
+      p_nickname: el('pr_nick').value, p_level: el('pr_lvl').value });
+    const full = ((ME.name||'')+' '+(ME.surname||'')).trim();
+    el('meName').textContent = full || ('รหัส '+ME.employee_id);
+    el('meAv').textContent   = (ME.nickname||ME.name||ME.employee_id).charAt(0).toUpperCase();
+    el('prMsg').innerHTML = '<div class="msg ok">บันทึกเรียบร้อย</div>';
+  }catch(ex){ el('prMsg').innerHTML = `<div class="msg err">${esc(ex.message)}</div>`; }
+  finally{ b.disabled = false; b.textContent = 'บันทึกการเปลี่ยนแปลง'; }
 }
 
 async function changePw(e){
   e.preventDefault();
   if(el('pw1').value !== el('pw2').value){
-    el('pwMsg').innerHTML = '<div class="msg err">รหัสผ่านทั้งสองช่องไม่ตรงกัน</div>'; return; }
+    el('pwMsg').innerHTML = '<div class="msg err">รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน</div>'; return; }
   const b = el('pw_btn'); b.disabled = true; b.textContent = 'กำลังเปลี่ยน…';
-  const {error} = await sb.auth.updateUser({password: el('pw1').value});
-  b.disabled = false; b.textContent = 'เปลี่ยนรหัสผ่าน';
-  el('pwMsg').innerHTML = error ? `<div class="msg err">${esc(error.message)}</div>`
-                                : '<div class="msg ok">เปลี่ยนรหัสผ่านเรียบร้อย</div>';
-  if(!error){ el('pw1').value=''; el('pw2').value=''; }
+  try{
+    await rpc('app_change_password',{p_old: el('pw0').value, p_new: el('pw1').value});
+    el('pwMsg').innerHTML = '<div class="msg ok">เปลี่ยนรหัสผ่านเรียบร้อย</div>';
+    el('pw0').value=''; el('pw1').value=''; el('pw2').value='';
+  }catch(ex){ el('pwMsg').innerHTML = `<div class="msg err">${esc(ex.message)}</div>`; }
+  finally{ b.disabled = false; b.textContent = 'เปลี่ยนรหัสผ่าน'; }
 }
 
 /* =========================================================================
    PAGE 6 — USER MANAGEMENT (admin)
    ========================================================================= */
 async function pageUsers(){
-  const [{data:profs,error},{data:emps}] = await Promise.all([
-    sb.from('profiles').select('*').order('created_at',{ascending:false}),
-    sb.from('master_employee').select('employee_id,name,surname,nickname,level')
-  ]);
-  if(error){ body(errCard(error)); return; }
+  let U;
+  try{ U = await rpc('app_list_users'); }
+  catch(ex){ body(errCard(ex.message)); return; }
 
-  const empMap = new Map((emps||[]).map(e=>[String(e.employee_id),e]));
-  const pend = profs.filter(p=>!p.is_approved);
+  const pend = U.filter(u=>!u.is_approved);
+  const inReg = U.filter(u=>u.in_registry).length;
 
   body(`
   <div class="kpis">
-    <div class="kpi anim d1"><div class="k">ผู้ใช้ทั้งหมด</div><div class="v">${fmt(profs.length)}</div><div class="s">บัญชี</div></div>
+    <div class="kpi anim d1"><div class="k">ผู้ใช้ทั้งหมด</div><div class="v">${fmt(U.length)}</div><div class="s">บัญชี</div></div>
     <div class="kpi ${pend.length?'o':'g'} anim d2"><div class="k">รออนุมัติ</div><div class="v">${fmt(pend.length)}</div><div class="s">คน</div></div>
     <div class="kpi anim d3"><div class="k">ผู้ดูแลระบบ</div>
-      <div class="v">${fmt(profs.filter(p=>p.role==='admin').length)}</div><div class="s">คน</div></div>
-    <div class="kpi g anim d4"><div class="k">ทะเบียนพนักงาน</div><div class="v">${fmt(empMap.size)}</div>
-      <div class="s">จากชีท User</div></div>
+      <div class="v">${fmt(U.filter(u=>u.role==='admin').length)}</div><div class="s">คน</div></div>
+    <div class="kpi ${inReg===U.length?'g':'r'} anim d4"><div class="k">ตรงทะเบียนพนักงาน</div>
+      <div class="v">${fmt(inReg)}</div><div class="s">จาก ${fmt(U.length)} บัญชี</div></div>
   </div>
   <div class="card anim d3">
     <h3>รายชื่อผู้ใช้</h3>
     <p class="sm" style="margin-bottom:13px">คอลัมน์ <b>ตรงทะเบียน</b> เทียบรหัสพนักงานกับชีท <code>User</code> ที่นำเข้ามา</p>
     <div class="tw"><table><thead><tr>
       <th>รหัสพนักงาน</th><th>ตรงทะเบียน</th><th>ชื่อ-นามสกุล</th><th>ชื่อเล่น</th><th>ระดับ</th>
-      <th>สิทธิ์</th><th>สถานะ</th><th>สมัครเมื่อ</th><th>จัดการ</th>
-    </tr></thead><tbody>${profs.map(p=>{
-      const m = empMap.get(String(p.employee_id)), self = p.id===ME.id;
+      <th>สิทธิ์</th><th>สถานะ</th><th>เข้าล่าสุด</th><th>จัดการ</th>
+    </tr></thead><tbody>${U.map(u=>{
+      const self = u.id===ME.id;
+      const nm = ((u.name||'')+' '+(u.surname||'')).trim();
       return `<tr>
-        <td class="mono"><b>${esc(p.employee_id)}</b></td>
-        <td>${m?'<span class="pill g">พบ</span>':'<span class="pill n">ไม่พบ</span>'}</td>
-        <td>${esc(((p.name||'')+' '+(p.surname||'')).trim()||'—')}${
-          m&&(m.name!==p.name||m.surname!==p.surname)
-            ? `<div class="sm">ทะเบียน: ${esc(((m.name||'')+' '+(m.surname||'')).trim())}</div>` : ''}</td>
-        <td>${esc(p.nickname||'—')}</td><td>${esc(p.level||'—')}</td>
-        <td><span class="pill ${p.role==='admin'?'o':'n'}">${p.role==='admin'?'Admin':'User'}</span></td>
-        <td>${p.is_approved?'<span class="pill g">อนุมัติแล้ว</span>':'<span class="pill o">รออนุมัติ</span>'}</td>
-        <td class="sm">${new Date(p.created_at).toLocaleDateString('th-TH')}</td>
-        <td><button class="fbtn ${p.is_approved?'alt':''}" style="padding:5px 12px;font-size:12px"
-              onclick="toggleApprove('${p.id}',${p.is_approved})">${p.is_approved?'ระงับ':'อนุมัติ'}</button>
-          ${self?'':`<button class="fbtn ${p.role==='admin'?'alt':'navy'}" style="padding:5px 12px;font-size:12px;margin-left:6px"
-              onclick="toggleRole('${p.id}','${p.role}')">${p.role==='admin'?'ถอด Admin':'ตั้ง Admin'}</button>`}
+        <td class="mono"><b>${esc(u.employee_id)}</b></td>
+        <td>${u.in_registry?'<span class="pill g">พบ</span>':'<span class="pill r">ไม่พบ</span>'}</td>
+        <td>${esc(nm||'—')}${u.in_registry && u.reg_name && u.reg_name.trim()!==nm
+          ? `<div class="sm">ทะเบียน: ${esc(u.reg_name.trim())}</div>`:''}</td>
+        <td>${esc(u.nickname||'—')}</td><td>${esc(u.level||'—')}</td>
+        <td><span class="pill ${u.role==='admin'?'o':'n'}">${u.role==='admin'?'Admin':'User'}</span></td>
+        <td>${u.locked ? '<span class="pill r">ถูกล็อก</span>'
+             : u.is_approved ? '<span class="pill g">อนุมัติแล้ว</span>'
+             : '<span class="pill o">รออนุมัติ</span>'}</td>
+        <td class="sm">${u.last_login_at? new Date(u.last_login_at).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'}) : 'ยังไม่เคย'}</td>
+        <td style="white-space:nowrap">
+          <button class="fbtn ${u.is_approved?'alt':''}" style="padding:5px 11px;font-size:12px"
+            onclick="uApprove('${u.id}',${u.is_approved})">${u.is_approved?'ระงับ':'อนุมัติ'}</button>
+          ${self?'':`
+          <button class="fbtn ${u.role==='admin'?'alt':'navy'}" style="padding:5px 11px;font-size:12px;margin-left:5px"
+            onclick="uRole('${u.id}','${u.role}')">${u.role==='admin'?'ถอด Admin':'ตั้ง Admin'}</button>
+          <button class="fbtn alt" style="padding:5px 11px;font-size:12px;margin-left:5px"
+            onclick="uReset('${u.id}','${esc(u.employee_id)}')">รีเซ็ตรหัสผ่าน</button>
+          <button class="fbtn red" style="padding:5px 11px;font-size:12px;margin-left:5px"
+            onclick="uDelete('${u.id}','${esc(u.employee_id)}')">ลบ</button>`}
         </td></tr>`;
     }).join('')}</tbody></table></div>
   </div>`);
 }
 
-async function toggleApprove(id,cur){
-  const {error} = await sb.from('profiles').update({is_approved:!cur}).eq('id',id);
-  if(error) alert('ผิดพลาด: '+error.message);
+async function uApprove(id,cur){
+  try{ await rpc('app_set_approved',{p_user_id:id,p_value:!cur}); }catch(ex){ alert(ex.message); }
   pageUsers();
 }
-async function toggleRole(id,cur){
+async function uRole(id,cur){
   const nx = cur==='admin'?'user':'admin';
   if(!confirm(nx==='admin'?'ตั้งผู้ใช้รายนี้เป็นผู้ดูแลระบบ?':'ถอดสิทธิ์ผู้ดูแลระบบของผู้ใช้รายนี้?')) return;
-  const {error} = await sb.from('profiles').update({role:nx,is_approved:true}).eq('id',id);
-  if(error) alert('ผิดพลาด: '+error.message);
+  try{ await rpc('app_set_role',{p_user_id:id,p_role:nx}); }catch(ex){ alert(ex.message); }
+  pageUsers();
+}
+async function uReset(id,emp){
+  const pw = prompt(`ตั้งรหัสผ่านใหม่ให้รหัสพนักงาน ${emp}\n(อย่างน้อย 6 ตัวอักษร)`);
+  if(!pw) return;
+  try{ await rpc('app_admin_reset_password',{p_user_id:id,p_new:pw});
+       alert(`ตั้งรหัสผ่านใหม่ให้ ${emp} เรียบร้อย\nแจ้งรหัสนี้กับเจ้าตัวและให้เปลี่ยนเองทันทีที่เข้าระบบได้`);
+  }catch(ex){ alert(ex.message); }
+  pageUsers();
+}
+async function uDelete(id,emp){
+  if(!confirm(`ลบบัญชีรหัสพนักงาน ${emp} ถาวร?\nการลบนี้ย้อนกลับไม่ได้`)) return;
+  try{ await rpc('app_delete_user',{p_user_id:id}); }catch(ex){ alert(ex.message); }
   pageUsers();
 }
 
 /* =========================================================================
    START
    ========================================================================= */
-sb.auth.onAuthStateChange(ev=>{ if(ev==='SIGNED_OUT') location.reload(); });
 boot();
 </script>
 </body>
