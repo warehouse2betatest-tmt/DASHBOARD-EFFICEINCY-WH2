@@ -289,9 +289,9 @@ details summary{cursor:pointer;user-select:none}
     </div>
     <nav>
       <div class="navlbl">Dashboard</div>
-      <a href="#" data-p="fg"      onclick="go('fg',event)"><span class="ic">📦</span> FG Outbound Volume</a>
+      <a href="#" data-p="fg"      onclick="go('fg',event)"><span class="ic">📦</span> FG [Outbound &amp; Inbound]</a>
       <a href="#" data-p="prepare" onclick="go('prepare',event)"><span class="ic">⏱️</span> DO Preparing</a>
-      <a href="#" data-p="milkrun" onclick="go('milkrun',event)"><span class="ic">🚚</span> Milk Run &amp; Timeout</a>
+      <a href="#" data-p="milkrun" onclick="go('milkrun',event)"><span class="ic">🚚</span> Milk Run</a>
       <div class="navlbl">ระบบ</div>
       <a href="#" data-p="import" id="navImport" onclick="go('import',event)"><span class="ic">📥</span> นำเข้าข้อมูล</a>
       <a href="#" data-p="profile" onclick="go('profile',event)"><span class="ic">👤</span> โปรไฟล์ของฉัน</a>
@@ -580,9 +580,9 @@ function show(id){ ['authView','pendView','appView'].forEach(v=>el(v).classList.
    ROUTER
    ========================================================================= */
 const PAGES = {
-  fg:      {t:'FG Outbound <span class="ac">Volume</span>', s:'ปริมาณและน้ำหนักสินค้าที่จ่ายออก', f:pageFG},
-  prepare: {t:'DO <span class="ac">Preparing</span>',       s:'เวลาที่ใช้จัดเตรียมสินค้าตาม Delivery Order', f:pagePrepare},
-  milkrun: {t:'Milk Run &amp; <span class="ac">Timeout</span>', s:'การเคลื่อนย้ายระหว่างโรงและเวลาปิดงาน', f:pageMilk},
+  fg:      {t:'FG <span class="ac">[Outbound &amp; Inbound]</span>', s:'ภาพรวมการรับเข้าและจ่ายออกสินค้าสำเร็จรูป — ข้อมูลทั้งหมด', f:pageFG},
+  prepare: {t:'DO <span class="ac">Preparing</span>',       s:'เวลาที่ใช้จัดเตรียมสินค้าตาม Delivery Order — ข้อมูลทั้งหมด', f:pagePrepare},
+  milkrun: {t:'Milk <span class="ac">Run</span>',           s:'การเคลื่อนย้ายสินค้าระหว่างโรง — ข้อมูลทั้งหมด', f:pageMilk},
   import:  {t:'นำเข้า<span class="ac">ข้อมูล</span>',        s:'อัปโหลดไฟล์ Excel 8 ชีทเข้าฐานข้อมูล', f:pageImport},
   profile: {t:'โปรไฟล์<span class="ac">ของฉัน</span>',       s:'แก้ไขข้อมูลส่วนตัวและรหัสผ่าน', f:pageProfile},
   users:   {t:'จัดการ<span class="ac">ผู้ใช้</span>',        s:'อนุมัติผู้สมัครและกำหนดสิทธิ์', f:pageUsers}
@@ -684,96 +684,203 @@ function tableHTML(cols,rows,limit=200){
       ? `แสดง ${fmt(limit)} จากทั้งหมด ${fmt(rows.length)} แถว`
       : `ทั้งหมด ${fmt(rows.length)} แถว`}</p>`;
 }
-function dateFilterHTML(f,t,fn){
-  return `<div class="filters anim">
-    <div class="fld"><label>ตั้งแต่วันที่</label><input type="date" id="fFrom" value="${f||''}"></div>
-    <div class="fld"><label>ถึงวันที่</label><input type="date" id="fTo" value="${t||''}"></div>
-    <button class="fbtn" onclick="${fn}()">กรองข้อมูล</button>
-    <button class="fbtn alt" onclick="el('fFrom').value='';el('fTo').value='';${fn}()">ล้างตัวกรอง</button>
+/* แถบบอกขอบเขตข้อมูล — ทุกหน้าแสดงข้อมูลทั้งหมด ไม่มีตัวกรองวันที่ */
+function scopeBar(rows, dateKey, fn){
+  const ds = rows.map(r=>r[dateKey]).filter(Boolean).sort();
+  const span = ds.length ? `${ds[0]} ถึง ${ds[ds.length-1]}` : '—';
+  return `<div class="filters anim" style="justify-content:space-between">
+    <div>
+      <div class="sm" style="margin-bottom:3px">ขอบเขตข้อมูล</div>
+      <div style="font-weight:500;font-size:15px">ทั้งหมด ${fmt(rows.length)} รายการ
+        <span class="sm" style="font-weight:300">· ${esc(span)}</span></div>
+    </div>
+    <button class="fbtn alt" onclick="${fn}()">↻ โหลดข้อมูลใหม่</button>
   </div>`;
 }
 function errCard(m){ return `<div class="card anim"><div class="msg err">โหลดข้อมูลไม่สำเร็จ: ${esc(m)}</div></div>`; }
 
 /* =========================================================================
-   PAGE 1 — FG OUTBOUND VOLUME
+   PAGE 1 — FG [OUTBOUND & INBOUND]
+   รวมชีท FG (จ่ายออก) กับชีท Timeout (รับเข้า/จ่ายออก PD รายโรง) ไว้หน้าเดียว
+   แสดงข้อมูลทั้งหมด ไม่มีตัวกรองวันที่
    ========================================================================= */
 async function pageFG(){
-  const f = el('fFrom')?.value || null, t = el('fTo')?.value || null;
-  const head = dateFilterHTML(f,t,'pageFG');
-  let rows;
-  try{ rows = await rpc('app_dash_fg',{p_from:f,p_to:t}); }
-  catch(ex){ body(head+errCard(ex.message)); return; }
-  if(!rows.length){ body(head + emptyBox('ยังไม่มีข้อมูล FG ในช่วงที่เลือก')); return; }
+  let rows, tm;
+  try{ [rows,tm] = await Promise.all([ rpc('app_dash_fg'), rpc('app_dash_timeout') ]); }
+  catch(ex){ body(errCard(ex.message)); return; }
+  if(!rows.length && !tm.length){ body(emptyBox('ยังไม่มีข้อมูล FG และ Timeout ในระบบ')); return; }
 
-  const totQty = rows.reduce((s,r)=>s+(+r.delivery_qty||0),0);
-  const totWt  = rows.reduce((s,r)=>s+(+r.gross_weight||0),0);
-  const nShip  = new Set(rows.map(r=>r.shipment)).size;
-  const nDel   = new Set(rows.map(r=>r.delivery)).size;
-  const noCust = rows.filter(r=>r.customer_group==='ไม่พบในทะเบียนลูกค้า').length;
+  /* ---------- ตัวเลขภาพรวม ---------- */
+  const totWt   = rows.reduce((s,r)=>s+(+r.gross_weight||0),0);
+  const totQty  = rows.reduce((s,r)=>s+(+r.delivery_qty||0),0);
+  const nShip   = new Set(rows.map(r=>r.shipment)).size;
+  const nDel    = new Set(rows.map(r=>r.delivery)).size;
+  const nSku    = new Set(rows.map(r=>r.material_code)).size;
+  const noCust  = rows.filter(r=>r.customer_group==='ไม่พบในทะเบียนลูกค้า').length;
+  const avgPerShip = nShip ? totWt/nShip : null;
 
+  const totIn   = tm.reduce((s,r)=>s+(+r.receive_pd||0),0);      // รับเข้า PD
+  const totOut  = tm.reduce((s,r)=>s+(+r.issue_pd||0),0);        // จ่ายออก PD
+  const netPD   = totIn - totOut;
+  const nFac    = new Set(tm.map(r=>r.factory)).size;
+  const avgOut  = avg(tm.map(r=>r.time_out_hours));
+
+  /* ---------- จัดกลุ่มข้อมูล ---------- */
   const byGrp  = groupSum(rows,r=>r.group_product,r=>r.gross_weight);
   const byCust = groupSum(rows,r=>r.customer_group,r=>r.gross_weight);
   const bySloc = groupSum(rows,r=>r.storage_location,r=>r.gross_weight).slice(0,12);
   const byName = groupSum(rows,r=>r.sold_to_name,r=>r.gross_weight).slice(0,10);
-  const byDate = groupSum(rows,r=>r.load_date,r=>r.gross_weight).sort((a,b)=>a[0]<b[0]?-1:1);
+  const byType = groupSum(rows,r=>r.shipment_type,r=>r.gross_weight);
+  const bySku  = groupSum(rows,r=>r.material_code,r=>r.gross_weight).slice(0,10);
 
-  body(head + `
+  const inByFac  = groupSum(tm,r=>r.factory,r=>r.receive_pd);
+  const outByFac = groupSum(tm,r=>r.factory,r=>r.issue_pd);
+  const facs     = [...new Set([...inByFac,...outByFac].map(x=>x[0]))].sort();
+  const outHrFac = groupAvg(tm,r=>r.factory,r=>r.time_out_hours);
+
+  /* ไทม์ไลน์รวม: รวมวันที่จากทั้งสองชีทเข้าด้วยกัน */
+  const wtByDate = new Map(groupSum(rows,r=>r.load_date,r=>r.gross_weight));
+  const inByDate = new Map(groupSum(tm,r=>r.work_date,r=>r.receive_pd));
+  const opByDate = new Map(groupSum(tm,r=>r.work_date,r=>r.issue_pd));
+  const allDates = [...new Set([...wtByDate.keys(),...inByDate.keys(),...opByDate.keys()])]
+                     .filter(Boolean).sort();
+
+  const scope = scopeBar(rows.length?rows:tm, rows.length?'load_date':'work_date', 'pageFG');
+
+  body(scope + `
+  <!-- ===== ภาพรวม ===== -->
   <div class="kpis">
-    <div class="kpi o anim d1"><div class="k">น้ำหนักรวม</div><div class="v">${fmt(totWt)}</div><div class="s">กิโลกรัม</div></div>
-    <div class="kpi anim d2"><div class="k">ปริมาณรวม</div><div class="v">${fmt(totQty)}</div><div class="s">หน่วย</div></div>
-    <div class="kpi g anim d3"><div class="k">จำนวน Shipment</div><div class="v">${fmt(nShip)}</div><div class="s">${fmt(nDel)} Delivery</div></div>
-    <div class="kpi ${noCust?'r':'g'} anim d4"><div class="k">ไม่พบในทะเบียนลูกค้า</div><div class="v">${fmt(noCust)}</div>
-      <div class="s">${(noCust/rows.length*100).toFixed(1)}% ของ ${fmt(rows.length)} แถว</div></div>
+    <div class="kpi o anim d1"><div class="k">น้ำหนักรวม</div><div class="v">${fmt(totWt)}</div>
+      <div class="s">กิโลกรัม · เฉลี่ย ${avgPerShip==null?'—':fmt(avgPerShip,0)} กก./Shipment</div></div>
+    <div class="kpi anim d2"><div class="k">ปริมาณรวม</div><div class="v">${fmt(totQty)}</div>
+      <div class="s">หน่วย · ${fmt(nSku)} รหัสสินค้า</div></div>
+    <div class="kpi anim d3"><div class="k">จำนวน Shipment</div><div class="v">${fmt(nShip)}</div>
+      <div class="s">${fmt(nDel)} Delivery · ${fmt(rows.length)} รายการ</div></div>
+    <div class="kpi g anim d4"><div class="k">รับเข้า PD (Inbound)</div><div class="v">${fmt(totIn)}</div>
+      <div class="s">${fmt(nFac)} โรง · ${fmt(tm.length)} บันทึก</div></div>
+    <div class="kpi o anim d5"><div class="k">จ่ายออก PD (Outbound)</div><div class="v">${fmt(totOut,2)}</div>
+      <div class="s">จากบันทึกรายโรง</div></div>
+    <div class="kpi ${netPD>=0?'g':'r'} anim d6"><div class="k">สุทธิ รับเข้า − จ่ายออก</div>
+      <div class="v">${fmt(netPD,2)}</div>
+      <div class="s">เวลาปิดงานเฉลี่ย ${avgOut==null?'—':(Math.floor(avgOut)+':'+pad(Math.round((avgOut%1)*60)))} น.</div></div>
   </div>
-  <div class="card anim d3"><h3>แนวโน้มน้ำหนักจ่ายออกรายวัน</h3>
-    <div class="chartbox" style="height:250px"><canvas id="c0"></canvas></div></div>
+
+  <!-- ===== ไทม์ไลน์รวม ===== -->
+  <div class="card anim d3"><h3>ภาพรวมรายวัน — น้ำหนักจ่ายออก เทียบกับ รับเข้า / จ่ายออก PD</h3>
+    <div class="chartbox" style="height:290px"><canvas id="f0"></canvas></div>
+    <p class="sm" style="margin-top:10px">แท่งส้ม = น้ำหนัก FG (แกนซ้าย, กก.) · เส้น = จำนวน PD รายโรงรวม (แกนขวา)</p></div>
+
+  <!-- ===== Inbound / Outbound รายโรง ===== -->
   <div class="grid2">
-    <div class="card anim d4"><h3>น้ำหนักตามกลุ่มสินค้า</h3><div class="chartbox"><canvas id="c1"></canvas></div></div>
-    <div class="card anim d4"><h3>น้ำหนักตามกลุ่มลูกค้า</h3><div class="chartbox"><canvas id="c2"></canvas></div></div>
+    <div class="card anim d4"><h3>รับเข้า / จ่ายออก PD รายโรง</h3>
+      <div class="chartbox"><canvas id="f1"></canvas></div></div>
+    <div class="card anim d4"><h3>เวลาปิดงานเฉลี่ยรายโรง (ชั่วโมง)</h3>
+      <div class="chartbox"><canvas id="f2"></canvas></div></div>
+  </div>
+
+  <!-- ===== มิติสินค้า / ลูกค้า ===== -->
+  <div class="grid3">
+    <div class="card anim d5"><h3>น้ำหนักตามกลุ่มสินค้า</h3><div class="chartbox"><canvas id="f3"></canvas></div></div>
+    <div class="card anim d5"><h3>สัดส่วนตามกลุ่มลูกค้า</h3><div class="chartbox"><canvas id="f4"></canvas></div></div>
   </div>
   <div class="grid2">
-    <div class="card anim d5"><h3>น้ำหนักตาม Storage Location</h3><div class="chartbox"><canvas id="c3"></canvas></div></div>
-    <div class="card anim d5"><h3>10 อันดับลูกค้าตามน้ำหนัก</h3><div class="chartbox"><canvas id="c4"></canvas></div></div>
+    <div class="card anim d5"><h3>10 อันดับลูกค้าตามน้ำหนัก</h3><div class="chartbox"><canvas id="f5"></canvas></div></div>
+    <div class="card anim d5"><h3>10 อันดับรหัสสินค้าตามน้ำหนัก</h3><div class="chartbox"><canvas id="f6"></canvas></div></div>
   </div>
-  <div class="card anim d6"><h3>รายการจ่ายออก</h3>` + tableHTML([
+  <div class="grid2">
+    <div class="card anim d6"><h3>น้ำหนักตาม Storage Location</h3><div class="chartbox"><canvas id="f7"></canvas></div></div>
+    <div class="card anim d6"><h3>ประเภทการจัดส่ง</h3><div class="chartbox"><canvas id="f8"></canvas></div>
+      ${noCust?`<p class="sm" style="margin-top:10px">⚠ มี <b>${fmt(noCust)}</b> รายการ
+        (${(noCust/Math.max(rows.length,1)*100).toFixed(1)}%) ที่รหัสลูกค้าไม่พบในทะเบียน</p>`:''}</div>
+  </div>
+
+  <!-- ===== ตาราง ===== -->
+  <div class="card anim d6"><h3>รายการจ่ายออกสินค้าสำเร็จรูป (FG)</h3>` + tableHTML([
     {h:'วันที่',k:'load_date'},{h:'Shipment',k:'shipment'},{h:'Delivery',k:'delivery'},
     {h:'Item',k:'item'},{h:'รหัสสินค้า',k:'material_code'},
     {h:'รายละเอียด',k:'description',f:r=>(r.description||'').slice(0,40)},
     {h:'กลุ่มสินค้า',k:'group_product'},
     {h:'ปริมาณ',k:'delivery_qty',n:1,f:r=>fmt(r.delivery_qty)},
-    {h:'น้ำหนัก',k:'gross_weight',n:1,f:r=>fmt(r.gross_weight,1)},
+    {h:'น้ำหนัก (กก.)',k:'gross_weight',n:1,f:r=>fmt(r.gross_weight,1)},
     {h:'ลูกค้า',k:'sold_to_name',f:r=>(r.sold_to_name||'').slice(0,26)},
     {h:'กลุ่มลูกค้า',k:'customer_group',raw:1,
      f:r=>`<span class="pill ${r.customer_group==='ไม่พบในทะเบียนลูกค้า'?'r':'b'}">${esc(r.customer_group)}</span>`},
-    {h:'Sloc',k:'storage_location'}
-  ],rows) + `</div>`);
+    {h:'ประเภทส่ง',k:'shipment_type'},{h:'Sloc',k:'storage_location'}
+  ],rows) + `</div>
 
-  chart('c0','line',byDate.map(x=>x[0]),[{label:'น้ำหนัก (กก.)',data:byDate.map(x=>x[1]),
-    borderColor:'#ff7a18',backgroundColor:'rgba(255,122,24,.13)',fill:true,tension:.35,
-    pointBackgroundColor:'#fff',pointBorderColor:'#ff7a18',pointBorderWidth:2,pointRadius:4}]);
-  chart('c1','bar',byGrp.map(x=>x[0]),[{label:'น้ำหนัก (กก.)',data:byGrp.map(x=>x[1]),
+  <div class="card anim d6"><h3>บันทึกรับเข้า / จ่ายออก รายโรง (Timeout)</h3>` + tableHTML([
+    {h:'วันที่',k:'work_date'},
+    {h:'โรง',k:'factory',raw:1,f:r=>`<span class="pill b">${esc(r.factory)}</span>`},
+    {h:'เวลาปิดงาน',k:'time_out'},
+    {h:'รับเข้า PD',k:'receive_pd',n:1,f:r=>fmt(r.receive_pd)},
+    {h:'จ่ายออก PD',k:'issue_pd',n:1,f:r=>r.issue_pd==null?'—':fmt(r.issue_pd,2)},
+    {h:'สุทธิ',k:'net_pd',n:1,raw:1,
+     f:r=>`<span class="pill ${(+r.net_pd)>=0?'g':'r'}">${fmt(r.net_pd,2)}</span>`}
+  ],tm) + `</div>`);
+
+  /* ---------- กราฟ ---------- */
+  const axisFont = {font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'};
+
+  chart('f0','bar',allDates,[
+    {type:'bar',label:'น้ำหนัก FG (กก.)',yAxisID:'y',
+     data:allDates.map(d=>wtByDate.get(d)??0),backgroundColor:'#ff7a18',borderRadius:6,maxBarThickness:36},
+    {type:'line',label:'รับเข้า PD',yAxisID:'y1',
+     data:allDates.map(d=>inByDate.get(d)??null),borderColor:'#0b2447',backgroundColor:'#0b2447',
+     tension:.3,spanGaps:true,pointRadius:4,borderWidth:2.5},
+    {type:'line',label:'จ่ายออก PD',yAxisID:'y1',
+     data:allDates.map(d=>opByDate.get(d)??null),borderColor:'#1d4f92',backgroundColor:'#1d4f92',
+     tension:.3,spanGaps:true,pointRadius:4,borderWidth:2.5,borderDash:[6,4]}
+  ],{
+    scales:{
+      y :{position:'left', beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},
+          title:{display:true,text:'น้ำหนัก (กก.)',font:{family:'Kanit',size:11,weight:'400'},color:'#7086a3'},
+          ticks:axisFont},
+      y1:{position:'right',beginAtZero:true,grid:{display:false},border:{display:false},
+          title:{display:true,text:'จำนวน PD',font:{family:'Kanit',size:11,weight:'400'},color:'#7086a3'},
+          ticks:axisFont},
+      x :{grid:{display:false},ticks:axisFont}
+    }});
+
+  chart('f1','bar',facs,[
+    {label:'รับเข้า PD', data:facs.map(f=>(inByFac.find(x=>x[0]===f)||[0,0])[1]),
+     backgroundColor:'#0b2447',borderRadius:7},
+    {label:'จ่ายออก PD',data:facs.map(f=>(outByFac.find(x=>x[0]===f)||[0,0])[1]),
+     backgroundColor:'#ff7a18',borderRadius:7}
+  ]);
+
+  chart('f2','bar',outHrFac.map(x=>x[0]),[{label:'ชั่วโมง',data:outHrFac.map(x=>x[1]),
+    backgroundColor:'#1d4f92',borderRadius:7,maxBarThickness:48}]);
+
+  chart('f3','bar',byGrp.map(x=>x[0]),[{label:'น้ำหนัก (กก.)',data:byGrp.map(x=>x[1]),
     backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:52}]);
-  chart('c2','doughnut',byCust.map(x=>x[0]),[{data:byCust.map(x=>x[1]),backgroundColor:PAL,
+
+  chart('f4','doughnut',byCust.map(x=>x[0]),[{data:byCust.map(x=>x[1]),
+    backgroundColor:PAL,borderWidth:3,borderColor:'#fff'}],{cutout:'58%'});
+
+  const hBar = {indexAxis:'y',scales:{
+      x:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+      y:{grid:{display:false},ticks:axisFont}}};
+  chart('f5','bar',byName.map(x=>x[0].slice(0,24)),[{label:'น้ำหนัก (กก.)',
+    data:byName.map(x=>x[1]),backgroundColor:'#ff7a18',borderRadius:6}],hBar);
+  chart('f6','bar',bySku.map(x=>x[0].slice(0,24)),[{label:'น้ำหนัก (กก.)',
+    data:bySku.map(x=>x[1]),backgroundColor:'#1d4f92',borderRadius:6}],hBar);
+
+  chart('f7','bar',bySloc.map(x=>x[0]),[{label:'น้ำหนัก (กก.)',data:bySloc.map(x=>x[1]),
+    backgroundColor:'#2d6ca8',borderRadius:7,maxBarThickness:46}]);
+  chart('f8','doughnut',byType.map(x=>x[0]),[{data:byType.map(x=>x[1]),
+    backgroundColor:['#ff7a18','#0b2447','#1d4f92','#ff9945','#5b8fc4'],
     borderWidth:3,borderColor:'#fff'}],{cutout:'58%'});
-  chart('c3','bar',bySloc.map(x=>x[0]),[{label:'น้ำหนัก (กก.)',data:bySloc.map(x=>x[1]),
-    backgroundColor:'#1d4f92',borderRadius:7,maxBarThickness:46}]);
-  chart('c4','bar',byName.map(x=>x[0].slice(0,22)),[{label:'น้ำหนัก (กก.)',data:byName.map(x=>x[1]),
-    backgroundColor:'#ff7a18',borderRadius:7}],
-    {indexAxis:'y',scales:{x:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},
-      ticks:{font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'}},
-      y:{grid:{display:false},ticks:{font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'}}}});
 }
 
 /* =========================================================================
    PAGE 2 — DO PREPARING
    ========================================================================= */
 async function pagePrepare(){
-  const f = el('fFrom')?.value || null, t = el('fTo')?.value || null;
-  const head = dateFilterHTML(f,t,'pagePrepare');
   let rows;
-  try{ rows = await rpc('app_dash_prepare',{p_from:f,p_to:t}); }
-  catch(ex){ body(head+errCard(ex.message)); return; }
-  if(!rows.length){ body(head + emptyBox('ยังไม่มีข้อมูล Prepare ในช่วงที่เลือก')); return; }
+  try{ rows = await rpc('app_dash_prepare'); }
+  catch(ex){ body(errCard(ex.message)); return; }
+  if(!rows.length){ body(emptyBox('ยังไม่มีข้อมูล Prepare ในระบบ')); return; }
+  const head = scopeBar(rows,'loading_date','pagePrepare');
 
   const done = rows.filter(r=>r.stage==='Completed');
   const prep = rows.filter(r=>r.stage==='Preparing');
@@ -843,17 +950,14 @@ async function pagePrepare(){
 }
 
 /* =========================================================================
-   PAGE 3 — MILK RUN & FACTORY TIMEOUT
+   PAGE 3 — MILK RUN  (ข้อมูล Timeout ย้ายไปรวมที่หน้า FG แล้ว)
    ========================================================================= */
 async function pageMilk(){
-  const f = el('fFrom')?.value || null, t = el('fTo')?.value || null;
-  const head = dateFilterHTML(f,t,'pageMilk');
-  let R,O;
-  try{ [R,O] = await Promise.all([
-        rpc('app_dash_milkrun',{p_from:f,p_to:t}),
-        rpc('app_dash_timeout',{p_from:f,p_to:t}) ]); }
-  catch(ex){ body(head+errCard(ex.message)); return; }
-  if(!R.length && !O.length){ body(head + emptyBox('ยังไม่มีข้อมูล Milk Run / Timeout ในช่วงที่เลือก')); return; }
+  let R;
+  try{ R = await rpc('app_dash_milkrun'); }
+  catch(ex){ body(errCard(ex.message)); return; }
+  if(!R.length){ body(emptyBox('ยังไม่มีข้อมูล Milk Run ในระบบ')); return; }
+  const head = scopeBar(R,'run_date','pageMilk');
 
   const trips  = new Set(R.map(r=>r.milk_run_no)).size;
   const totWt  = R.reduce((s,r)=>s+(+r.weight||0),0);
@@ -871,18 +975,10 @@ async function pageMilk(){
             c:avg(g.map(r=>r.mins_wait_checkin))||0, u:avg(g.map(r=>r.mins_unload))||0};
   });
 
-  const totRecv = O.reduce((s,r)=>s+(+r.receive_pd||0),0);
-  const totIssue= O.reduce((s,r)=>s+(+r.issue_pd||0),0);
-  const avgOut  = avg(O.map(r=>r.time_out_hours));
-  const facs    = [...new Set(O.map(r=>r.factory))].sort();
-  const dates   = [...new Set(O.map(r=>r.work_date))].sort();
-  const outSeries = facs.map((fc,i)=>({
-    label:fc, data:dates.map(d=>{ const x=O.find(r=>r.factory===fc&&r.work_date===d); return x?x.time_out_hours:null; }),
-    borderColor:PAL[i%PAL.length], backgroundColor:PAL[i%PAL.length], tension:.3, spanGaps:true,
-    pointRadius:3, borderWidth:2 }));
-  const recvByFac = groupSum(O,r=>r.factory,r=>r.receive_pd);
-  const issByFac  = groupSum(O,r=>r.factory,r=>r.issue_pd);
-  const facLabels = [...new Set([...recvByFac,...issByFac].map(x=>x[0]))];
+  const byOrigin = groupSum(R,r=>r.origin,r=>r.weight);
+  const byDest   = groupSum(R,r=>r.destination,r=>r.weight);
+  const byDate   = groupSum(R,r=>r.run_date,r=>r.weight).sort((a,b)=>a[0]<b[0]?-1:1);
+  const facLbl   = [...new Set([...byOrigin,...byDest].map(x=>x[0]))].sort();
 
   body(head + `
   <div class="kpis">
@@ -891,9 +987,9 @@ async function pageMilk(){
     <div class="kpi o anim d2"><div class="k">น้ำหนักขนย้ายรวม</div><div class="v">${fmt(totWt)}</div><div class="s">กิโลกรัม</div></div>
     <div class="kpi g anim d3"><div class="k">เวลาต่อเที่ยวเฉลี่ย</div>
       <div class="v">${avgTrip==null?'—':fmt(avgTrip,0)}</div><div class="s">นาที · ${fmt(routes)} เส้นทาง</div></div>
-    <div class="kpi anim d4"><div class="k">เวลาปิดงานเฉลี่ย</div>
-      <div class="v">${avgOut==null?'—':(Math.floor(avgOut)+':'+pad(Math.round((avgOut%1)*60)))}</div>
-      <div class="s">${fmt(O.length)} บันทึก · ${facs.length} โรง</div></div>
+    <div class="kpi anim d4"><div class="k">น้ำหนักเฉลี่ยต่อเที่ยว</div>
+      <div class="v">${trips?fmt(totWt/trips,0):'—'}</div>
+      <div class="s">กิโลกรัม · ${fmt(new Set(R.map(r=>r.truck_head)).size)} หัวลาก</div></div>
   </div>
   <div class="card anim d3"><h3>เวลาที่ใช้แต่ละช่วงของ Milk Run (นาทีเฉลี่ย)</h3>
     <div class="kpis" style="margin-bottom:0">
@@ -911,9 +1007,9 @@ async function pageMilk(){
     <div class="card anim d5"><h3>จำนวนรายการตามพนักงานขับ</h3><div class="chartbox"><canvas id="m4"></canvas></div></div>
   </div>
   <div class="grid2">
-    <div class="card anim d5"><h3>เวลาปิดงานรายโรง (ชั่วโมง)</h3><div class="chartbox"><canvas id="m5"></canvas></div></div>
-    <div class="card anim d5"><h3>รับเข้า / จ่ายออก PD รายโรง</h3><div class="chartbox"><canvas id="m6"></canvas></div>
-      <p class="sm" style="margin-top:11px">รับเข้ารวม <b>${fmt(totRecv)}</b> · จ่ายออกรวม <b>${fmt(totIssue,2)}</b></p></div>
+    <div class="card anim d5"><h3>แนวโน้มน้ำหนักขนย้ายรายวัน</h3><div class="chartbox"><canvas id="m5"></canvas></div></div>
+    <div class="card anim d5"><h3>น้ำหนักออกจากโรง (ต้นทาง) เทียบ เข้าโรง (ปลายทาง)</h3>
+      <div class="chartbox"><canvas id="m6"></canvas></div></div>
   </div>
   <div class="card anim d6"><h3>รายการ Milk Run</h3>` + tableHTML([
     {h:'วันที่',k:'run_date'},{h:'Milk Run',k:'milk_run_no'},
@@ -927,16 +1023,9 @@ async function pageMilk(){
     {h:'ลงสินค้า',k:'mins_unload',n:1,f:r=>r.mins_unload==null?'—':fmt(r.mins_unload,0)},
     {h:'รวมเที่ยว',k:'trip_mins',n:1,f:r=>r.trip_mins==null?'—':fmt(r.trip_mins,0)},
     {h:'พนักงานขับ',k:'driver_name'}
-  ],R) + `</div>
-  <div class="card anim d6"><h3>บันทึกเวลาปิดงานรายโรง</h3>` + tableHTML([
-    {h:'วันที่',k:'work_date'},{h:'โรง',k:'factory',raw:1,f:r=>`<span class="pill b">${esc(r.factory)}</span>`},
-    {h:'เวลาปิด',k:'time_out'},
-    {h:'รับเข้า PD',k:'receive_pd',n:1,f:r=>fmt(r.receive_pd)},
-    {h:'จ่ายออก PD',k:'issue_pd',n:1,f:r=>r.issue_pd==null?'—':fmt(r.issue_pd,2)},
-    {h:'สุทธิ',k:'net_pd',n:1,f:r=>fmt(r.net_pd,2)}
-  ],O) + `</div>`);
+  ],R) + `</div>`);
 
-  if(R.length){
+  {
     chart('m1','bar',byRoute.map(x=>x[0]),[{label:'รายการ',data:byRoute.map(x=>x[1]),
       backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:46}]);
     chart('m2','bar',routeSeg.map(x=>x.rt),[
@@ -951,14 +1040,14 @@ async function pageMilk(){
       backgroundColor:'#ff7a18',borderRadius:7,maxBarThickness:56}]);
     chart('m4','bar',byDriver.map(x=>x[0]),[{label:'รายการ',data:byDriver.map(x=>x[1]),
       backgroundColor:'#1d4f92',borderRadius:7,maxBarThickness:56}]);
-  }
-  if(O.length){
-    chart('m5','line',dates,outSeries);
-    chart('m6','bar',facLabels,[
-      {label:'รับเข้า PD',data:facLabels.map(x=>(recvByFac.find(y=>y[0]===x)||[0,0])[1]),
-       backgroundColor:'#0b2447',borderRadius:7},
-      {label:'จ่ายออก PD',data:facLabels.map(x=>(issByFac.find(y=>y[0]===x)||[0,0])[1]),
-       backgroundColor:'#ff7a18',borderRadius:7}
+    chart('m5','line',byDate.map(x=>x[0]),[{label:'น้ำหนัก (กก.)',data:byDate.map(x=>x[1]),
+      borderColor:'#ff7a18',backgroundColor:'rgba(255,122,24,.13)',fill:true,tension:.35,
+      pointBackgroundColor:'#fff',pointBorderColor:'#ff7a18',pointBorderWidth:2,pointRadius:4}]);
+    chart('m6','bar',facLbl,[
+      {label:'ออกจากโรง (ต้นทาง)',data:facLbl.map(x=>(byOrigin.find(y=>y[0]===x)||[0,0])[1]),
+       backgroundColor:'#ff7a18',borderRadius:7},
+      {label:'เข้าโรง (ปลายทาง)', data:facLbl.map(x=>(byDest.find(y=>y[0]===x)||[0,0])[1]),
+       backgroundColor:'#0b2447',borderRadius:7}
     ]);
   }
 }
@@ -969,12 +1058,24 @@ async function pageMilk(){
 let PARSED = null;
 
 function pageImport(){
+  /* กันไว้อีกชั้น — เมนูซ่อนอยู่แล้ว และฝั่งฐานข้อมูลก็ตรวจ admin ซ้ำทุกครั้ง */
+  if(!ME || ME.role !== 'admin'){
+    body(`<div class="card anim"><div class="empty">
+      <div class="ic">🔒</div>
+      <p style="font-weight:500;font-size:16px;color:var(--txt)">เฉพาะผู้ดูแลระบบเท่านั้น</p>
+      <p class="sm" style="margin-top:8px">หน้านำเข้าข้อมูลสงวนไว้สำหรับผู้ใช้ที่มีสิทธิ์ Admin<br>
+        หากต้องการสิทธิ์นี้ กรุณาติดต่อผู้ดูแลระบบ</p>
+    </div></div>`);
+    return;
+  }
+
   body(`
   <div class="card anim d1">
     <h3>อัปโหลดไฟล์ Excel</h3>
     <p class="sm" style="margin-bottom:16px;line-height:1.7">
-      ระบบอ่านครบทั้ง 8 ชีทจากไฟล์เดียว · ชีท <code>Master</code> <code>Customer</code> <code>User</code>
-      จะ<b>ล้างของเดิมแล้วเขียนทับ</b> · อีก 5 ชีท<b>สะสมต่อเนื่อง</b> (แถวเดิมทับ แถวใหม่เพิ่ม)</p>
+      ระบบอ่านทุกชีทที่รู้จักจากไฟล์เดียว แล้วให้<b>เลือกได้ว่าจะวางชีทไหนบ้าง</b> ·
+      ชีท <code>Master</code> <code>Customer</code> <code>User</code> จะ<b>ล้างของเดิมแล้วเขียนทับ</b> ·
+      อีก 5 ชีท<b>สะสมต่อเนื่อง</b> (แถวเดิมทับ แถวใหม่เพิ่ม)</p>
     <div class="drop" id="drop" onclick="el('file').click()">
       <div class="ic">📁</div>
       <div class="t">ลากไฟล์มาวาง หรือคลิกเพื่อเลือก</div>
@@ -1062,8 +1163,12 @@ function renderPreview(warn){
   const {fname,out} = PARSED;
   if(!out.length){ el('preview').innerHTML = `<div class="card"><div class="msg err">ไม่พบชีทที่ระบบรู้จักในไฟล์นี้</div></div>`; return; }
 
-  const rowsHTML = out.map(s=>`<tr>
-      <td><b>${esc(s.name)}</b><div class="sm">${esc(s.cfg.label)}</div></td>
+  const rowsHTML = out.map((s,i)=>`<tr>
+      <td style="text-align:center">
+        <input type="checkbox" class="shchk" id="sh${i}" data-i="${i}" ${s.rows.length?'checked':'disabled'}
+               onchange="updateImportBtn()" style="width:17px;height:17px;accent-color:var(--org);cursor:pointer"></td>
+      <td><label for="sh${i}" style="cursor:pointer"><b>${esc(s.name)}</b>
+          <div class="sm">${esc(s.cfg.label)}</div></label></td>
       <td><code>${esc(s.cfg.table)}</code></td>
       <td><span class="pill ${s.cfg.mode==='replace'?'o':'b'}">${s.cfg.mode==='replace'?'เขียนทับ':'สะสม'}</span></td>
       <td class="num">${fmt(s.total)}</td>
@@ -1085,14 +1190,20 @@ function renderPreview(warn){
         diff.map(x=>`คาด: <b>${esc(x.exp)}</b> → ในไฟล์: ${esc(x.got)}`).join('<br>')}</div></details>`;
   }).join('');
 
-  const totalRows = out.reduce((s,x)=>s+x.rows.length,0);
-
   el('preview').innerHTML = `
   <div class="card anim">
-    <h3>ตรวจสอบก่อนนำเข้า</h3>
-    <p class="sm" style="margin-bottom:13px">ไฟล์: <code>${esc(fname)}</code></p>
+    <h3>เลือกชีทที่ต้องการวาง</h3>
+    <p class="sm" style="margin-bottom:13px">ไฟล์: <code>${esc(fname)}</code> —
+      ติ๊กเลือกเฉพาะชีทที่ต้องการนำเข้า ชีทที่ไม่ติ๊กจะถูกข้ามไปโดยไม่แตะข้อมูลเดิม</p>
     ${warn.length?`<div class="msg warn">${warn.join('<br>')}</div>`:''}
+    <div style="display:flex;gap:9px;margin-bottom:12px;flex-wrap:wrap">
+      <button class="fbtn alt" onclick="pickSheets('all')">เลือกทั้งหมด</button>
+      <button class="fbtn alt" onclick="pickSheets('none')">ไม่เลือกเลย</button>
+      <button class="fbtn alt" onclick="pickSheets('master')">เฉพาะ Master (เขียนทับ)</button>
+      <button class="fbtn alt" onclick="pickSheets('tx')">เฉพาะ Transaction (สะสม)</button>
+    </div>
     <div class="tw"><table><thead><tr>
+      <th style="width:44px;text-align:center">เลือก</th>
       <th>ชีท</th><th>ตารางปลายทาง</th><th>โหมด</th>
       <th class="num">แถวในไฟล์</th><th class="num">พร้อมบันทึก</th>
       <th class="num">ข้าม</th><th class="num">คีย์ซ้ำในไฟล์</th>
@@ -1101,10 +1212,39 @@ function renderPreview(warn){
     ${hdrCheck}
     <div class="bar" id="impBarWrap" style="display:none"><div id="impBar"></div></div>
     <div id="impStatus"></div>
-    <button class="btn" id="impBtn" style="margin-top:15px" onclick="runImport()">
-      ยืนยันนำเข้า ${fmt(totalRows)} แถว</button>
+    <button class="btn" id="impBtn" style="margin-top:15px" onclick="runImport()"></button>
     <div class="log hide" id="impLogBox" style="margin-top:15px"></div>
   </div>`;
+  updateImportBtn();
+}
+
+/* เลือกชีทแบบกลุ่ม */
+function pickSheets(kind){
+  document.querySelectorAll('.shchk').forEach(c=>{
+    if(c.disabled) return;
+    const m = PARSED.out[+c.dataset.i].cfg.mode;
+    c.checked = kind==='all'    ? true
+              : kind==='none'   ? false
+              : kind==='master' ? (m==='replace')
+              :                   (m==='upsert');
+  });
+  updateImportBtn();
+}
+
+function selectedSheets(){
+  return [...document.querySelectorAll('.shchk')]
+    .filter(c=>c.checked && !c.disabled)
+    .map(c=>PARSED.out[+c.dataset.i]);
+}
+
+function updateImportBtn(){
+  const b = el('impBtn'); if(!b) return;
+  const sel = selectedSheets();
+  const n   = sel.reduce((s,x)=>s+x.rows.length,0);
+  b.disabled    = sel.length === 0;
+  b.textContent = sel.length
+    ? `ยืนยันนำเข้า ${sel.length} ชีท · ${fmt(n)} แถว`
+    : 'ยังไม่ได้เลือกชีท';
 }
 
 function logLine(t,k=''){
@@ -1114,11 +1254,17 @@ function logLine(t,k=''){
 
 async function runImport(){
   if(!PARSED) return;
+  const sheets = selectedSheets();
+  if(!sheets.length){ alert('กรุณาเลือกอย่างน้อย 1 ชีท'); return; }
+
+  const repl = sheets.filter(s=>s.cfg.mode==='replace').map(s=>s.name);
+  if(repl.length && !confirm(
+      `ชีท ${repl.join(', ')} จะล้างข้อมูลเดิมในตารางทิ้งทั้งหมดแล้วเขียนใหม่\n\nยืนยันดำเนินการ?`)) return;
+
   const btn = el('impBtn'); btn.disabled = true; btn.textContent = 'กำลังนำเข้า…';
   el('impBarWrap').style.display = 'block';
   el('impLogBox').innerHTML = '';
 
-  const sheets = PARSED.out;
   let doneUnits = 0, okAll = true;
   const CHUNK = 1000;
   const totalUnits = sheets.reduce((s,x)=>s+Math.max(1,Math.ceil(x.rows.length/CHUNK)),0);
@@ -1155,9 +1301,10 @@ async function runImport(){
   }
 
   el('impBar').style.width = '100%';
-  btn.disabled = false; btn.textContent = 'นำเข้าอีกครั้ง';
+  btn.disabled = false;
+  updateImportBtn();
   el('impStatus').innerHTML = okAll
-    ? `<div class="msg ok" style="margin-top:13px">นำเข้าข้อมูลสำเร็จทั้งหมด — ไปดูผลได้ที่เมนู Dashboard</div>`
+    ? `<div class="msg ok" style="margin-top:13px">นำเข้า ${sheets.length} ชีทสำเร็จทั้งหมด — ไปดูผลได้ที่เมนู Dashboard</div>`
     : `<div class="msg err" style="margin-top:13px">มีบางชีทนำเข้าไม่สำเร็จ ดูรายละเอียดในบันทึกด้านล่าง</div>`;
   loadImportLog();
 }
