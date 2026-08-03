@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DASH WH2 — ระบบรายงานคลังสินค้า</title>
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#f1f5f9; --card:#ffffff; --side:#0f172a; --side2:#1e293b;
+  --line:#e2e8f0; --txt:#0f172a; --muted:#64748b;
+  --pri:#2563eb; --ok:#16a34a; --warn:#f59e0b; --bad:#dc2626; --info:#0891b2;
+  --r:10px; --sh:0 1px 3px rgba(0,0,0,.08);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sarabun',sans-serif;background:var(--bg);color:var(--txt);font-size:14px}
+button{font-family:inherit;cursor:pointer;border:none}
+input,select{font-family:inherit;font-size:14px}
+.hide{display:none !important}
+
+/* ---------- AUTH ---------- */
+#authView{min-height:100vh;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#0f172a,#1e3a8a);padding:20px}
+.authbox{background:#fff;border-radius:16px;padding:36px;width:100%;max-width:440px;
+  box-shadow:0 20px 50px rgba(0,0,0,.3)}
+.authbox h1{font-size:24px;font-weight:700;margin-bottom:4px}
+.authbox .sub{color:var(--muted);margin-bottom:24px;font-size:13px}
+.tabs{display:flex;background:var(--bg);border-radius:8px;padding:4px;margin-bottom:20px}
+.tabs button{flex:1;padding:9px;border-radius:6px;background:transparent;color:var(--muted);font-weight:600;font-size:14px}
+.tabs button.on{background:#fff;color:var(--pri);box-shadow:var(--sh)}
+.fld{margin-bottom:14px}
+.fld label{display:block;font-size:12px;font-weight:600;color:#334155;margin-bottom:5px}
+.fld input,.fld select{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:8px;background:#fff}
+.fld input:focus,.fld select:focus{outline:none;border-color:var(--pri);box-shadow:0 0 0 3px rgba(37,99,235,.12)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{width:100%;padding:11px;background:var(--pri);color:#fff;border-radius:8px;font-weight:600;font-size:15px}
+.btn:hover{background:#1d4ed8}
+.btn:disabled{opacity:.55;cursor:not-allowed}
+.msg{padding:11px 13px;border-radius:8px;font-size:13px;margin-bottom:14px;line-height:1.5}
+.msg.err{background:#fef2f2;color:#991b1b;border:1px solid #fecaca}
+.msg.ok{background:#f0fdf4;color:#166534;border:1px solid #bbf7d0}
+.msg.info{background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe}
+.msg.warn{background:#fffbeb;color:#92400e;border:1px solid #fde68a}
+
+/* ---------- SHELL ---------- */
+#appView{display:flex;min-height:100vh}
+aside{width:250px;background:var(--side);color:#cbd5e1;display:flex;flex-direction:column;
+  position:fixed;top:0;bottom:0;left:0;z-index:50;transition:transform .25s}
+.brand{padding:20px 18px;border-bottom:1px solid var(--side2)}
+.brand h2{color:#fff;font-size:17px;font-weight:700}
+.brand p{font-size:11px;color:#64748b;margin-top:2px}
+nav{flex:1;padding:12px 10px;overflow-y:auto}
+.navlbl{font-size:10px;text-transform:uppercase;color:#475569;padding:12px 10px 6px;font-weight:700;letter-spacing:.5px}
+nav a{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;
+  color:#cbd5e1;text-decoration:none;font-size:14px;margin-bottom:2px}
+nav a:hover{background:var(--side2);color:#fff}
+nav a.on{background:var(--pri);color:#fff;font-weight:600}
+.me{padding:14px 16px;border-top:1px solid var(--side2)}
+.me .nm{color:#fff;font-weight:600;font-size:13px}
+.me .rl{font-size:11px;color:#64748b;margin-bottom:9px}
+.me button{width:100%;padding:8px;background:var(--side2);color:#cbd5e1;border-radius:7px;font-size:13px}
+.me button:hover{background:#334155;color:#fff}
+main{flex:1;margin-left:250px;padding:22px;max-width:100%;overflow-x:hidden}
+.topbar{display:flex;align-items:center;gap:12px;margin-bottom:18px}
+#burger{display:none;padding:9px 12px;background:#fff;border-radius:8px;box-shadow:var(--sh);font-size:16px}
+.topbar h1{font-size:21px;font-weight:700}
+.topbar p{color:var(--muted);font-size:13px}
+
+/* ---------- CARDS / KPI ---------- */
+.card{background:var(--card);border-radius:var(--r);padding:18px;box-shadow:var(--sh);margin-bottom:16px}
+.card h3{font-size:14px;font-weight:700;margin-bottom:12px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:13px;margin-bottom:16px}
+.kpi{background:#fff;border-radius:var(--r);padding:16px;box-shadow:var(--sh);border-left:4px solid var(--pri)}
+.kpi.g{border-left-color:var(--ok)} .kpi.o{border-left-color:var(--warn)}
+.kpi.r{border-left-color:var(--bad)} .kpi.c{border-left-color:var(--info)}
+.kpi .k{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.kpi .v{font-size:25px;font-weight:700;margin:5px 0 2px}
+.kpi .s{font-size:11px;color:var(--muted)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid3{display:grid;grid-template-columns:2fr 1fr;gap:16px}
+.chartbox{position:relative;height:290px}
+.filters{display:flex;gap:11px;flex-wrap:wrap;align-items:flex-end;margin-bottom:16px;
+  background:#fff;padding:14px;border-radius:var(--r);box-shadow:var(--sh)}
+.filters .fld{margin:0}
+.filters .fld input,.filters .fld select{padding:8px 10px}
+.fbtn{padding:9px 18px;background:var(--pri);color:#fff;border-radius:8px;font-weight:600}
+.fbtn.alt{background:#fff;color:var(--txt);border:1px solid var(--line)}
+
+/* ---------- TABLE ---------- */
+.tw{overflow-x:auto;max-height:440px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap}
+th{background:var(--bg);padding:9px 11px;text-align:left;font-weight:700;color:#475569;
+  position:sticky;top:0;border-bottom:2px solid var(--line);font-size:11.5px}
+td{padding:8px 11px;border-bottom:1px solid #f1f5f9}
+tbody tr:hover{background:#f8fafc}
+.num{text-align:right;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600}
+.pill.g{background:#dcfce7;color:#166534} .pill.o{background:#fef3c7;color:#92400e}
+.pill.r{background:#fee2e2;color:#991b1b} .pill.b{background:#dbeafe;color:#1e40af}
+.pill.n{background:#f1f5f9;color:#475569}
+
+/* ---------- IMPORT ---------- */
+.drop{border:2px dashed #cbd5e1;border-radius:12px;padding:44px 20px;text-align:center;
+  background:#fff;cursor:pointer;transition:.15s}
+.drop:hover,.drop.over{border-color:var(--pri);background:#eff6ff}
+.drop .ic{font-size:42px;margin-bottom:10px}
+.drop .t{font-weight:700;font-size:16px;margin-bottom:5px}
+.drop .h{color:var(--muted);font-size:13px}
+.bar{height:9px;background:var(--line);border-radius:99px;overflow:hidden;margin:12px 0}
+.bar>div{height:100%;background:var(--pri);width:0;transition:width .25s}
+.sm{font-size:12px;color:var(--muted)}
+code{background:#f1f5f9;padding:1px 6px;border-radius:4px;font-size:12px;font-family:ui-monospace,monospace}
+.mono{font-family:ui-monospace,'Cascadia Code',monospace;font-size:12px}
+.log{background:#0f172a;color:#94a3b8;border-radius:8px;padding:13px;max-height:250px;
+  overflow-y:auto;font-family:ui-monospace,monospace;font-size:11.5px;line-height:1.7}
+.log .g{color:#4ade80} .log .r{color:#f87171} .log .y{color:#fbbf24}
+
+.empty{text-align:center;padding:44px 20px;color:var(--muted)}
+.empty .ic{font-size:40px;margin-bottom:10px;opacity:.4}
+.spin{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--pri);
+  border-radius:50%;animation:sp .7s linear infinite;margin:34px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+@media(max-width:900px){
+  .grid2,.grid3{grid-template-columns:1fr}
+  aside{transform:translateX(-100%)} aside.open{transform:translateX(0)}
+  main{margin-left:0;padding:14px} #burger{display:block}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ LOGIN / SIGNUP ============ -->
+<div id="authView">
+  <div class="authbox">
+    <h1>DASH WH2</h1>
+    <p class="sub">ระบบรายงานคลังสินค้า</p>
+    <div class="tabs">
+      <button id="tabLogin" class="on" onclick="switchTab('login')">เข้าสู่ระบบ</button>
+      <button id="tabSignup" onclick="switchTab('signup')">สมัครสมาชิก</button>
+    </div>
+    <div id="authMsg"></div>
+
+    <form id="loginForm" onsubmit="doLogin(event)">
+      <div class="fld"><label>อีเมล</label><input type="email" id="li_email" required autocomplete="username"></div>
+      <div class="fld"><label>รหัสผ่าน</label><input type="password" id="li_pass" required autocomplete="current-password"></div>
+      <button type="submit" class="btn" id="li_btn">เข้าสู่ระบบ</button>
+    </form>
+
+    <form id="signupForm" class="hide" onsubmit="doSignup(event)">
+      <div class="fld"><label>รหัสพนักงาน *</label>
+        <input id="su_emp" required placeholder="เช่น 66040027" inputmode="numeric"></div>
+      <div class="row2">
+        <div class="fld"><label>ชื่อ *</label><input id="su_name" required></div>
+        <div class="fld"><label>นามสกุล *</label><input id="su_sur" required></div>
+      </div>
+      <div class="row2">
+        <div class="fld"><label>ชื่อเล่น</label><input id="su_nick"></div>
+        <div class="fld"><label>ระดับ</label>
+          <select id="su_lvl">
+            <option value="">— เลือก —</option>
+            <option>G1</option><option>G2</option><option>G3</option><option>G4</option>
+            <option>G5</option><option>G6</option><option>G7</option><option>G8</option>
+          </select></div>
+      </div>
+      <div class="fld"><label>อีเมล *</label><input type="email" id="su_email" required autocomplete="username"></div>
+      <div class="fld"><label>รหัสผ่าน * <span class="sm">(อย่างน้อย 6 ตัว)</span></label>
+        <input type="password" id="su_pass" required minlength="6" autocomplete="new-password"></div>
+      <button type="submit" class="btn" id="su_btn">สมัครสมาชิก</button>
+      <p class="sm" style="margin-top:12px;text-align:center">
+        สมัครแล้วต้องรอผู้ดูแลระบบอนุมัติก่อนจึงจะดูข้อมูลได้</p>
+    </form>
+  </div>
+</div>
+
+<!-- ============ PENDING APPROVAL ============ -->
+<div id="pendView" class="hide" style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#0f172a,#1e3a8a);padding:20px">
+  <div class="authbox" style="text-align:center">
+    <div style="font-size:52px;margin-bottom:14px">⏳</div>
+    <h1>รอการอนุมัติ</h1>
+    <p class="sub" style="margin-top:8px">บัญชีของคุณสมัครเรียบร้อยแล้ว<br>กรุณาแจ้งผู้ดูแลระบบเพื่อเปิดสิทธิ์เข้าใช้งาน</p>
+    <div id="pendInfo" class="msg info" style="text-align:left"></div>
+    <button class="btn" onclick="location.reload()">ตรวจสอบสถานะอีกครั้ง</button>
+    <button class="btn" style="background:#64748b;margin-top:9px" onclick="doLogout()">ออกจากระบบ</button>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="appView" class="hide">
+  <aside id="side">
+    <div class="brand"><h2>DASH WH2</h2><p>ระบบรายงานคลังสินค้า</p></div>
+    <nav>
+      <div class="navlbl">Dashboard</div>
+      <a href="#" data-p="fg"      onclick="go('fg',event)">📦 FG Outbound Volume</a>
+      <a href="#" data-p="prepare" onclick="go('prepare',event)">⏱️ DO Preparing</a>
+      <a href="#" data-p="milkrun" onclick="go('milkrun',event)">🚚 Milk Run &amp; Timeout</a>
+      <div class="navlbl">ระบบ</div>
+      <a href="#" data-p="import" id="navImport" onclick="go('import',event)">📥 นำเข้าข้อมูล</a>
+      <a href="#" data-p="profile" onclick="go('profile',event)">👤 โปรไฟล์ของฉัน</a>
+      <a href="#" data-p="users" id="navUsers" onclick="go('users',event)">⚙️ จัดการผู้ใช้</a>
+    </nav>
+    <div class="me">
+      <div class="nm" id="meName">—</div>
+      <div class="rl" id="meRole">—</div>
+      <button onclick="doLogout()">ออกจากระบบ</button>
+    </div>
+  </aside>
+
+  <main>
+    <div class="topbar">
+      <button id="burger" onclick="document.getElementById('side').classList.toggle('open')">☰</button>
+      <div><h1 id="pgTitle">—</h1><p id="pgSub">—</p></div>
+    </div>
+    <div id="pageBody"></div>
+  </main>
+</div>
+
+<script>
+/* =========================================================================
+   CONFIG
+   ========================================================================= */
+const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
+const ADMIN_EMP    = '66040027';
+const MAX_ROWS     = 20000;   // เพดานแถวที่ดึงมาคำนวณต่อ dashboard
+
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+let ME = null, CHARTS = {}, PAGE = 'fg';
+
+/* =========================================================================
+   ตัวแปลงชนิดข้อมูล  —  ทำความสะอาดค่าจาก Excel ก่อนส่งขึ้น Postgres
+   ========================================================================= */
+const NBSP = /[ ​]/g;
+
+function T(v){                                     // text
+  if(v===null||v===undefined||v==='') return null;
+  if(v instanceof Date) return isoTS(v);
+  if(typeof v==='number') return Number.isInteger(v)? String(v) : String(v);
+  const s = String(v).replace(NBSP,' ').trim();
+  return s===''? null : s;
+}
+function N(v){                                     // numeric
+  if(v===null||v===undefined||v==='') return null;
+  if(typeof v==='number') return isFinite(v)? v : null;
+  const s = String(v).replace(NBSP,'').replace(/,/g,'').trim();
+  if(s==='') return null;
+  const n = parseFloat(s);
+  return isFinite(n)? n : null;
+}
+function pad(n){ return String(n).padStart(2,'0'); }
+
+function xlSerialToDate(n){                        // Excel serial -> JS Date (UTC based)
+  const ms = Math.round((n - 25569) * 86400 * 1000);
+  return new Date(ms);
+}
+function isoD(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function isoTS(d){ return isoD(d)+' '+pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds()); }
+
+function D(v){                                     // date  (yyyy-mm-dd)
+  if(v===null||v===undefined||v==='') return null;
+  if(v instanceof Date) return isoD(v);
+  if(typeof v==='number') return isoD(xlSerialToDate(v));
+  let s = String(v).replace(NBSP,' ').trim();
+  s = s.split(',')[0].trim();
+  let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);          if(m) return m[0];
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);       // d/m/yyyy  (รูปแบบไทย)
+  if(m) return m[3]+'-'+pad(m[2])+'-'+pad(m[1]);
+  const d = new Date(s);
+  return isNaN(d)? null : isoD(d);
+}
+function TS(v){                                    // timestamp (yyyy-mm-dd HH:MM:SS)
+  if(v===null||v===undefined||v==='') return null;
+  if(v instanceof Date) return isoTS(v);
+  if(typeof v==='number') return isoTS(xlSerialToDate(v));
+  let s = String(v).replace(NBSP,' ').trim();
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  if(m) return m[3]+'-'+pad(m[2])+'-'+pad(m[1])+' '+pad(m[4])+':'+m[5]+':'+(m[6]||'00');
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if(m) return m[1]+'-'+m[2]+'-'+m[3]+' '+m[4]+':'+m[5]+':'+(m[6]||'00');
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(m) return s+' 00:00:00';
+  const d = new Date(s);
+  return isNaN(d)? null : isoTS(d);
+}
+function TM(v){                                    // time (HH:MM:SS)
+  if(v===null||v===undefined||v==='') return null;
+  if(v instanceof Date) return pad(v.getHours())+':'+pad(v.getMinutes())+':'+pad(v.getSeconds());
+  if(typeof v==='number'){                          // Excel เก็บเวลาเป็นเศษของวัน
+    let f = v - Math.floor(v);
+    let t = Math.round(f*86400);
+    return pad(Math.floor(t/3600))+':'+pad(Math.floor(t%3600/60))+':'+pad(t%60);
+  }
+  const s = String(v).replace(NBSP,'').trim();
+  const m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  return m ? pad(+m[1])+':'+m[2]+':'+(m[3]||'00') : null;
+}
+function IV(v){                                    // interval  (รองรับค่าติดลบ เช่น -2:49:00)
+  if(v===null||v===undefined||v==='') return null;
+  if(v instanceof Date) return pad(v.getHours())+':'+pad(v.getMinutes())+':'+pad(v.getSeconds());
+  if(typeof v==='number'){
+    let t = Math.round(Math.abs(v)*86400), sg = v<0?'-':'';
+    return sg+pad(Math.floor(t/3600))+':'+pad(Math.floor(t%3600/60))+':'+pad(t%60);
+  }
+  const s = String(v).replace(NBSP,'').trim();
+  const m = s.match(/^(-?)(\d{1,3}):(\d{2})(?::(\d{2}))?$/);
+  return m ? m[1]+pad(+m[2])+':'+m[3]+':'+(m[4]||'00') : null;
+}
+
+/* =========================================================================
+   ผังคอลัมน์ 8 ชีท  —  อ่านตามลำดับคอลัมน์ (ชื่อหัวมี <br /> และชื่อซ้ำ)
+   ========================================================================= */
+const SHEETS = {
+  'Master': { table:'master_material', mode:'replace', rpc:'replace_master_material',
+    label:'ทะเบียนสินค้า',
+    cols:[['Mat.Code','mat_code',T],['Description','description',T],['Weight Spec','weight_spec',N],
+          ['Group Sale','group_sale',T],['Group Product','group_product',T],
+          ['Product Type','product_type',T],['Sloc.','sloc',T]],
+    req:['mat_code'] },
+
+  'Customer': { table:'master_customer', mode:'replace', rpc:'replace_master_customer',
+    label:'ทะเบียนลูกค้า',
+    cols:[['รหัสลูกค้า','customer_code',T],['กลุ่มลูกค้า','customer_group',T]],
+    req:['customer_code'] },
+
+  'User': { table:'master_employee', mode:'replace', rpc:'replace_master_employee',
+    label:'ทะเบียนพนักงาน',
+    cols:[['Employee ID','employee_id',T],['Name','name',T],['Surname','surname',T],
+          ['Nickname','nickname',T],['Level','level',T]],
+    req:['employee_id'] },
+
+  'FG': { table:'fg_outbound', mode:'upsert', conflict:'shipment,delivery,item',
+    label:'จ่ายออกสินค้าสำเร็จรูป',
+    cols:[['CurrLoadSt','load_date',D],['Shipment','shipment',T],['Delivery','delivery',T],
+          ['Item','item',T],['External ID 1','external_id',T],['Material','material_code',T],
+          ['Description','description',T],['Batch','batch',T],['Delivery quantity','delivery_qty',N],
+          ['Gross weight','gross_weight',N],['ShTy','shty',T],['Shipment type','shipment_type',T],
+          ['Plnt','plant',T],['Sold-to pt','sold_to',T],['Sold-to name','sold_to_name',T],
+          ['Ship-to','ship_to',T],['Ship-to name','ship_to_name',T],['Vendor','vendor',T],
+          ['Vendor name','vendor_name',T],['Storage Location','storage_location',T]],
+    req:['shipment','delivery','item'] },
+
+  'Prepare': { table:'prepare_do', mode:'upsert', conflict:'loading_date,delivery_order,delivery_item',
+    label:'จัดเตรียมสินค้าตาม DO',
+    cols:[['Loading Date','loading_date',D],['Sold To Name','sold_to_name',T],
+          ['Delivery Order','delivery_order',T],['Delivery Item','delivery_item',T],
+          ['Material Code','material_code',T],['Material Desc','material_desc',T],
+          ['Batch','batch',T],['Actual Quantity','actual_qty',N],['Product Group','product_group',T],
+          ['Group Storage Location','group_storage_location',T],['User Gate','user_gate',T],
+          ['มัดเต็ม','bundle_full',N],['มัดเศษ','bundle_partial',N],
+          ['เวลาเปิด DO','do_open_at',TS],['เวลา Preparing','preparing_at',TS],
+          ['เวลา Completed','completed_at',TS]],
+    req:['loading_date','delivery_order','delivery_item'] },
+
+  'Milk Run': { table:'milk_run', mode:'upsert', conflict:'milk_run_no,delivery,do_item',
+    label:'เคลื่อนย้ายระหว่างโรง',
+    cols:[['Milk Run No.','milk_run_no',T],['หัวลาก','truck_head',T],['หางลาก','truck_tail',T],
+          ['Weight','weight',N],['สถานะ','trip_status',T],['Created By','created_by',T],
+          ['Created Time','created_time',TS],['Modified By','modified_by',T],
+          ['Modified Time','modified_time',TS],['Start Time','trip_start_time',TS],
+          ['End Time','trip_end_time',TS],['Running Time','running_time',IV],
+          ['Delivery','delivery',T],['DO Item','do_item',T],['Ship To','ship_to',T],
+          ['Material Code','material_code',T],['Material Desc','material_desc',T],
+          ['Wait Pick Time','wait_pick_time',TS],['Start Time','item_start_time',TS],
+          ['Destination Time','destination_time',TS],['Check In Time','check_in_time',TS],
+          ['End Time','item_end_time',TS],['Gate','gate',T],['Next Gate','next_gate',T],
+          ['Status','item_status',T],['User หัวลาก','driver_name',T],['ต้นทาง','origin',T],
+          ['ปลายทาง','destination',T],['Date','run_date',D],['Month','month',T],['สัปดาห์','week',T]],
+    req:['milk_run_no','delivery','do_item'] },
+
+  'Shipment': { table:'shipment_job', mode:'upsert', conflict:'shipment,material_desc,gate_name,weight',
+    label:'รอบรถขนส่ง',
+    cols:[['Shipment','shipment',T],['Job type','job_type',T],['Job Status','job_status',T],
+          ['External ID','external_id',T],['ประเภทรถ','vehicle_type',T],['Sold To Name','sold_to_name',T],
+          ['Ship To Name','ship_to_name',T],['Product Group','product_group',T],
+          ['Material Desc','material_desc',T],['Gate Name','gate_name',T],['Weight','weight',N],
+          ['Shipment Date','shipment_date',D],['Weight Start','weight_start',TM],
+          ['Shipment Time','shipment_time',TM],['Center Time','center_time',TM],
+          ['Weight Success','weight_success',TM],
+          ['Weight Success - Weight Start','ws_minus_wstart',IV],
+          ['Weight Success - Shipment Start','ws_minus_shipstart',IV],
+          ['Weight Success - Center','ws_minus_center',IV],
+          ['Gate Check in','gate_check_in',TM],['Gate Check out','gate_check_out',TM],
+          ['Running Time (mm)','running_time',IV],['Used Time (mm)','used_time',IV],
+          ['Lost Time เวลาที่รถรอเข้า Gate','lost_wait_gate',IV],
+          ['Lost Time Shipment Start - Weight Start','lost_ship_vs_weight',IV],
+          ['Lost Time Center Process - Shipment Start','lost_center_vs_ship',IV],['Issue','issue',T]],
+    req:['shipment','material_desc','gate_name','weight'] },
+
+  'Timeout': { table:'factory_timeout', mode:'upsert', conflict:'work_date,factory',
+    label:'เวลาปิดงานรายโรง',
+    cols:[['Timestamp','submitted_at',TS],['Month','month',T],['Date','work_date',D],
+          ['Factory','factory',T],['Time Out','time_out',TM],
+          ['รับเข้า PD','receive_pd',N],['จ่ายออก PD','issue_pd',N]],
+    req:['work_date','factory'] }
+};
+
+/* =========================================================================
+   AUTH
+   ========================================================================= */
+function switchTab(t){
+  const lg = t==='login';
+  document.getElementById('tabLogin').classList.toggle('on',lg);
+  document.getElementById('tabSignup').classList.toggle('on',!lg);
+  document.getElementById('loginForm').classList.toggle('hide',!lg);
+  document.getElementById('signupForm').classList.toggle('hide',lg);
+  document.getElementById('authMsg').innerHTML='';
+}
+function authMsg(t,k){ document.getElementById('authMsg').innerHTML = `<div class="msg ${k}">${t}</div>`; }
+
+async function doLogin(e){
+  e.preventDefault();
+  const b=document.getElementById('li_btn'); b.disabled=true; b.textContent='กำลังเข้าสู่ระบบ…';
+  const {error} = await sb.auth.signInWithPassword({
+    email: document.getElementById('li_email').value.trim(),
+    password: document.getElementById('li_pass').value });
+  b.disabled=false; b.textContent='เข้าสู่ระบบ';
+  if(error){
+    authMsg(error.message.includes('Invalid login')
+      ? 'อีเมลหรือรหัสผ่านไม่ถูกต้อง'
+      : (error.message.includes('Email not confirmed')
+         ? 'อีเมลยังไม่ได้ยืนยัน — ให้ผู้ดูแลระบบปิด Confirm email ใน Supabase หรือกดยืนยันจากอีเมลก่อน'
+         : error.message), 'err');
+    return;
+  }
+  boot();
+}
+
+async function doSignup(e){
+  e.preventDefault();
+  const emp = document.getElementById('su_emp').value.trim();
+  if(!/^\d+$/.test(emp)){ authMsg('รหัสพนักงานต้องเป็นตัวเลขเท่านั้น','err'); return; }
+  const b=document.getElementById('su_btn'); b.disabled=true; b.textContent='กำลังสมัคร…';
+  const {data,error} = await sb.auth.signUp({
+    email: document.getElementById('su_email').value.trim(),
+    password: document.getElementById('su_pass').value,
+    options:{ data:{
+      employee_id: emp,
+      name:     document.getElementById('su_name').value.trim(),
+      surname:  document.getElementById('su_sur').value.trim(),
+      nickname: document.getElementById('su_nick').value.trim(),
+      level:    document.getElementById('su_lvl').value
+    }}
+  });
+  b.disabled=false; b.textContent='สมัครสมาชิก';
+  if(error){
+    let m = error.message;
+    if(m.includes('already registered')) m='อีเมลนี้ถูกใช้สมัครไปแล้ว';
+    else if(m.includes('duplicate key') || m.includes('profiles_employee_id_key')) m='รหัสพนักงานนี้ถูกใช้สมัครไปแล้ว';
+    authMsg(m,'err'); return;
+  }
+  if(!data.session){
+    authMsg('สมัครเรียบร้อย — กรุณายืนยันอีเมลก่อนเข้าใช้งาน<br>'+
+            '<span class="sm">ถ้าไม่ต้องการขั้นตอนนี้ ให้ admin ปิด Confirm email ที่ Supabase → Authentication → Sign In / Providers → Email</span>','ok');
+    switchTab('login'); return;
+  }
+  boot();
+}
+
+async function doLogout(){ await sb.auth.signOut(); location.reload(); }
+
+/* =========================================================================
+   BOOT
+   ========================================================================= */
+async function boot(){
+  const {data:{session}} = await sb.auth.getSession();
+  if(!session){ show('authView'); return; }
+
+  const {data:p,error} = await sb.from('profiles').select('*').eq('id',session.user.id).single();
+  if(error || !p){
+    authMsg('ไม่พบข้อมูลโปรไฟล์ กรุณาติดต่อผู้ดูแลระบบ','err');
+    await sb.auth.signOut(); show('authView'); return;
+  }
+  ME = p; ME.email = session.user.email;
+
+  if(!p.is_approved){
+    document.getElementById('pendInfo').innerHTML =
+      `<b>รหัสพนักงาน:</b> ${esc(p.employee_id)}<br><b>ชื่อ:</b> ${esc(p.name||'')} ${esc(p.surname||'')}<br><b>อีเมล:</b> ${esc(ME.email)}`;
+    show('pendView'); return;
+  }
+
+  document.getElementById('meName').textContent = (p.name||'')+' '+(p.surname||'')+(p.nickname?` (${p.nickname})`:'');
+  document.getElementById('meRole').textContent = (p.role==='admin'?'ผู้ดูแลระบบ':'ผู้ใช้งาน')+' · '+p.employee_id;
+  const adm = p.role==='admin';
+  document.getElementById('navImport').classList.toggle('hide',!adm);
+  document.getElementById('navUsers').classList.toggle('hide',!adm);
+  show('appView');
+  go(adm ? 'fg' : 'fg');
+}
+function show(id){ ['authView','pendView','appView'].forEach(v=>
+  document.getElementById(v).classList.toggle('hide', v!==id)); }
+
+/* =========================================================================
+   ROUTER
+   ========================================================================= */
+const PAGES = {
+  fg:      {t:'FG Outbound Volume', s:'ปริมาณและน้ำหนักสินค้าที่จ่ายออก', f:pageFG},
+  prepare: {t:'DO Preparing',       s:'เวลาที่ใช้จัดเตรียมสินค้าตาม Delivery Order', f:pagePrepare},
+  milkrun: {t:'Milk Run & Timeout', s:'การเคลื่อนย้ายระหว่างโรงและเวลาปิดงาน', f:pageMilk},
+  import:  {t:'นำเข้าข้อมูล',        s:'อัปโหลดไฟล์ Excel 8 ชีทเข้าฐานข้อมูล', f:pageImport},
+  profile: {t:'โปรไฟล์ของฉัน',       s:'แก้ไขข้อมูลส่วนตัว', f:pageProfile},
+  users:   {t:'จัดการผู้ใช้',         s:'อนุมัติผู้สมัครและกำหนดสิทธิ์', f:pageUsers}
+};
+function go(p,e){
+  if(e) e.preventDefault();
+  if((p==='import'||p==='users') && ME.role!=='admin') p='fg';
+  PAGE = p;
+  document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.p===p));
+  document.getElementById('pgTitle').textContent = PAGES[p].t;
+  document.getElementById('pgSub').textContent   = PAGES[p].s;
+  document.getElementById('side').classList.remove('open');
+  Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(_){}}); CHARTS={};
+  document.getElementById('pageBody').innerHTML = '<div class="spin"></div>';
+  PAGES[p].f();
+}
+
+/* =========================================================================
+   HELPERS
+   ========================================================================= */
+function esc(s){ return String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function fmt(n,d=0){ return n==null||isNaN(n)?'—':Number(n).toLocaleString('th-TH',{minimumFractionDigits:d,maximumFractionDigits:d}); }
+function el(id){ return document.getElementById(id); }
+function body(h){ el('pageBody').innerHTML = h; }
+
+const PAL = ['#2563eb','#16a34a','#f59e0b','#dc2626','#8b5cf6','#0891b2','#ec4899','#65a30d','#f97316','#6366f1'];
+
+function chart(id,type,labels,datasets,opts={}){
+  const cv = el(id); if(!cv) return;
+  if(CHARTS[id]) CHARTS[id].destroy();
+  CHARTS[id] = new Chart(cv,{ type, data:{labels,datasets},
+    options:Object.assign({
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:datasets.length>1||type==='doughnut'||type==='pie',
+                         position:'bottom', labels:{font:{family:'Sarabun',size:11},boxWidth:12} } },
+      scales:(type==='doughnut'||type==='pie')?{}:{
+        y:{beginAtZero:true,ticks:{font:{family:'Sarabun',size:11}}},
+        x:{ticks:{font:{family:'Sarabun',size:10},maxRotation:45,minRotation:0}}
+      }
+    },opts) });
+}
+
+function groupSum(rows,keyFn,valFn){
+  const m = new Map();
+  rows.forEach(r=>{ const k = keyFn(r) ?? 'ไม่ระบุ'; const v = valFn(r); if(v==null||isNaN(v)) return;
+    m.set(k,(m.get(k)||0)+Number(v)); });
+  return [...m.entries()].sort((a,b)=>b[1]-a[1]);
+}
+function groupAvg(rows,keyFn,valFn){
+  const m = new Map();
+  rows.forEach(r=>{ const k = keyFn(r) ?? 'ไม่ระบุ'; const v = valFn(r); if(v==null||isNaN(v)) return;
+    const e = m.get(k)||[0,0]; e[0]+=Number(v); e[1]++; m.set(k,e); });
+  return [...m.entries()].map(([k,[s,c]])=>[k,s/c]).sort((a,b)=>b[1]-a[1]);
+}
+function countBy(rows,keyFn){
+  const m = new Map();
+  rows.forEach(r=>{ const k = keyFn(r) ?? 'ไม่ระบุ'; m.set(k,(m.get(k)||0)+1); });
+  return [...m.entries()].sort((a,b)=>b[1]-a[1]);
+}
+function avg(a){ const v=a.filter(x=>x!=null&&!isNaN(x)); return v.length? v.reduce((s,x)=>s+Number(x),0)/v.length : null; }
+
+function emptyBox(msg){
+  return `<div class="card"><div class="empty"><div class="ic">📭</div><p>${esc(msg)}</p>
+    ${ME.role==='admin'?'<p class="sm" style="margin-top:8px">ไปที่เมนู <b>นำเข้าข้อมูล</b> เพื่ออัปโหลดไฟล์ Excel</p>':''}</div></div>`;
+}
+function tableHTML(cols,rows,limit=200){
+  const head = cols.map(c=>`<th${c.n?' class="num"':''}>${esc(c.h)}</th>`).join('');
+  const bodyR = rows.slice(0,limit).map(r=>'<tr>'+cols.map(c=>{
+    let v = c.f? c.f(r) : r[c.k];
+    return `<td${c.n?' class="num"':''}>${c.raw? (v??'—') : esc(v??'—')}</td>`;
+  }).join('')+'</tr>').join('');
+  return `<div class="tw"><table><thead><tr>${head}</tr></thead><tbody>${bodyR}</tbody></table></div>
+    ${rows.length>limit?`<p class="sm" style="margin-top:9px">แสดง ${limit} จาก ${fmt(rows.length)} แถว</p>`:
+      `<p class="sm" style="margin-top:9px">ทั้งหมด ${fmt(rows.length)} แถว</p>`}`;
+}
+
+async function fetchAll(view,dateCol,from,to){
+  let q = sb.from(view).select('*').limit(MAX_ROWS);
+  if(dateCol && from) q = q.gte(dateCol,from);
+  if(dateCol && to)   q = q.lte(dateCol,to);
+  const {data,error} = await q;
+  if(error){ console.error(error); return {rows:[],error}; }
+  return {rows:data||[],error:null};
+}
+function dateFilterHTML(f,t,fn){
+  return `<div class="filters">
+    <div class="fld"><label>ตั้งแต่วันที่</label><input type="date" id="fFrom" value="${f||''}"></div>
+    <div class="fld"><label>ถึงวันที่</label><input type="date" id="fTo" value="${t||''}"></div>
+    <button class="fbtn" onclick="${fn}()">กรองข้อมูล</button>
+    <button class="fbtn alt" onclick="el('fFrom').value='';el('fTo').value='';${fn}()">ล้างตัวกรอง</button>
+  </div>`;
+}
+
+/* =========================================================================
+   PAGE 1 — FG OUTBOUND VOLUME
+   ========================================================================= */
+async function pageFG(){
+  const f = el('fFrom')?.value, t = el('fTo')?.value;
+  const {rows,error} = await fetchAll('v_fg_enriched','load_date',f,t);
+  if(error){ body(`<div class="card"><div class="msg err">โหลดข้อมูลไม่สำเร็จ: ${esc(error.message)}</div></div>`); return; }
+
+  const head = dateFilterHTML(f,t,'pageFG');
+  if(!rows.length){ body(head + emptyBox('ยังไม่มีข้อมูล FG ในช่วงที่เลือก')); return; }
+
+  const totQty = rows.reduce((s,r)=>s+(+r.delivery_qty||0),0);
+  const totWt  = rows.reduce((s,r)=>s+(+r.gross_weight||0),0);
+  const nShip  = new Set(rows.map(r=>r.shipment)).size;
+  const nDel   = new Set(rows.map(r=>r.delivery)).size;
+  const noCust = rows.filter(r=>r.customer_group==='ไม่พบในทะเบียนลูกค้า').length;
+
+  const byGrp  = groupSum(rows,r=>r.group_product,r=>r.gross_weight);
+  const byCust = groupSum(rows,r=>r.customer_group,r=>r.gross_weight);
+  const bySloc = groupSum(rows,r=>r.storage_location,r=>r.gross_weight).slice(0,12);
+  const byName = groupSum(rows,r=>r.sold_to_name,r=>r.gross_weight).slice(0,10);
+  const byType = groupSum(rows,r=>r.shipment_type,r=>r.gross_weight);
+
+  body(head + `
+  <div class="kpis">
+    <div class="kpi"><div class="k">น้ำหนักรวม</div><div class="v">${fmt(totWt)}</div><div class="s">กิโลกรัม</div></div>
+    <div class="kpi g"><div class="k">ปริมาณรวม</div><div class="v">${fmt(totQty)}</div><div class="s">หน่วย</div></div>
+    <div class="kpi c"><div class="k">จำนวน Shipment</div><div class="v">${fmt(nShip)}</div><div class="s">${fmt(nDel)} Delivery</div></div>
+    <div class="kpi ${noCust?'o':'g'}"><div class="k">รายการที่ไม่พบลูกค้า</div><div class="v">${fmt(noCust)}</div>
+      <div class="s">${rows.length?((noCust/rows.length*100).toFixed(1)):'0'}% ของ ${fmt(rows.length)} แถว</div></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>น้ำหนักตามกลุ่มสินค้า (Group Product)</h3><div class="chartbox"><canvas id="c1"></canvas></div></div>
+    <div class="card"><h3>น้ำหนักตามกลุ่มลูกค้า</h3><div class="chartbox"><canvas id="c2"></canvas></div></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>น้ำหนักตาม Storage Location</h3><div class="chartbox"><canvas id="c3"></canvas></div></div>
+    <div class="card"><h3>10 อันดับลูกค้าตามน้ำหนัก</h3><div class="chartbox"><canvas id="c4"></canvas></div></div>
+  </div>
+  <div class="card"><h3>ประเภทการจัดส่ง</h3><div class="chartbox" style="height:230px"><canvas id="c5"></canvas></div></div>
+  <div class="card"><h3>รายการจ่ายออก</h3>` + tableHTML([
+    {h:'วันที่',k:'load_date'},{h:'Shipment',k:'shipment'},{h:'Delivery',k:'delivery'},
+    {h:'Item',k:'item'},{h:'รหัสสินค้า',k:'material_code'},
+    {h:'รายละเอียด',k:'description',f:r=>(r.description||'').slice(0,42)},
+    {h:'กลุ่มสินค้า',k:'group_product'},
+    {h:'ปริมาณ',k:'delivery_qty',n:1,f:r=>fmt(r.delivery_qty)},
+    {h:'น้ำหนัก',k:'gross_weight',n:1,f:r=>fmt(r.gross_weight,1)},
+    {h:'ลูกค้า',k:'sold_to_name',f:r=>(r.sold_to_name||'').slice(0,28)},
+    {h:'กลุ่มลูกค้า',k:'customer_group'},{h:'Sloc',k:'storage_location'}
+  ],rows) + `</div>`);
+
+  chart('c1','bar',byGrp.map(x=>x[0]),[{label:'น้ำหนัก (กก.)',data:byGrp.map(x=>x[1]),backgroundColor:PAL[0]}]);
+  chart('c2','doughnut',byCust.map(x=>x[0]),[{data:byCust.map(x=>x[1]),backgroundColor:PAL}]);
+  chart('c3','bar',bySloc.map(x=>x[0]),[{label:'น้ำหนัก (กก.)',data:bySloc.map(x=>x[1]),backgroundColor:PAL[5]}]);
+  chart('c4','bar',byName.map(x=>x[0].slice(0,22)),[{label:'น้ำหนัก (กก.)',data:byName.map(x=>x[1]),backgroundColor:PAL[1]}],
+    {indexAxis:'y',scales:{x:{beginAtZero:true,ticks:{font:{family:'Sarabun',size:10}}},y:{ticks:{font:{family:'Sarabun',size:10}}}}});
+  chart('c5','bar',byType.map(x=>x[0]),[{label:'น้ำหนัก (กก.)',data:byType.map(x=>x[1]),backgroundColor:PAL[2]}]);
+}
+
+/* =========================================================================
+   PAGE 2 — DO PREPARING
+   ========================================================================= */
+async function pagePrepare(){
+  const f = el('fFrom')?.value, t = el('fTo')?.value;
+  const {rows,error} = await fetchAll('v_prepare_kpi','loading_date',f,t);
+  if(error){ body(`<div class="card"><div class="msg err">โหลดข้อมูลไม่สำเร็จ: ${esc(error.message)}</div></div>`); return; }
+
+  const head = dateFilterHTML(f,t,'pagePrepare');
+  if(!rows.length){ body(head + emptyBox('ยังไม่มีข้อมูล Prepare ในช่วงที่เลือก')); return; }
+
+  const done   = rows.filter(r=>r.stage==='Completed');
+  const prep   = rows.filter(r=>r.stage==='Preparing');
+  const open   = rows.filter(r=>r.stage==='Open');
+  const pctDone= rows.length? done.length/rows.length*100 : 0;
+  const avgLead= avg(rows.map(r=>r.mins_total_lead));
+  const avgPrep= avg(rows.map(r=>r.mins_preparing_to_done));
+  const bFull  = rows.reduce((s,r)=>s+(+r.bundle_full||0),0);
+  const bPart  = rows.reduce((s,r)=>s+(+r.bundle_partial||0),0);
+
+  const byStage = [['Completed',done.length],['Preparing',prep.length],['Open',open.length]];
+  const byGate  = groupAvg(rows.filter(r=>r.mins_total_lead!=null),r=>r.user_gate,r=>r.mins_total_lead);
+  const byPG    = groupSum(rows,r=>r.product_group,r=>r.actual_qty);
+  const byDate  = groupAvg(rows.filter(r=>r.mins_total_lead!=null),r=>r.loading_date,r=>r.mins_total_lead)
+                    .sort((a,b)=>a[0]<b[0]?-1:1);
+  const backGate= countBy(rows.filter(r=>r.stage!=='Completed'),r=>r.user_gate);
+
+  body(head + `
+  <div class="kpis">
+    <div class="kpi"><div class="k">รายการ DO ทั้งหมด</div><div class="v">${fmt(rows.length)}</div>
+      <div class="s">${fmt(new Set(rows.map(r=>r.delivery_order)).size)} ใบ DO</div></div>
+    <div class="kpi ${pctDone>=80?'g':pctDone>=50?'o':'r'}"><div class="k">เสร็จแล้ว</div>
+      <div class="v">${pctDone.toFixed(1)}%</div><div class="s">${fmt(done.length)} จาก ${fmt(rows.length)} รายการ</div></div>
+    <div class="kpi o"><div class="k">งานค้าง</div><div class="v">${fmt(prep.length+open.length)}</div>
+      <div class="s">กำลังเตรียม ${fmt(prep.length)} · ยังไม่เริ่ม ${fmt(open.length)}</div></div>
+    <div class="kpi c"><div class="k">Lead time เฉลี่ย</div>
+      <div class="v">${avgLead==null?'—':fmt(avgLead,0)}</div><div class="s">นาที (เปิด DO → เสร็จ)</div></div>
+  </div>
+  <div class="grid3">
+    <div class="card"><h3>Lead time เฉลี่ยรายวัน (นาที)</h3><div class="chartbox"><canvas id="p1"></canvas></div></div>
+    <div class="card"><h3>สถานะงาน</h3><div class="chartbox"><canvas id="p2"></canvas></div></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>Lead time เฉลี่ยตาม Gate (นาที)</h3><div class="chartbox"><canvas id="p3"></canvas></div></div>
+    <div class="card"><h3>งานค้างแยกตาม Gate</h3><div class="chartbox"><canvas id="p4"></canvas></div></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>ปริมาณตามกลุ่มสินค้า</h3><div class="chartbox"><canvas id="p5"></canvas></div></div>
+    <div class="card"><h3>สัดส่วนมัดเต็ม / มัดเศษ</h3>
+      <div class="chartbox"><canvas id="p6"></canvas></div>
+      <p class="sm" style="margin-top:10px">มัดเต็ม ${fmt(bFull)} · มัดเศษ ${fmt(bPart)} ·
+      สัดส่วนมัดเต็ม ${(bFull+bPart)?((bFull/(bFull+bPart))*100).toFixed(1):'0'}%</p></div>
+  </div>
+  <div class="card"><h3>รายการจัดเตรียม</h3>` + tableHTML([
+    {h:'วันที่',k:'loading_date'},{h:'DO',k:'delivery_order'},{h:'Item',k:'delivery_item'},
+    {h:'ลูกค้า',k:'sold_to_name',f:r=>(r.sold_to_name||'').slice(0,26)},
+    {h:'รหัสสินค้า',k:'material_code'},
+    {h:'ปริมาณ',k:'actual_qty',n:1,f:r=>fmt(r.actual_qty)},
+    {h:'Gate',k:'user_gate'},
+    {h:'สถานะ',k:'stage',raw:1,f:r=>`<span class="pill ${r.stage==='Completed'?'g':r.stage==='Preparing'?'o':'n'}">${r.stage}</span>`},
+    {h:'DO→เตรียม (น.)',k:'mins_do_to_preparing',n:1,f:r=>r.mins_do_to_preparing==null?'—':fmt(r.mins_do_to_preparing,0)},
+    {h:'เตรียม→เสร็จ (น.)',k:'mins_preparing_to_done',n:1,f:r=>r.mins_preparing_to_done==null?'—':fmt(r.mins_preparing_to_done,0)},
+    {h:'รวม (น.)',k:'mins_total_lead',n:1,f:r=>r.mins_total_lead==null?'—':fmt(r.mins_total_lead,0)}
+  ],rows) + `</div>`);
+
+  chart('p1','line',byDate.map(x=>x[0]),[{label:'นาที',data:byDate.map(x=>x[1]),
+    borderColor:PAL[0],backgroundColor:'rgba(37,99,235,.12)',fill:true,tension:.3}]);
+  chart('p2','doughnut',byStage.map(x=>x[0]),[{data:byStage.map(x=>x[1]),
+    backgroundColor:['#16a34a','#f59e0b','#94a3b8']}]);
+  chart('p3','bar',byGate.map(x=>x[0]),[{label:'นาที',data:byGate.map(x=>x[1]),backgroundColor:PAL[5]}]);
+  chart('p4','bar',backGate.map(x=>x[0]),[{label:'รายการค้าง',data:backGate.map(x=>x[1]),backgroundColor:PAL[3]}]);
+  chart('p5','bar',byPG.map(x=>x[0]),[{label:'ปริมาณ',data:byPG.map(x=>x[1]),backgroundColor:PAL[1]}]);
+  chart('p6','doughnut',['มัดเต็ม','มัดเศษ'],[{data:[bFull,bPart],backgroundColor:['#2563eb','#f59e0b']}]);
+}
+
+/* =========================================================================
+   PAGE 3 — MILK RUN & FACTORY TIMEOUT
+   ========================================================================= */
+async function pageMilk(){
+  const f = el('fFrom')?.value, t = el('fTo')?.value;
+  const [mr,to] = await Promise.all([
+    fetchAll('v_milkrun_kpi','run_date',f,t),
+    fetchAll('v_timeout_kpi','work_date',f,t)
+  ]);
+  const head = dateFilterHTML(f,t,'pageMilk');
+  if(mr.error||to.error){
+    body(head+`<div class="card"><div class="msg err">โหลดข้อมูลไม่สำเร็จ: ${esc((mr.error||to.error).message)}</div></div>`); return; }
+  const R = mr.rows, O = to.rows;
+  if(!R.length && !O.length){ body(head + emptyBox('ยังไม่มีข้อมูล Milk Run / Timeout ในช่วงที่เลือก')); return; }
+
+  /* ---- Milk Run ---- */
+  const trips  = new Set(R.map(r=>r.milk_run_no)).size;
+  const totWt  = R.reduce((s,r)=>s+(+r.weight||0),0);
+  const avgTrip= avg(R.map(r=>r.trip_mins));
+  const routes = new Set(R.map(r=>r.route)).size;
+
+  const byRoute = countBy(R,r=>r.route).slice(0,12);
+  const byHead  = groupSum(R,r=>r.truck_head,r=>r.weight);
+  const byDriver= countBy(R,r=>r.driver_name);
+  const seg = {
+    wait:  avg(R.map(r=>r.mins_wait_pick)),
+    trav:  avg(R.map(r=>r.mins_travel)),
+    chk:   avg(R.map(r=>r.mins_wait_checkin)),
+    unl:   avg(R.map(r=>r.mins_unload))
+  };
+  const routeSeg = [...new Set(R.map(r=>r.route))].slice(0,8).map(rt=>{
+    const g = R.filter(r=>r.route===rt);
+    return { rt, w:avg(g.map(r=>r.mins_wait_pick))||0, t:avg(g.map(r=>r.mins_travel))||0,
+             c:avg(g.map(r=>r.mins_wait_checkin))||0, u:avg(g.map(r=>r.mins_unload))||0 };
+  });
+
+  /* ---- Timeout ---- */
+  const totRecv = O.reduce((s,r)=>s+(+r.receive_pd||0),0);
+  const totIssue= O.reduce((s,r)=>s+(+r.issue_pd||0),0);
+  const avgOut  = avg(O.map(r=>r.time_out_hours));
+  const facs    = [...new Set(O.map(r=>r.factory))].sort();
+  const dates   = [...new Set(O.map(r=>r.work_date))].sort();
+  const outSeries = facs.map((fc,i)=>({
+    label:fc, data:dates.map(d=>{ const x=O.find(r=>r.factory===fc && r.work_date===d); return x? x.time_out_hours : null; }),
+    borderColor:PAL[i%PAL.length], backgroundColor:PAL[i%PAL.length], tension:.25, spanGaps:true
+  }));
+  const recvByFac = groupSum(O,r=>r.factory,r=>r.receive_pd);
+  const issByFac  = groupSum(O,r=>r.factory,r=>r.issue_pd);
+  const facLabels = [...new Set([...recvByFac,...issByFac].map(x=>x[0]))];
+
+  body(head + `
+  <div class="kpis">
+    <div class="kpi"><div class="k">จำนวนเที่ยว Milk Run</div><div class="v">${fmt(trips)}</div>
+      <div class="s">${fmt(R.length)} รายการสินค้า</div></div>
+    <div class="kpi g"><div class="k">น้ำหนักขนย้ายรวม</div><div class="v">${fmt(totWt)}</div><div class="s">กิโลกรัม</div></div>
+    <div class="kpi c"><div class="k">เวลาต่อเที่ยวเฉลี่ย</div>
+      <div class="v">${avgTrip==null?'—':fmt(avgTrip,0)}</div><div class="s">นาที · ${fmt(routes)} เส้นทาง</div></div>
+    <div class="kpi o"><div class="k">เวลาปิดงานเฉลี่ย</div>
+      <div class="v">${avgOut==null?'—':(Math.floor(avgOut)+':'+pad(Math.round((avgOut%1)*60)))}</div>
+      <div class="s">${fmt(O.length)} บันทึก · ${facs.length} โรง</div></div>
+  </div>
+
+  <div class="card"><h3>เวลาที่ใช้แต่ละช่วงของ Milk Run (นาทีเฉลี่ย)</h3>
+    <div class="kpis" style="margin-bottom:0">
+      <div class="kpi"><div class="k">รอหยิบสินค้า</div><div class="v">${seg.wait==null?'—':fmt(seg.wait,1)}</div><div class="s">นาที</div></div>
+      <div class="kpi c"><div class="k">เดินทาง</div><div class="v">${seg.trav==null?'—':fmt(seg.trav,1)}</div><div class="s">นาที</div></div>
+      <div class="kpi o"><div class="k">รอ Check-in</div><div class="v">${seg.chk==null?'—':fmt(seg.chk,1)}</div><div class="s">นาที</div></div>
+      <div class="kpi g"><div class="k">ลงสินค้า</div><div class="v">${seg.unl==null?'—':fmt(seg.unl,1)}</div><div class="s">นาที</div></div>
+    </div></div>
+
+  <div class="grid2">
+    <div class="card"><h3>จำนวนรายการตามเส้นทาง</h3><div class="chartbox"><canvas id="m1"></canvas></div></div>
+    <div class="card"><h3>เวลาแต่ละช่วงแยกตามเส้นทาง (นาที)</h3><div class="chartbox"><canvas id="m2"></canvas></div></div>
+  </div>
+  <div class="grid2">
+    <div class="card"><h3>น้ำหนักตามหัวลาก</h3><div class="chartbox"><canvas id="m3"></canvas></div></div>
+    <div class="card"><h3>จำนวนรายการตามพนักงานขับ</h3><div class="chartbox"><canvas id="m4"></canvas></div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card"><h3>เวลาปิดงานรายโรง (ชั่วโมง)</h3><div class="chartbox"><canvas id="m5"></canvas></div></div>
+    <div class="card"><h3>รับเข้า / จ่ายออก PD รายโรง</h3><div class="chartbox"><canvas id="m6"></canvas></div>
+      <p class="sm" style="margin-top:10px">รับเข้ารวม ${fmt(totRecv)} · จ่ายออกรวม ${fmt(totIssue,2)}</p></div>
+  </div>
+
+  <div class="card"><h3>รายการ Milk Run</h3>` + tableHTML([
+    {h:'วันที่',k:'run_date'},{h:'Milk Run',k:'milk_run_no'},{h:'เส้นทาง',k:'route'},
+    {h:'หัวลาก',k:'truck_head'},{h:'Delivery',k:'delivery'},{h:'Item',k:'do_item'},
+    {h:'สินค้า',k:'material_desc',f:r=>(r.material_desc||'').slice(0,30)},
+    {h:'น้ำหนัก',k:'weight',n:1,f:r=>fmt(r.weight)},
+    {h:'รอหยิบ',k:'mins_wait_pick',n:1,f:r=>r.mins_wait_pick==null?'—':fmt(r.mins_wait_pick,0)},
+    {h:'เดินทาง',k:'mins_travel',n:1,f:r=>r.mins_travel==null?'—':fmt(r.mins_travel,0)},
+    {h:'รอ Check-in',k:'mins_wait_checkin',n:1,f:r=>r.mins_wait_checkin==null?'—':fmt(r.mins_wait_checkin,0)},
+    {h:'ลงสินค้า',k:'mins_unload',n:1,f:r=>r.mins_unload==null?'—':fmt(r.mins_unload,0)},
+    {h:'รวมเที่ยว',k:'trip_mins',n:1,f:r=>r.trip_mins==null?'—':fmt(r.trip_mins,0)},
+    {h:'พนักงานขับ',k:'driver_name'}
+  ],R) + `</div>
+
+  <div class="card"><h3>บันทึกเวลาปิดงานรายโรง</h3>` + tableHTML([
+    {h:'วันที่',k:'work_date'},{h:'โรง',k:'factory'},{h:'เวลาปิด',k:'time_out'},
+    {h:'รับเข้า PD',k:'receive_pd',n:1,f:r=>fmt(r.receive_pd)},
+    {h:'จ่ายออก PD',k:'issue_pd',n:1,f:r=>r.issue_pd==null?'—':fmt(r.issue_pd,2)},
+    {h:'สุทธิ',k:'net_pd',n:1,f:r=>fmt(r.net_pd,2)}
+  ],O) + `</div>`);
+
+  if(R.length){
+    chart('m1','bar',byRoute.map(x=>x[0]),[{label:'รายการ',data:byRoute.map(x=>x[1]),backgroundColor:PAL[0]}]);
+    chart('m2','bar',routeSeg.map(x=>x.rt),[
+      {label:'รอหยิบ',data:routeSeg.map(x=>x.w),backgroundColor:PAL[0]},
+      {label:'เดินทาง',data:routeSeg.map(x=>x.t),backgroundColor:PAL[5]},
+      {label:'รอ Check-in',data:routeSeg.map(x=>x.c),backgroundColor:PAL[2]},
+      {label:'ลงสินค้า',data:routeSeg.map(x=>x.u),backgroundColor:PAL[1]}
+    ],{scales:{x:{stacked:true,ticks:{font:{family:'Sarabun',size:10}}},
+               y:{stacked:true,beginAtZero:true,ticks:{font:{family:'Sarabun',size:11}}}}});
+    chart('m3','bar',byHead.map(x=>x[0]),[{label:'น้ำหนัก (กก.)',data:byHead.map(x=>x[1]),backgroundColor:PAL[1]}]);
+    chart('m4','bar',byDriver.map(x=>x[0]),[{label:'รายการ',data:byDriver.map(x=>x[1]),backgroundColor:PAL[4]}]);
+  }
+  if(O.length){
+    chart('m5','line',dates,outSeries);
+    chart('m6','bar',facLabels,[
+      {label:'รับเข้า PD',data:facLabels.map(f2=>(recvByFac.find(x=>x[0]===f2)||[0,0])[1]),backgroundColor:PAL[0]},
+      {label:'จ่ายออก PD',data:facLabels.map(f2=>(issByFac.find(x=>x[0]===f2)||[0,0])[1]),backgroundColor:PAL[3]}
+    ]);
+  }
+}
+
+/* =========================================================================
+   PAGE 4 — IMPORT  (admin เท่านั้น)
+   ========================================================================= */
+let PARSED = null;
+
+function pageImport(){
+  body(`
+  <div class="card">
+    <h3>อัปโหลดไฟล์ Excel</h3>
+    <p class="sm" style="margin-bottom:14px">
+      ระบบจะอ่านครบทั้ง 8 ชีทจากไฟล์เดียว · ชีท <code>Master</code> <code>Customer</code> <code>User</code>
+      จะ<b>ล้างของเดิมแล้วเขียนทับ</b> ส่วนอีก 5 ชีทจะ<b>สะสมต่อเนื่อง</b> (แถวเดิมทับ แถวใหม่เพิ่ม)</p>
+    <div class="drop" id="drop" onclick="el('file').click()">
+      <div class="ic">📁</div>
+      <div class="t">ลากไฟล์มาวาง หรือคลิกเพื่อเลือก</div>
+      <div class="h">รองรับ .xlsx และ .xls</div>
+    </div>
+    <input type="file" id="file" class="hide" accept=".xlsx,.xls" onchange="readFile(this.files[0])">
+  </div>
+  <div id="preview"></div>
+  <div class="card">
+    <h3>ประวัติการนำเข้าล่าสุด</h3>
+    <div id="impLog"><div class="spin"></div></div>
+  </div>`);
+
+  const d = el('drop');
+  d.ondragover  = e=>{e.preventDefault(); d.classList.add('over')};
+  d.ondragleave = ()=>d.classList.remove('over');
+  d.ondrop      = e=>{e.preventDefault(); d.classList.remove('over');
+                      if(e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0])};
+  loadImportLog();
+}
+
+async function loadImportLog(){
+  const {data,error} = await sb.from('import_log').select('*').order('created_at',{ascending:false}).limit(40);
+  if(error){ el('impLog').innerHTML = `<div class="msg err">${esc(error.message)}</div>`; return; }
+  if(!data.length){ el('impLog').innerHTML = '<p class="sm">ยังไม่มีประวัติ</p>'; return; }
+  el('impLog').innerHTML = tableHTML([
+    {h:'เวลา',k:'created_at',f:r=>new Date(r.created_at).toLocaleString('th-TH')},
+    {h:'ไฟล์',k:'file_name'},{h:'ชีท',k:'sheet_name'},
+    {h:'โหมด',k:'mode',raw:1,f:r=>`<span class="pill ${r.mode==='replace'?'o':'b'}">${r.mode==='replace'?'เขียนทับ':'สะสม'}</span>`},
+    {h:'อ่านได้',k:'rows_in',n:1,f:r=>fmt(r.rows_in)},
+    {h:'บันทึก',k:'rows_saved',n:1,f:r=>fmt(r.rows_saved)},
+    {h:'สถานะ',k:'status',raw:1,f:r=>`<span class="pill ${r.status==='ok'?'g':'r'}">${r.status==='ok'?'สำเร็จ':'ผิดพลาด'}</span>`},
+    {h:'หมายเหตุ',k:'message',f:r=>(r.message||'').slice(0,60)}
+  ],data,40);
+}
+
+function cleanHdr(h){
+  return String(h??'').replace(/<br\s*\/?>/gi,' ').replace(NBSP,' ').replace(/\s+/g,' ').trim();
+}
+
+function readFile(file){
+  if(!file) return;
+  el('preview').innerHTML = '<div class="card"><div class="spin"></div><p class="sm" style="text-align:center">กำลังอ่านไฟล์…</p></div>';
+  const fr = new FileReader();
+  fr.onload = e=>{
+    try{
+      const wb = XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true});
+      parseWB(wb,file.name);
+    }catch(err){
+      el('preview').innerHTML = `<div class="card"><div class="msg err">อ่านไฟล์ไม่สำเร็จ: ${esc(err.message)}</div></div>`;
+    }
+  };
+  fr.readAsArrayBuffer(file);
+}
+
+function parseWB(wb,fname){
+  const out = [], warn = [];
+  for(const [name,cfg] of Object.entries(SHEETS)){
+    const ws = wb.Sheets[name];
+    if(!ws){ warn.push(`ไม่พบชีท <code>${esc(name)}</code> ในไฟล์`); continue; }
+    const aoa = XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:null,blankrows:false,rawNumbers:true});
+    if(!aoa.length){ warn.push(`ชีท <code>${esc(name)}</code> ว่างเปล่า`); continue; }
+
+    const hdr = (aoa[0]||[]).map(cleanHdr);
+    if(hdr.length !== cfg.cols.length)
+      warn.push(`ชีท <code>${esc(name)}</code> มี ${hdr.length} คอลัมน์ แต่ระบบคาดไว้ ${cfg.cols.length} — อ่านตามลำดับคอลัมน์ ตรวจผลด้านล่างก่อนยืนยัน`);
+
+    const rows = [], skipped = [];
+    for(let i=1;i<aoa.length;i++){
+      const raw = aoa[i]||[];
+      if(raw.every(v=>v===null||v==='')) continue;
+      const o = {};
+      cfg.cols.forEach(([,field,conv],ci)=>{ o[field] = conv(raw[ci]); });
+      const miss = cfg.req.filter(k=>o[k]===null||o[k]===undefined||o[k]==='');
+      if(miss.length){ skipped.push({row:i+1,miss}); continue; }
+      rows.push(o);
+    }
+    // กันคีย์ซ้ำภายในไฟล์เดียวกัน (upsert จะ error ถ้ามีคีย์ซ้ำใน batch เดียว)
+    let dupInFile = 0;
+    if(cfg.mode==='upsert'){
+      const keys = cfg.conflict.split(','), seen = new Map();
+      rows.forEach((r,idx)=>{ const k = keys.map(x=>r[x]).join('||');
+        if(seen.has(k)){ dupInFile++; seen.set(k,idx); } else seen.set(k,idx); });
+      if(dupInFile){
+        const seen2 = new Map();
+        rows.forEach(r=>seen2.set(keys.map(x=>r[x]).join('||'),r));
+        rows.length = 0; rows.push(...seen2.values());
+      }
+    }
+    out.push({name,cfg,hdr,rows,skipped,dupInFile,total:aoa.length-1});
+  }
+  PARSED = {fname,out};
+  renderPreview(warn);
+}
+
+function renderPreview(warn){
+  const {fname,out} = PARSED;
+  if(!out.length){ el('preview').innerHTML = `<div class="card"><div class="msg err">ไม่พบชีทที่ระบบรู้จักในไฟล์นี้</div></div>`; return; }
+
+  const rowsHTML = out.map(s=>{
+    const bad = s.skipped.length, dup = s.dupInFile;
+    return `<tr>
+      <td><b>${esc(s.name)}</b><div class="sm">${esc(s.cfg.label)}</div></td>
+      <td><code>${esc(s.cfg.table)}</code></td>
+      <td><span class="pill ${s.cfg.mode==='replace'?'o':'b'}">${s.cfg.mode==='replace'?'เขียนทับ':'สะสม'}</span></td>
+      <td class="num">${fmt(s.total)}</td>
+      <td class="num"><b>${fmt(s.rows.length)}</b></td>
+      <td class="num">${bad?`<span class="pill r">${fmt(bad)}</span>`:'—'}</td>
+      <td class="num">${dup?`<span class="pill o">${fmt(dup)}</span>`:'—'}</td>
+    </tr>`;
+  }).join('');
+
+  const skipDetail = out.filter(s=>s.skipped.length).map(s=>
+    `<p class="sm"><b>${esc(s.name)}</b> ข้าม ${s.skipped.length} แถว — ตัวอย่างแถวที่ ${
+      s.skipped.slice(0,5).map(x=>x.row).join(', ')} (ขาดค่าในคอลัมน์คีย์: ${
+      esc([...new Set(s.skipped.flatMap(x=>x.miss))].join(', '))})</p>`).join('');
+
+  const hdrCheck = out.map(s=>{
+    const diff = s.cfg.cols.map(([exp],i)=>({exp,got:s.hdr[i]}))
+      .filter(x=>x.got && x.exp!==x.got);
+    if(!diff.length) return '';
+    return `<details style="margin-top:8px"><summary class="sm">ชีท <b>${esc(s.name)}</b> — หัวคอลัมน์ต่างจากที่คาด ${diff.length} จุด (คลิกดู)</summary>
+      <div class="mono" style="margin-top:6px;line-height:1.7">${
+        diff.map(x=>`คาด: <b>${esc(x.exp)}</b> &nbsp;→&nbsp; ในไฟล์: ${esc(x.got)}`).join('<br>')}</div></details>`;
+  }).join('');
+
+  const totalRows = out.reduce((s,x)=>s+x.rows.length,0);
+
+  el('preview').innerHTML = `
+  <div class="card">
+    <h3>ตรวจสอบก่อนนำเข้า</h3>
+    <p class="sm" style="margin-bottom:12px">ไฟล์: <code>${esc(fname)}</code></p>
+    ${warn.length?`<div class="msg warn">${warn.join('<br>')}</div>`:''}
+    <div class="tw"><table><thead><tr>
+      <th>ชีท</th><th>ตารางปลายทาง</th><th>โหมด</th>
+      <th class="num">แถวในไฟล์</th><th class="num">พร้อมบันทึก</th>
+      <th class="num">ข้าม</th><th class="num">คีย์ซ้ำในไฟล์</th>
+    </tr></thead><tbody>${rowsHTML}</tbody></table></div>
+    ${skipDetail?`<div class="msg warn" style="margin-top:12px">${skipDetail}</div>`:''}
+    ${hdrCheck}
+    <div class="bar" id="impBarWrap" style="display:none"><div id="impBar"></div></div>
+    <div id="impStatus"></div>
+    <button class="btn" id="impBtn" style="margin-top:14px" onclick="runImport()">
+      ยืนยันนำเข้า ${fmt(totalRows)} แถว</button>
+    <div class="log hide" id="impLogBox" style="margin-top:14px"></div>
+  </div>`;
+}
+
+function logLine(t,k=''){
+  const b = el('impLogBox'); b.classList.remove('hide');
+  b.innerHTML += `<div class="${k}">${t}</div>`; b.scrollTop = b.scrollHeight;
+}
+
+async function runImport(){
+  if(!PARSED) return;
+  const btn = el('impBtn'); btn.disabled = true; btn.textContent = 'กำลังนำเข้า…';
+  el('impBarWrap').style.display = 'block';
+  el('impLogBox').innerHTML = '';
+
+  const sheets = PARSED.out;
+  let doneUnits = 0;
+  const totalUnits = sheets.reduce((s,x)=>s+Math.max(1,Math.ceil(x.rows.length/500)),0);
+  let okAll = true;
+
+  for(const s of sheets){
+    logLine(`▶ ${s.name} → ${s.cfg.table} (${fmt(s.rows.length)} แถว, ${s.cfg.mode==='replace'?'เขียนทับ':'สะสม'})`,'y');
+    let saved = 0, err = null;
+    try{
+      if(s.cfg.mode==='replace'){
+        const {data,error} = await sb.rpc(s.cfg.rpc,{rows:s.rows});
+        if(error) throw error;
+        saved = data ?? s.rows.length;
+        doneUnits++;
+      }else{
+        for(let i=0;i<s.rows.length;i+=500){
+          const chunk = s.rows.slice(i,i+500);
+          const {error} = await sb.from(s.cfg.table)
+            .upsert(chunk,{onConflict:s.cfg.conflict, ignoreDuplicates:false});
+          if(error) throw error;
+          saved += chunk.length;
+          doneUnits++;
+          el('impBar').style.width = Math.round(doneUnits/totalUnits*100)+'%';
+        }
+        if(!s.rows.length) doneUnits++;
+      }
+      logLine(`  ✔ บันทึก ${fmt(saved)} แถว`,'g');
+    }catch(ex){
+      okAll = false; err = ex;
+      logLine(`  ✘ ผิดพลาด: ${esc(ex.message||String(ex))}`,'r');
+      if(ex.details)  logLine(`     ${esc(ex.details)}`,'r');
+    }
+    el('impBar').style.width = Math.round(doneUnits/totalUnits*100)+'%';
+
+    await sb.from('import_log').insert({
+      user_id: ME.id, file_name: PARSED.fname, sheet_name: s.name, mode: s.cfg.mode,
+      rows_in: s.rows.length, rows_saved: saved,
+      status: err? 'error':'ok', message: err? String(err.message||err).slice(0,400) : null
+    });
+  }
+
+  el('impBar').style.width = '100%';
+  btn.disabled = false; btn.textContent = 'นำเข้าอีกครั้ง';
+  el('impStatus').innerHTML = okAll
+    ? `<div class="msg ok" style="margin-top:12px">นำเข้าข้อมูลสำเร็จทั้งหมด — ไปดูผลได้ที่เมนู Dashboard</div>`
+    : `<div class="msg err" style="margin-top:12px">มีบางชีทนำเข้าไม่สำเร็จ ดูรายละเอียดในบันทึกด้านล่าง</div>`;
+  loadImportLog();
+}
+
+/* =========================================================================
+   PAGE 5 — PROFILE
+   ========================================================================= */
+function pageProfile(){
+  body(`
+  <div class="card" style="max-width:620px">
+    <h3>ข้อมูลส่วนตัว</h3>
+    <div id="prMsg"></div>
+    <form onsubmit="saveProfile(event)">
+      <div class="row2">
+        <div class="fld"><label>รหัสพนักงาน</label>
+          <input value="${esc(ME.employee_id)}" disabled style="background:#f8fafc;color:#64748b"></div>
+        <div class="fld"><label>อีเมล</label>
+          <input value="${esc(ME.email)}" disabled style="background:#f8fafc;color:#64748b"></div>
+      </div>
+      <div class="row2">
+        <div class="fld"><label>ชื่อ</label><input id="pr_name" value="${esc(ME.name||'')}"></div>
+        <div class="fld"><label>นามสกุล</label><input id="pr_sur" value="${esc(ME.surname||'')}"></div>
+      </div>
+      <div class="row2">
+        <div class="fld"><label>ชื่อเล่น</label><input id="pr_nick" value="${esc(ME.nickname||'')}"></div>
+        <div class="fld"><label>ระดับ</label>
+          <select id="pr_lvl">${['','G1','G2','G3','G4','G5','G6','G7','G8'].map(g=>
+            `<option value="${g}"${ME.level===g?' selected':''}>${g||'— เลือก —'}</option>`).join('')}</select></div>
+      </div>
+      <div class="fld"><label>สิทธิ์การใช้งาน</label>
+        <input value="${ME.role==='admin'?'ผู้ดูแลระบบ (Admin)':'ผู้ใช้งาน (User)'}" disabled
+               style="background:#f8fafc;color:#64748b"></div>
+      <button type="submit" class="btn" id="pr_btn">บันทึกการเปลี่ยนแปลง</button>
+    </form>
+  </div>
+
+  <div class="card" style="max-width:620px">
+    <h3>เปลี่ยนรหัสผ่าน</h3>
+    <div id="pwMsg"></div>
+    <form onsubmit="changePw(event)">
+      <div class="fld"><label>รหัสผ่านใหม่ <span class="sm">(อย่างน้อย 6 ตัว)</span></label>
+        <input type="password" id="pw1" required minlength="6" autocomplete="new-password"></div>
+      <div class="fld"><label>ยืนยันรหัสผ่านใหม่</label>
+        <input type="password" id="pw2" required minlength="6" autocomplete="new-password"></div>
+      <button type="submit" class="btn" id="pw_btn">เปลี่ยนรหัสผ่าน</button>
+    </form>
+  </div>`);
+}
+
+async function saveProfile(e){
+  e.preventDefault();
+  const b = el('pr_btn'); b.disabled = true; b.textContent = 'กำลังบันทึก…';
+  const patch = {
+    name:     el('pr_name').value.trim() || null,
+    surname:  el('pr_sur').value.trim()  || null,
+    nickname: el('pr_nick').value.trim() || null,
+    level:    el('pr_lvl').value         || null
+  };
+  const {error} = await sb.from('profiles').update(patch).eq('id',ME.id);
+  b.disabled = false; b.textContent = 'บันทึกการเปลี่ยนแปลง';
+  if(error){ el('prMsg').innerHTML = `<div class="msg err">${esc(error.message)}</div>`; return; }
+  Object.assign(ME,patch);
+  el('meName').textContent = (ME.name||'')+' '+(ME.surname||'')+(ME.nickname?` (${ME.nickname})`:'');
+  el('prMsg').innerHTML = '<div class="msg ok">บันทึกเรียบร้อย</div>';
+}
+
+async function changePw(e){
+  e.preventDefault();
+  const a = el('pw1').value, b2 = el('pw2').value;
+  if(a!==b2){ el('pwMsg').innerHTML = '<div class="msg err">รหัสผ่านทั้งสองช่องไม่ตรงกัน</div>'; return; }
+  const b = el('pw_btn'); b.disabled = true; b.textContent = 'กำลังเปลี่ยน…';
+  const {error} = await sb.auth.updateUser({password:a});
+  b.disabled = false; b.textContent = 'เปลี่ยนรหัสผ่าน';
+  el('pwMsg').innerHTML = error
+    ? `<div class="msg err">${esc(error.message)}</div>`
+    : '<div class="msg ok">เปลี่ยนรหัสผ่านเรียบร้อย</div>';
+  if(!error){ el('pw1').value=''; el('pw2').value=''; }
+}
+
+/* =========================================================================
+   PAGE 6 — USER MANAGEMENT (admin)
+   ========================================================================= */
+async function pageUsers(){
+  const [{data:profs,error}, {data:emps}] = await Promise.all([
+    sb.from('profiles').select('*').order('created_at',{ascending:false}),
+    sb.from('master_employee').select('employee_id,name,surname,nickname,level')
+  ]);
+  if(error){ body(`<div class="card"><div class="msg err">${esc(error.message)}</div></div>`); return; }
+
+  const empMap = new Map((emps||[]).map(e=>[String(e.employee_id),e]));
+  const pend = profs.filter(p=>!p.is_approved);
+
+  body(`
+  <div class="kpis">
+    <div class="kpi"><div class="k">ผู้ใช้ทั้งหมด</div><div class="v">${fmt(profs.length)}</div><div class="s">บัญชี</div></div>
+    <div class="kpi ${pend.length?'o':'g'}"><div class="k">รออนุมัติ</div><div class="v">${fmt(pend.length)}</div><div class="s">คน</div></div>
+    <div class="kpi c"><div class="k">ผู้ดูแลระบบ</div>
+      <div class="v">${fmt(profs.filter(p=>p.role==='admin').length)}</div><div class="s">คน</div></div>
+    <div class="kpi g"><div class="k">ทะเบียนพนักงาน</div><div class="v">${fmt(empMap.size)}</div>
+      <div class="s">จากชีท User</div></div>
+  </div>
+  <div class="card">
+    <h3>รายชื่อผู้ใช้</h3>
+    <p class="sm" style="margin-bottom:12px">คอลัมน์ <b>ตรงทะเบียน</b> เทียบรหัสพนักงานกับชีท <code>User</code> ที่นำเข้ามา</p>
+    <div class="tw"><table><thead><tr>
+      <th>รหัสพนักงาน</th><th>ตรงทะเบียน</th><th>ชื่อ-นามสกุล</th><th>ชื่อเล่น</th><th>ระดับ</th>
+      <th>สิทธิ์</th><th>สถานะ</th><th>สมัครเมื่อ</th><th>จัดการ</th>
+    </tr></thead><tbody>${profs.map(p=>{
+      const m = empMap.get(String(p.employee_id));
+      const self = p.id===ME.id;
+      return `<tr>
+        <td class="mono"><b>${esc(p.employee_id)}</b></td>
+        <td>${m?`<span class="pill g">พบ</span>`:`<span class="pill n">ไม่พบ</span>`}</td>
+        <td>${esc((p.name||'')+' '+(p.surname||''))}${m&&(m.name!==p.name||m.surname!==p.surname)
+          ?`<div class="sm">ทะเบียน: ${esc((m.name||'')+' '+(m.surname||''))}</div>`:''}</td>
+        <td>${esc(p.nickname||'—')}</td>
+        <td>${esc(p.level||'—')}</td>
+        <td><span class="pill ${p.role==='admin'?'b':'n'}">${p.role==='admin'?'Admin':'User'}</span></td>
+        <td>${p.is_approved?'<span class="pill g">อนุมัติแล้ว</span>':'<span class="pill o">รออนุมัติ</span>'}</td>
+        <td class="sm">${new Date(p.created_at).toLocaleDateString('th-TH')}</td>
+        <td>
+          <button class="fbtn" style="padding:5px 11px;font-size:12px;background:${p.is_approved?'#64748b':'var(--ok)'}"
+            onclick="toggleApprove('${p.id}',${p.is_approved})">${p.is_approved?'ระงับ':'อนุมัติ'}</button>
+          ${self?'':`<button class="fbtn" style="padding:5px 11px;font-size:12px;background:${p.role==='admin'?'#64748b':'var(--pri)'};margin-left:5px"
+            onclick="toggleRole('${p.id}','${p.role}')">${p.role==='admin'?'ถอด Admin':'ตั้ง Admin'}</button>`}
+        </td></tr>`;
+    }).join('')}</tbody></table></div>
+  </div>`);
+}
+
+async function toggleApprove(id,cur){
+  const {error} = await sb.from('profiles').update({is_approved:!cur}).eq('id',id);
+  if(error) alert('ผิดพลาด: '+error.message);
+  pageUsers();
+}
+async function toggleRole(id,cur){
+  const nx = cur==='admin'?'user':'admin';
+  if(!confirm(nx==='admin'?'ตั้งผู้ใช้รายนี้เป็นผู้ดูแลระบบ?':'ถอดสิทธิ์ผู้ดูแลระบบของผู้ใช้รายนี้?')) return;
+  const {error} = await sb.from('profiles').update({role:nx, is_approved:true}).eq('id',id);
+  if(error) alert('ผิดพลาด: '+error.message);
+  pageUsers();
+}
+
+/* =========================================================================
+   START
+   ========================================================================= */
+sb.auth.onAuthStateChange((ev)=>{ if(ev==='SIGNED_OUT') location.reload(); });
+boot();
+</script>
+</body>
+</html>
