@@ -337,7 +337,7 @@ details summary{cursor:pointer;user-select:none}
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-04.12';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-04.13';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -827,7 +827,7 @@ function valueLabelPlugin(vl){
       cand.forEach(o=>{
         const {ds,elm,kind,lines} = o;
         ctx.save();
-        let font, fill, align, baseline, x, yTop, lh = 11, shadow = false;
+        let font, fill, align, baseline, x, yTop, lh = 11, shadow = false, box = null;
 
         if(kind === 'doughnut' || kind === 'pie'){
           const ang = Math.abs((elm.endAngle||0) - (elm.startAngle||0));
@@ -840,17 +840,20 @@ function valueLabelPlugin(vl){
           font='500 9.5px Kanit'; fill='#0b2447'; align='left'; baseline='middle';
           x = elm.x + 6; yTop = elm.y - (lines.length*lh)/2;
         }else if(ds.labelPos === 'inBottom'){
-          // วางในแท่ง ชิดฐาน กันชนกับเส้นกราฟด้านบน
+          // วางในแท่ง ชิดฐาน กันชนกับเส้นกราฟด้านบน + มีพื้นหลังอ่อนคุมให้อ่านชัด
           const base = c.scales[ds.yAxisID || 'y'].getPixelForValue(0);
           const bh = Math.abs(base - elm.y);
           lh = 10; font='600 9px Kanit'; align='center'; baseline='bottom';
-          const inside = bh > (lines.length*lh + 10);
-          fill = inside ? '#fff' : '#0b2447';
+          const inside = bh > (lines.length*lh + 12);
+          fill = '#0b2447'; box = inside ? 'rgba(255,255,255,.93)' : 'rgba(255,255,255,.85)';
           x = elm.x;
-          yTop = inside ? base - 6 - lines.length*lh : elm.y - 5 - lines.length*lh;
+          yTop = inside ? base - 7 - lines.length*lh : elm.y - 6 - lines.length*lh;
         }else{
           font='500 9.5px Kanit'; align='center'; baseline='bottom';
           fill = kind==='line' ? (ds.borderColor||'#0b2447') : '#0b2447';
+          // ถ้าจุดนั้นถูกระบายเป็นสีเฉพาะ (เช่น แดงเพราะเกิน Target) ให้ป้ายใช้สีเดียวกัน
+          const pbc = ds.pointBackgroundColor;
+          if(kind==='line' && Array.isArray(pbc) && pbc[o.i] && pbc[o.i] !== '#fff') fill = pbc[o.i];
           x = elm.x; yTop = elm.y - 5 - lines.length*lh;
         }
 
@@ -864,6 +867,17 @@ function valueLabelPlugin(vl){
         if(!free(bx-PAD, yTop-PAD, w+PAD*2, hgt+PAD*2)){ ctx.restore(); return; }
         placed.push({x:bx-PAD, y:yTop-PAD, w:w+PAD*2, h:hgt+PAD*2});
 
+        if(box){                                   // กล่องพื้นหลังมุมมน
+          const r = 3, bw = w+8, bhh = hgt+5, bxx = bx-4, byy = yTop-2;
+          ctx.beginPath();
+          ctx.moveTo(bxx+r,byy);
+          ctx.arcTo(bxx+bw,byy,bxx+bw,byy+bhh,r);
+          ctx.arcTo(bxx+bw,byy+bhh,bxx,byy+bhh,r);
+          ctx.arcTo(bxx,byy+bhh,bxx,byy,r);
+          ctx.arcTo(bxx,byy,bxx+bw,byy,r);
+          ctx.closePath();
+          ctx.fillStyle = box; ctx.fill();
+        }
         ctx.fillStyle = fill; ctx.textAlign = align; ctx.textBaseline = 'top';
         if(shadow){ ctx.shadowColor='rgba(0,0,0,.45)'; ctx.shadowBlur=4; }
         lines.forEach((ln,k)=> ctx.fillText(ln, x, yTop + k*lh));
@@ -1117,10 +1131,6 @@ async function pageFG(){
   const outHArr  = TL.map(x=>x.h==null?null:+x.h);
   const hasTime  = outHArr.some(v=>v!=null);
 
-  const TD = R.trucks_daily || [];
-  const tdDates = TD.map(x=>x.d), tdTrucks = TD.map(x=>+x.c),
-        tdTpt = TD.map(x=>x.tpt==null?null:+x.tpt);
-
   const DOW = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
   const dow = (R.by_dow||[]).map(x=>({k:DOW[+x.k], ton:+x.ton, c:+x.c, days:+x.days,
                                       avg:(+x.days? (+x.ton)/(+x.days) : 0)}));
@@ -1182,8 +1192,6 @@ async function pageFG(){
     <div class="kpi anim d4"><div class="k">รายการเฉลี่ยต่อคัน</div>
       <div class="v">${fmt(linesPerTruck,1)}</div><div class="s">รายการสินค้า/คัน</div></div>
   </div>
-  <div class="card anim d3"><h3>จำนวนคันรายวัน และน้ำหนักเฉลี่ยต่อคัน</h3>
-    <div class="chartbox" style="height:300px"><canvas id="f11"></canvas></div></div>
   <div class="grid2">
     <div class="card anim d4"><h3>การกระจายน้ำหนักต่อคัน (จำนวนคัน)</h3>
       <div class="chartbox"><canvas id="f12"></canvas></div>
@@ -1254,7 +1262,13 @@ async function pageFG(){
     dsets.push(
       {type:'line', label:'เวลาเลิกงานช้าสุด', yAxisID:'y1', data:outHArr,
        borderColor:'#0b2447', backgroundColor:'#0b2447', tension:.3, spanGaps:true,
-       pointRadius:4, pointBackgroundColor:'#fff', pointBorderWidth:2, borderWidth:2.5, order:1},
+       borderWidth:2.5, order:1,
+       // วันที่เลิกงานเกิน Target 20:30 ทำจุดเป็นวงกลมแดงทึบ ให้เห็นชัด
+       pointRadius:       outHArr.map(v=> v!=null && v>TARGET_H ? 5.5 : 4),
+       pointHoverRadius:  outHArr.map(v=> v!=null && v>TARGET_H ? 7.5 : 6),
+       pointBackgroundColor: outHArr.map(v=> v!=null && v>TARGET_H ? '#e03131' : '#fff'),
+       pointBorderColor:     outHArr.map(v=> v!=null && v>TARGET_H ? '#e03131' : '#0b2447'),
+       pointBorderWidth:  outHArr.map(v=> v!=null && v>TARGET_H ? 2.5 : 2)},
       {type:'line', label:'Target 20:30', yAxisID:'y1', data:dates.map(()=>TARGET_H),
        borderColor:'#e03131', borderDash:[7,5], borderWidth:2, pointRadius:0, fill:false, order:2}
     );
@@ -1297,23 +1311,6 @@ async function pageFG(){
   chart('f10','bar',dow.map(x=>x.k),[{label:'คัน',data:dow.map(x=>x.c),
     backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:52}],
     {scales:cntScale, layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
-
-  chart('f11','bar',tdDates,[
-    {type:'bar',label:'จำนวนคัน',yAxisID:'y',data:tdTrucks,
-     backgroundColor:'#1d4f92',borderRadius:6,maxBarThickness:30},
-    {type:'line',label:'ตัน/คัน',yAxisID:'y1',data:tdTpt,
-     borderColor:'#ff7a18',backgroundColor:'#ff7a18',tension:.3,spanGaps:true,
-     pointRadius:3,borderWidth:2.5}
-  ],{scales:{
-      y :{position:'left',beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},
-          title:{display:true,text:'จำนวนคัน',font:{family:'Kanit',size:11,weight:'400'},color:'#7086a3'},
-          ticks:axisFont},
-      y1:{position:'right',beginAtZero:true,grid:{display:false},border:{display:false},
-          title:{display:true,text:'ตัน/คัน',font:{family:'Kanit',size:11,weight:'400'},color:'#7086a3'},
-          ticks:axisFont},
-      x :{grid:{display:false},ticks:axisFont}},
-    layout:{padding:{top:20}},
-    vl:(v,i,ds)=> ds.type==='line' ? fmt(v,1) : fmt(v,0)});
 
   chart('f12','bar',truckDist.map(x=>x[0]),[{label:'จำนวนคัน',data:truckDist.map(x=>x[1]),
     backgroundColor:'#2d6ca8',borderRadius:7,maxBarThickness:56}],
