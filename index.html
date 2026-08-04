@@ -364,14 +364,15 @@ details summary{cursor:pointer;user-select:none}
       <div><h2>EFFICIENCY DASHBOARD</h2><p>ระบบรายงานประสิทธิภาพคลัง</p></div>
     </div>
     <nav>
+      <div class="navlbl">Dashboard</div>
+      <a href="#" data-p="fg"      onclick="go('fg',event)"><span class="ic">📦</span> FG [Outbound &amp; Inbound]</a>
+      <a href="#" data-p="shipment" onclick="go('shipment',event)"><span class="ic">🚛</span> Shipment Analysis</a>
+      <a href="#" data-p="prepare" onclick="go('prepare',event)"><span class="ic">⏱️</span> DO Preparing</a>
+      <a href="#" data-p="milkrun" onclick="go('milkrun',event)"><span class="ic">🚚</span> Milk Run</a>
       <div class="navlbl">มุมผู้จัดการ</div>
       <a href="#" data-p="health"  onclick="go('health',event)"><span class="ic">🩺</span> Warehouse Health</a>
       <a href="#" data-p="flow"    onclick="go('flow',event)"><span class="ic">🔀</span> Flow Analysis</a>
       <a href="#" data-p="compare" onclick="go('compare',event)"><span class="ic">⚖️</span> เปรียบเทียบ</a>
-      <div class="navlbl">Dashboard</div>
-      <a href="#" data-p="fg"      onclick="go('fg',event)"><span class="ic">📦</span> FG [Outbound &amp; Inbound]</a>
-      <a href="#" data-p="prepare" onclick="go('prepare',event)"><span class="ic">⏱️</span> DO Preparing</a>
-      <a href="#" data-p="milkrun" onclick="go('milkrun',event)"><span class="ic">🚚</span> Milk Run</a>
       <div class="navlbl">ระบบ</div>
       <a href="#" data-p="import" id="navImport" onclick="go('import',event)"><span class="ic">📥</span> นำเข้าข้อมูล</a>
       <a href="#" data-p="profile" onclick="go('profile',event)"><span class="ic">👤</span> โปรไฟล์ของฉัน</a>
@@ -407,7 +408,7 @@ details summary{cursor:pointer;user-select:none}
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-05.2';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-05.4';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -441,7 +442,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth:{ persistSes
 let ME = null, TOKEN = null, CHARTS = {}, PAGE = 'fg';
 
 /* ตัวกรองใช้ร่วมกันทุกหน้า + แคชข้อมูลไว้ ไม่ต้องยิงซ้ำตอนเปลี่ยนตัวกรอง */
-let FILTERS = { months:[], factories:[], shtys:[], dim:'gate', keys:[] };
+let FILTERS = { months:[], factories:[], shtys:[], vehicles:[], gates:[], dim:'gate', keys:[] };
 let MONTHS_CACHE = [];        // รายชื่อเดือนที่มีข้อมูล ใช้ร่วมกันทุกหน้า
 const hasF = k => (FILTERS[k]||[]).length > 0;
 const orNull = k => hasF(k) ? FILTERS[k] : null;
@@ -813,7 +814,7 @@ async function boot(){
   el('navImport').classList.toggle('hide',!adm);
   el('navUsers').classList.toggle('hide',!adm);
   show('appView');
-  go('health');
+  go('fg');
 }
 function show(id){ ['authView','pendView','appView'].forEach(v=>el(v).classList.toggle('hide', v!==id)); }
 
@@ -903,10 +904,11 @@ document.addEventListener('click', ()=>{
    ROUTER
    ========================================================================= */
 const PAGES = {
+  fg:      {t:'FG <span class="ac">[Outbound &amp; Inbound]</span>', s:'ภาพรวมการรับเข้าและจ่ายออกสินค้าสำเร็จรูป — ข้อมูลทั้งหมด', f:pageFG},
+  shipment:{t:'Shipment <span class="ac">Analysis</span>', s:'เจาะลึกเที่ยวรถ เวลาแต่ละขั้น และจุดที่เสียเวลา', f:pageShipment},
   health:  {t:'Warehouse <span class="ac">Health</span>', s:'สุขภาพคลังในหนึ่งหน้า เทียบกับเดือนก่อนและ Target', f:pageHealth},
   flow:    {t:'Flow <span class="ac">Analysis</span>',   s:'ไล่สายงานทีละขั้น หาว่าเวลาหายไปตรงไหน', f:pageFlow},
   compare: {t:'<span class="ac">เปรียบเทียบ</span>',      s:'วางเคียงกันเพื่อหาความต่างที่ชัดเจน', f:pageCompare},
-  fg:      {t:'FG <span class="ac">[Outbound &amp; Inbound]</span>', s:'ภาพรวมการรับเข้าและจ่ายออกสินค้าสำเร็จรูป — ข้อมูลทั้งหมด', f:pageFG},
   prepare: {t:'DO <span class="ac">Preparing</span>',       s:'เวลาที่ใช้จัดเตรียมสินค้าตาม Delivery Order — ข้อมูลทั้งหมด', f:pagePrepare},
   milkrun: {t:'Milk <span class="ac">Run</span>',           s:'การเคลื่อนย้ายสินค้าระหว่างโรง — ข้อมูลทั้งหมด', f:pageMilk},
   import:  {t:'นำเข้า<span class="ac">ข้อมูล</span>',        s:'อัปโหลดไฟล์ Excel 8 ชีทเข้าฐานข้อมูล', f:pageImport},
@@ -915,7 +917,7 @@ const PAGES = {
 };
 function go(p,e){
   if(e) e.preventDefault();
-  if((p==='import'||p==='users') && ME.role!=='admin') p='health';
+  if((p==='import'||p==='users') && ME.role!=='admin') p='fg';
   PAGE = p;
   document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.p===p));
   el('pgTitle').innerHTML = PAGES[p].t;
@@ -1189,6 +1191,7 @@ function filterBar(sets, shown, total, fn){
 
 function resetFilters(fn){
   FILTERS.months=[]; FILTERS.factories=[]; FILTERS.shtys=[]; FILTERS.keys=[];
+  FILTERS.vehicles=[]; FILTERS.gates=[];
   window[fn]();
 }
 
@@ -1766,6 +1769,325 @@ function cmpInsight(rows,dimName,best,worst,T){
    รวมชีท FG (จ่ายออก) กับชีท Timeout (รับเข้า/จ่ายออก PD รายโรง) ไว้หน้าเดียว
    แสดงข้อมูลทั้งหมด ไม่มีตัวกรองวันที่
    ========================================================================= */
+/* =========================================================================
+   หน้า Shipment Analysis
+   โครงหัวข้อและตรรกะการวิเคราะห์ ยกมาจากไฟล์ "Table of Shipment" ที่ผู้ใช้ทำไว้
+   ต่างกันตรงที่สรุปผลในฐานข้อมูล (app_dash_shipment_agg อ่านจาก v_shipment_kpi /
+   v_shipment_trip ที่มีอยู่แล้ว) จึงส่งมาแค่ ~16 KB แทนข้อมูลดิบ 24 MB
+   หน่วย: น้ำหนัก = ตัน · เวลา = นาที · วันที่แสดง dd-mm-yyyy
+   ========================================================================= */
+function filterBarShip(R, fn){
+  return `<div class="filters anim">
+    ${msRender('months','เดือน',R.months||[],FILTERS.months,fn,monthLabel)}
+    ${msRender('vehicles','ประเภทรถ',R.all_vehicles||[],FILTERS.vehicles,fn)}
+    ${msRender('gates','Gate',R.all_gates||[],FILTERS.gates,fn)}
+    <button class="fbtn alt" onclick="resetFilters('${fn}')">ล้างตัวกรอง</button>
+    <button class="fbtn alt" onclick="${fn}()">↻ โหลดใหม่</button>
+    <div style="margin-left:auto;text-align:right">
+      <div class="sm">รวมยอดจาก</div>
+      <div style="font-weight:500;font-size:15px">${fmt(R.kpi.trips)}
+        <span class="sm" style="font-weight:300">เที่ยวรถ</span></div>
+    </div>
+  </div>`;
+}
+
+async function pageShipment(){
+  let R;
+  try{ R = await rpc('app_dash_shipment_agg',{
+        p_months  : orNull('months'),
+        p_vehicles: orNull('vehicles'),
+        p_gates   : orNull('gates') }); }
+  catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
+
+  const K = R.kpi, bar = filterBarShip(R,'pageShipment');
+  if(!+K.trips){
+    body(bar + emptyBox(hasF('months')||hasF('vehicles')||hasF('gates')
+      ? 'ไม่พบข้อมูลตามตัวกรองที่เลือก' : 'ยังไม่มีข้อมูล Shipment ในระบบ'));
+    return;
+  }
+
+  const N = v => v==null ? null : +v;
+  const kv = a => (a||[]).map(x=>[x.k, +x.v]);
+  const sect = (n,t,s,cls='') =>
+    `<div class="sect ${cls}"><div class="no">${n}</div>
+       <div><h2>${t}</h2><p>${s}</p></div><div class="ln"></div></div>`;
+  // นาที -> "ชม:นาที" อ่านง่ายกว่าเมื่อค่าเกินชั่วโมง
+  const hm = m => m==null||isNaN(m) ? '—'
+      : (m>=60 ? Math.floor(m/60)+' ชม. '+pad(Math.round(m%60))+' น.' : Math.round(m)+' นาที');
+
+  const DAILY = R.daily||[], MONTHLY = R.monthly||[], WEEKLY = R.weekly||[];
+  const GATES = R.by_gate||[], VEH = R.by_vehicle||[], ST = R.stages||{};
+  const dates = DAILY.map(x=>dmy(x.d));
+
+  // จุดที่เสียเวลามากที่สุด — เรียงจากมากไปน้อยเพื่อชี้คอขวดทันที
+  const stageRows = [
+    {k:'ชั่งเข้า → เริ่ม Shipment', v:N(ST.ship_vs_weight)},
+    {k:'Shipment → Center',        v:N(ST.center_vs_ship)},
+    {k:'รอเข้า Gate',              v:N(ST.wait_gate)},
+    {k:'อยู่ใน Gate (โหลด/ลง)',    v:N(ST.in_gate)}
+  ].filter(x=>x.v!=null).sort((a,b)=>b.v-a.v);
+
+  // ตารางความหนาแน่น วัน x ชั่วโมง
+  const DOW = ['อา','จ','อ','พ','พฤ','ศ','ส'];
+  const dh = R.dow_hour||[];
+  const hrsUsed = [...new Set(dh.map(x=>+x.h))].sort((a,b)=>a-b);
+  const maxDH = Math.max(1, ...dh.map(x=>+x.c));
+  const heat = !hrsUsed.length ? '<p class="sm">ไม่มีข้อมูลเวลาเข้า Gate</p>' :
+    `<div class="tw"><table><thead><tr><th>วัน</th>${
+      hrsUsed.map(x=>`<th class="num">${pad(x)}</th>`).join('')}<th class="num">รวม</th></tr></thead><tbody>${
+      [1,2,3,4,5,6,0].map(d=>{
+        const row = hrsUsed.map(hh=>{
+          const f = dh.find(x=>+x.d===d && +x.h===hh); const c = f? +f.c : 0;
+          const a = c? (0.12 + 0.88*(c/maxDH)) : 0;
+          return `<td class="num" style="background:rgba(255,122,24,${a.toFixed(2)});${
+            a>0.62?'color:#fff;font-weight:500':''}">${c||''}</td>`;
+        }).join('');
+        const tot = dh.filter(x=>+x.d===d).reduce((a,x)=>a+ +x.c,0);
+        return `<tr><td>${DOW[d]}</td>${row}<td class="num" style="font-weight:500">${fmt(tot)}</td></tr>`;
+      }).join('')}</tbody></table></div>`;
+
+  // Pareto ลูกค้า — สะสมถึงกี่ % ของน้ำหนักรวม
+  const CT = R.top_customer_ton||[];
+  const totTon = N(R.cust_total_ton) || 1;
+  let run = 0;
+  const pareto = CT.map(x=>{ run += +x.v; return {k:x.k, v:+x.v, cum: run/totTon*100}; });
+
+  const issueTripPct = +K.trips ? (+K.issue_trips)/(+K.trips)*100 : 0;
+
+  body(bar + `
+
+  ${sect(1,'ภาพรวมทั้งหมด','สรุปตัวเลขหลักของเที่ยวรถที่กำลังแสดง','o')}
+  <div class="kpis">
+    <div class="kpi o anim d1"><div class="k">เที่ยวรถทั้งหมด</div><div class="v">${fmt(K.trips)}</div>
+      <div class="s">${fmt(K.days)} วันทำงาน · เฉลี่ย ${fmt((+K.trips)/(+K.days||1),1)} เที่ยว/วัน</div></div>
+    <div class="kpi anim d2"><div class="k">น้ำหนักรวม</div><div class="v">${fmt(K.ton,1)}</div>
+      <div class="s">ตัน · เฉลี่ย ${fmt(K.ton_per_trip,2)} ตัน/เที่ยว</div></div>
+    <div class="kpi anim d3"><div class="k">รายการสินค้า</div><div class="v">${fmt(K.lines)}</div>
+      <div class="s">เฉลี่ย ${fmt(K.lines_per_trip,2)} รายการ/เที่ยว</div></div>
+    <div class="kpi g anim d4"><div class="k">เวลาเฉลี่ยต่อเที่ยว</div><div class="v">${fmt(K.avg_used)}</div>
+      <div class="s">นาที · กลาง ${fmt(K.med_used)} · p90 ${fmt(K.p90_used)}</div></div>
+  </div>
+  <div class="kpis">
+    <div class="kpi anim d1"><div class="k">เวลารอเข้า Gate</div><div class="v">${fmt(K.avg_wait)}</div>
+      <div class="s">นาทีเฉลี่ย · อยู่ใน Gate ${fmt(K.avg_run)} นาที</div></div>
+    <div class="kpi anim d2"><div class="k">ลูกค้า</div><div class="v">${fmt(K.customers)}</div>
+      <div class="s">${fmt(K.gates)} Gate · ${fmt(K.vehicles)} ประเภทรถ</div></div>
+    <div class="kpi anim d3"><div class="k">เที่ยวผ่านหลาย Gate</div><div class="v">${fmt(K.multi_gate)}</div>
+      <div class="s">${fmt((+K.multi_gate)/(+K.trips)*100,1)}% ของเที่ยวทั้งหมด</div></div>
+    <div class="kpi ${issueTripPct>5?'r':''} anim d4"><div class="k">เที่ยวที่พบปัญหา</div><div class="v">${fmt(K.issue_trips)}</div>
+      <div class="s">${fmt(issueTripPct,1)}% · งานด่วน ${fmt(K.urgent)} เที่ยว</div></div>
+  </div>
+
+  ${sect(2,'องค์ประกอบของงาน','แยกตามประเภทงาน สถานะ และปัญหาที่พบ')}
+  <div class="grid2">
+    <div class="card anim d1"><h3>ประเภทงาน (Job Type)</h3>
+      <div class="chartbox" style="height:260px"><canvas id="sp1"></canvas></div></div>
+    <div class="card anim d2"><h3>สถานะงาน (Job Status)</h3>
+      <div class="chartbox" style="height:260px"><canvas id="sp2"></canvas></div></div>
+  </div>
+  <div class="card anim d3"><h3>ปัญหาที่พบระหว่างงาน (Issue)</h3>
+    <div class="chartbox" style="height:${Math.max(220,(R.by_issue||[]).length*34)}px"><canvas id="sp3"></canvas></div>
+    <p class="sm" style="margin-top:10px">นับเป็น "รายการ" ไม่ใช่เที่ยว — 1 เที่ยวอาจมีหลายรายการที่ติดปัญหาเดียวกัน</p></div>
+
+  ${sect(3,'แนวโน้มปริมาณงาน','รายวัน รายสัปดาห์ และรายเดือน')}
+  <div class="card anim d1"><h3>จำนวนเที่ยวและน้ำหนักรายวัน</h3>
+    <div class="chartbox" style="height:320px"><canvas id="sp4"></canvas></div>
+    <p class="sm" style="margin-top:10px">แท่ง = ตันต่อวัน · เส้น = จำนวนเที่ยวรถ</p></div>
+  <div class="grid2">
+    <div class="card anim d2"><h3>รายสัปดาห์</h3>
+      <div class="chartbox" style="height:260px"><canvas id="sp5"></canvas></div></div>
+    <div class="card anim d3"><h3>รายเดือน</h3>
+      <div class="chartbox" style="height:260px"><canvas id="sp6"></canvas></div></div>
+  </div>
+  <div class="card anim d4"><h3>เวลาเฉลี่ยต่อเที่ยวรายวัน (นาที)</h3>
+    <div class="chartbox" style="height:260px"><canvas id="sp7"></canvas></div></div>
+
+  ${sect(4,'เวลาและจุดคอขวด','เวลาหายไปตรงไหนมากที่สุด','o')}
+  <div class="card anim d1" style="border-left:5px solid var(--org)">
+    <h3>จุดที่เสียเวลามากที่สุด (เฉลี่ยต่อเที่ยว)</h3>
+    <div class="chartbox" style="height:230px"><canvas id="sp8"></canvas></div>
+    <p class="sm" style="margin-top:10px">ขั้นที่ยาวที่สุดคือ <b>${esc(stageRows[0]?stageRows[0].k:'—')}</b>
+       เฉลี่ย ${hm(stageRows[0]?stageRows[0].v:null)} — เป็นจุดที่ลดได้คุ้มที่สุด</p></div>
+  <div class="grid2">
+    <div class="card anim d2"><h3>เวลาเฉลี่ย/สูงสุด ต่อประเภทรถ</h3>
+      <div class="chartbox" style="height:${Math.max(240,VEH.length*30)}px"><canvas id="sp9"></canvas></div></div>
+    <div class="card anim d3"><h3>เวลาในแต่ละ Gate</h3>
+      <div class="chartbox" style="height:${Math.max(240,GATES.length*34)}px"><canvas id="sp10"></canvas></div></div>
+  </div>
+  <div class="card anim d4"><h3>สรุปรายละเอียดแต่ละ Gate</h3>` + tableHTML([
+      {h:'Gate',k:'k'},
+      {h:'จำนวนครั้งที่เข้า',k:'visits',n:1,f:r=>fmt(r.visits)},
+      {h:'อยู่ใน Gate เฉลี่ย (นาที)',k:'avg',n:1,f:r=>fmt(r.avg)},
+      {h:'นานสุด (นาที)',k:'max',n:1,f:r=>fmt(r.max)},
+      {h:'รอเข้า Gate เฉลี่ย (นาที)',k:'wait',n:1,f:r=>fmt(r.wait)}
+    ], GATES) + `</div>
+
+  ${sect(5,'ช่วงเวลาทำงาน','รถกระจุกตัวช่วงไหน')}
+  <div class="card anim d1"><h3>จำนวนเที่ยวรถตามชั่วโมง</h3>
+    <div class="chartbox" style="height:280px"><canvas id="sp11"></canvas></div>
+    <p class="sm" style="margin-top:10px">ส้ม = เวลาเข้า Gate · น้ำเงิน = เวลาออก Gate</p></div>
+  <div class="card anim d2"><h3>ความหนาแน่น วัน × ชั่วโมง (เวลาเข้า Gate)</h3>${heat}
+    <p class="sm" style="margin-top:10px">ยิ่งสีเข้ม = รถเข้ามากในช่วงนั้น</p></div>
+
+  ${sect(6,'สินค้าและลูกค้า','ใครและอะไรกินปริมาณงานมากที่สุด')}
+  <div class="grid2">
+    <div class="card anim d1"><h3>สินค้าน้ำหนักรวมสูงสุด (ตัน)</h3>
+      <div class="chartbox" style="height:${Math.max(260,(R.top_material_ton||[]).length*30)}px"><canvas id="sp12"></canvas></div></div>
+    <div class="card anim d2"><h3>สินค้าที่ขึ้นรถบ่อยที่สุด (จำนวนเที่ยว)</h3>
+      <div class="chartbox" style="height:${Math.max(260,(R.top_material_trips||[]).length*30)}px"><canvas id="sp13"></canvas></div></div>
+  </div>
+  <div class="grid2">
+    <div class="card anim d3"><h3>สัดส่วนน้ำหนักตามกลุ่มสินค้า</h3>
+      <div class="chartbox" style="height:280px"><canvas id="sp14"></canvas></div></div>
+    <div class="card anim d4"><h3>ลูกค้าที่มีเที่ยวรถมากที่สุด</h3>
+      <div class="chartbox" style="height:${Math.max(260,(R.top_customer_trips||[]).length*30)}px"><canvas id="sp15"></canvas></div></div>
+  </div>
+  <div class="card anim d5"><h3>อันดับลูกค้าตามน้ำหนักสะสม (Pareto)</h3>
+    <div class="chartbox" style="height:300px"><canvas id="sp16"></canvas></div>
+    <p class="sm" style="margin-top:10px">แท่ง = ตัน · เส้น = สัดส่วนสะสม —
+      ลูกค้า ${fmt(CT.length)} รายแรกคิดเป็น ${fmt(pareto.length?pareto[pareto.length-1].cum:0,1)}% ของน้ำหนักทั้งหมด</p></div>
+
+  ${sect(7,'อันดับเที่ยวรถที่ควรดู','เที่ยวที่หนักที่สุด ช้าที่สุด และซับซ้อนที่สุด')}
+  <div class="card anim d1"><h3>10 เที่ยวน้ำหนักสูงสุด</h3>` + tableHTML([
+      {h:'Shipment',k:'s'},{h:'วันที่',k:'d',f:r=>dmy(r.d)},
+      {h:'น้ำหนัก (ตัน)',k:'v',n:1,f:r=>fmt(r.v,2)},
+      {h:'ประเภทรถ',k:'veh'},{h:'Gate หลัก',k:'g'}
+    ], R.top_heavy||[]) + `</div>
+  <div class="card anim d2"><h3>10 เที่ยวที่ใช้เวลานานที่สุด</h3>` + tableHTML([
+      {h:'Shipment',k:'s'},{h:'วันที่',k:'d',f:r=>dmy(r.d)},
+      {h:'ใช้เวลา',k:'v',n:1,f:r=>hm(+r.v)},
+      {h:'ประเภทรถ',k:'veh'},{h:'Gate หลัก',k:'g'},{h:'จำนวน Gate',k:'n',n:1}
+    ], R.top_slow||[]) + `</div>
+  <div class="card anim d3"><h3>10 เที่ยวที่มีรายการสินค้ามากที่สุด</h3>` + tableHTML([
+      {h:'Shipment',k:'s'},{h:'วันที่',k:'d',f:r=>dmy(r.d)},
+      {h:'จำนวนรายการ',k:'v',n:1,f:r=>fmt(r.v)},
+      {h:'น้ำหนัก (ตัน)',k:'t',n:1,f:r=>fmt(r.t,2)},{h:'ประเภทรถ',k:'veh'}
+    ], R.top_sku||[]) + `</div>
+
+  ${sect(8,'ปัญหาและงานด่วน','อัตราการเกิดปัญหา และผลของงานด่วนต่อเวลา')}
+  <div class="grid2">
+    <div class="card anim d1"><h3>อัตราการเกิดปัญหา แยกตาม Gate</h3>` + tableHTML([
+      {h:'Gate',k:'k'},{h:'รายการทั้งหมด',k:'total',n:1,f:r=>fmt(r.total)},
+      {h:'มีปัญหา',k:'bad',n:1,f:r=>fmt(r.bad)},
+      {h:'สัดส่วน',k:'pct',n:1,raw:1,
+       f:r=>`<b style="color:${+r.pct>5?'var(--bad)':+r.pct>2?'var(--org)':'inherit'}">${fmt(r.pct,1)}%</b>`}
+    ], R.issue_by_gate||[]) + `</div>
+    <div class="card anim d2"><h3>อัตราการเกิดปัญหา แยกตามประเภทรถ</h3>` + tableHTML([
+      {h:'ประเภทรถ',k:'k'},{h:'รายการทั้งหมด',k:'total',n:1,f:r=>fmt(r.total)},
+      {h:'มีปัญหา',k:'bad',n:1,f:r=>fmt(r.bad)},
+      {h:'สัดส่วน',k:'pct',n:1,raw:1,
+       f:r=>`<b style="color:${+r.pct>5?'var(--bad)':+r.pct>2?'var(--org)':'inherit'}">${fmt(r.pct,1)}%</b>`}
+    ], R.issue_by_vehicle||[]) + `</div>
+  </div>
+  <div class="card anim d3"><h3>งานด่วน (Urgent) เทียบกับงานปกติ</h3>` + tableHTML([
+      {h:'ประเภท',k:'k'},{h:'จำนวนเที่ยว',k:'trips',n:1,f:r=>fmt(r.trips)},
+      {h:'เวลาเฉลี่ย (นาที)',k:'avg',n:1,f:r=>fmt(r.avg)},
+      {h:'รอเข้า Gate (นาที)',k:'wait',n:1,f:r=>fmt(r.wait)},
+      {h:'น้ำหนักเฉลี่ย (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,2)}
+    ], R.urgent_cmp||[]) + `
+    <p class="sm" style="margin-top:10px">ถ้างานด่วนใช้เวลามากกว่างานปกติ แปลว่าการแทรกคิวไม่ได้ทำให้เร็วขึ้นจริง
+       — ควรตรวจว่าติดขัดที่ขั้นไหน</p></div>
+  `);
+
+  /* ---------------- วาดกราฟ ---------------- */
+  const axisFont = {font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'};
+  const hBar = {indexAxis:'y',layout:{padding:{right:38}},scales:{
+      x:{beginAtZero:true,grace:'16%',grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+      y:{grid:{display:false},ticks:axisFont}}};
+  const vBar = {layout:{padding:{top:20}},scales:{
+      y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+      x:{grid:{display:false},ticks:axisFont}}};
+  const cut = (s,n)=> String(s).length>n ? String(s).slice(0,n)+'…' : String(s);
+
+  const jt = kv(R.by_jobtype), stt = kv(R.by_status);
+  chart('sp1','doughnut',jt.map(x=>x[0]),
+    [{data:jt.map(x=>x[1]),backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}],
+    {cutout:'56%', vl:v=>fmt(v)});
+  chart('sp2','doughnut',stt.map(x=>x[0]),
+    [{data:stt.map(x=>x[1]),backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}],
+    {cutout:'56%', vl:v=>fmt(v)});
+
+  const iss = kv(R.by_issue);
+  chart('sp3','bar',iss.map(x=>cut(x[0],40)),
+    [{label:'จำนวนรายการ',data:iss.map(x=>x[1]),backgroundColor:'#e03131',borderRadius:6}],
+    Object.assign({},hBar,{vl:v=>fmt(v)}));
+
+  chart('sp4','bar',dates,[
+    {label:'ตัน',data:DAILY.map(x=>+x.ton),backgroundColor:'#ff7a18',borderRadius:6,order:2},
+    {type:'line',label:'จำนวนเที่ยว',data:DAILY.map(x=>+x.trips),borderColor:'#0b2447',
+     backgroundColor:'#0b2447',borderWidth:2.5,tension:.35,pointRadius:3,yAxisID:'y2',order:1}
+  ],{layout:{padding:{top:24}},
+     scales:{y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont,
+                title:{display:true,text:'ตัน',font:{family:'Kanit',size:10}}},
+             y2:{position:'right',beginAtZero:true,grid:{display:false},border:{display:false},ticks:axisFont,
+                title:{display:true,text:'เที่ยว',font:{family:'Kanit',size:10}}},
+             x:{grid:{display:false},ticks:axisFont}},
+     vl:(v,i,ds)=> DAILY.length>18 && i%2 ? null : fmt(v,0)});
+
+  chart('sp5','bar',WEEKLY.map(x=>x.w),
+    [{label:'เที่ยว',data:WEEKLY.map(x=>+x.trips),backgroundColor:'#1d4f92',borderRadius:6}],
+    Object.assign({},vBar,{vl:v=>fmt(v)}));
+  chart('sp6','bar',MONTHLY.map(x=>monthLabel(x.m)),[
+    {label:'เที่ยว',data:MONTHLY.map(x=>+x.trips),backgroundColor:'#0b2447',borderRadius:6},
+    {label:'ตัน',data:MONTHLY.map(x=>+x.ton),backgroundColor:'#ff7a18',borderRadius:6}
+  ],Object.assign({},vBar,{vl:v=>fmt(v,0)}));
+
+  chart('sp7','line',dates,
+    [{label:'นาทีเฉลี่ย',data:DAILY.map(x=>x.avg==null?null:+x.avg),borderColor:'#ff7a18',
+      backgroundColor:'rgba(255,122,24,.12)',borderWidth:2.5,tension:.35,pointRadius:3,fill:true}],
+    Object.assign({},vBar,{vl:(v,i)=> DAILY.length>18 && i%2 ? null : fmt(v,0)}));
+
+  chart('sp8','bar',stageRows.map(x=>x.k),
+    [{label:'นาที',data:stageRows.map(x=>x.v),
+      backgroundColor:stageRows.map((x,i)=> i===0?'#e03131':i===1?'#ff7a18':'#1d4f92'),borderRadius:6}],
+    Object.assign({},hBar,{vl:v=>fmt(v,0)}));
+
+  chart('sp9','bar',VEH.map(x=>cut(x.k,24)),[
+    {label:'เฉลี่ย (นาที)',data:VEH.map(x=>+x.avg),backgroundColor:'#1d4f92',borderRadius:5},
+    {label:'นานสุด (นาที)',data:VEH.map(x=>+x.max),backgroundColor:'#ffc78a',borderRadius:5}
+  ],Object.assign({},hBar,{vl:v=>fmt(v,0)}));
+
+  chart('sp10','bar',GATES.map(x=>x.k),[
+    {label:'อยู่ใน Gate',data:GATES.map(x=>+x.avg),backgroundColor:'#0b2447',borderRadius:5},
+    {label:'รอเข้า Gate',data:GATES.map(x=>+x.wait),backgroundColor:'#ff7a18',borderRadius:5}
+  ],Object.assign({},hBar,{vl:v=>fmt(v,0)}));
+
+  const HI = R.hour_in||[], HO = R.hour_out||[];
+  const allH = [...new Set([...HI.map(x=>+x.h), ...HO.map(x=>+x.h)])].sort((a,b)=>a-b);
+  chart('sp11','line',allH.map(x=>pad(x)+':00'),[
+    {label:'เข้า Gate',data:allH.map(x=>{const f=HI.find(y=>+y.h===x);return f?+f.c:0;}),
+     borderColor:'#ff7a18',backgroundColor:'rgba(255,122,24,.14)',borderWidth:2.5,tension:.35,pointRadius:3,fill:true},
+    {label:'ออก Gate',data:allH.map(x=>{const f=HO.find(y=>+y.h===x);return f?+f.c:0;}),
+     borderColor:'#0b2447',backgroundColor:'transparent',borderWidth:2.5,tension:.35,pointRadius:3}
+  ],Object.assign({},vBar,{vl:v=> v? fmt(v):null}));
+
+  const mt = kv(R.top_material_ton), mtr = kv(R.top_material_trips), pg = kv(R.by_product_group);
+  chart('sp12','bar',mt.map(x=>cut(x[0],28)),
+    [{label:'ตัน',data:mt.map(x=>x[1]),backgroundColor:'#ff7a18',borderRadius:6}],
+    Object.assign({},hBar,{vl:v=>fmt(v,0)}));
+  chart('sp13','bar',mtr.map(x=>cut(x[0],28)),
+    [{label:'เที่ยว',data:mtr.map(x=>x[1]),backgroundColor:'#1d4f92',borderRadius:6}],
+    Object.assign({},hBar,{vl:v=>fmt(v)}));
+  chart('sp14','doughnut',pg.map(x=>x[0]),
+    [{data:pg.map(x=>x[1]),backgroundColor:PAL,borderWidth:2,borderColor:'#fff'}],
+    {cutout:'52%', vl:v=>fmt(v,0)});
+
+  const ctr = kv(R.top_customer_trips);
+  chart('sp15','bar',ctr.map(x=>cut(x[0],26)),
+    [{label:'เที่ยว',data:ctr.map(x=>x[1]),backgroundColor:'#0b2447',borderRadius:6}],
+    Object.assign({},hBar,{vl:v=>fmt(v)}));
+
+  chart('sp16','bar',pareto.map(x=>cut(x.k,18)),[
+    {label:'ตัน',data:pareto.map(x=>x.v),backgroundColor:'#ff7a18',borderRadius:6,order:2},
+    {type:'line',label:'สะสม %',data:pareto.map(x=>+x.cum.toFixed(1)),borderColor:'#0b2447',
+     backgroundColor:'#0b2447',borderWidth:2.5,tension:.3,pointRadius:3,yAxisID:'y2',order:1}
+  ],{layout:{padding:{top:24}},
+     scales:{y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+             y2:{position:'right',beginAtZero:true,max:100,grid:{display:false},border:{display:false},ticks:axisFont},
+             x:{grid:{display:false},ticks:Object.assign({},axisFont,{maxRotation:60,minRotation:40})}},
+     vl:(v,i,ds)=> ds.type==='line' ? fmt(v,0)+'%' : fmt(v,0)});
+}
+
 async function pageFG(){
   /* หน้านี้แบ่งเป็น 5 Part: ภาพรวม / Loading / Shipment / Product / Customer
      ทิศทาง Inbound-Outbound แยกจากคอลัมน์ Shipment type ของชีท FG
