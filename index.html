@@ -139,6 +139,30 @@ main{flex:1;margin-left:256px;padding:0 26px 26px;max-width:100%;min-width:0}
 .topbar h1 .ac{color:var(--org)}
 .topbar p{color:var(--muted);font-size:12.5px;font-weight:300}
 #pgActions{margin-left:auto;display:flex;gap:9px;align-items:center}
+
+/* ตัวกรองแบบติ๊กหลายค่า */
+.msWrap{position:relative}
+.msBtn{display:flex;align-items:center;gap:8px;padding:9px 13px;border:1.5px solid var(--line);
+  border-radius:11px;background:#fff;font-family:inherit;font-size:13.5px;font-weight:300;
+  color:var(--txt);transition:.18s;min-width:150px;text-align:left}
+.msBtn:hover{border-color:var(--org)}
+.msBtn.on{border-color:var(--org);background:var(--org-soft)}
+.msBtn .cnt{margin-left:auto;background:var(--org);color:#fff;border-radius:99px;
+  padding:1px 8px;font-size:11px;font-weight:500}
+.msBtn .arw{color:var(--muted);font-size:10px}
+.msPanel{position:absolute;top:calc(100% + 6px);left:0;z-index:70;background:#fff;
+  border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh2);
+  min-width:230px;max-width:340px;max-height:340px;display:flex;flex-direction:column;
+  animation:fadeUp .16s both}
+.msPanel .hd{display:flex;gap:7px;padding:10px;border-bottom:1px solid var(--line)}
+.msPanel .hd button{flex:1;padding:6px;border-radius:7px;background:var(--navy-soft);
+  color:var(--navy2);font-size:12px;font-family:inherit;transition:.15s}
+.msPanel .hd button:hover{background:var(--org);color:#fff}
+.msPanel .bd{overflow-y:auto;padding:6px}
+.msPanel label{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;
+  cursor:pointer;font-size:13px;font-weight:300;transition:.12s}
+.msPanel label:hover{background:var(--navy-soft)}
+.msPanel input{width:16px;height:16px;accent-color:var(--org);cursor:pointer;flex:none}
 #preview,.sect,.card{scroll-margin-top:92px}
 #pgActions .btn{width:auto;padding:11px 20px;font-size:14px;white-space:nowrap}
 
@@ -340,6 +364,10 @@ details summary{cursor:pointer;user-select:none}
       <div><h2>EFFICIENCY DASHBOARD</h2><p>ระบบรายงานประสิทธิภาพคลัง</p></div>
     </div>
     <nav>
+      <div class="navlbl">มุมผู้จัดการ</div>
+      <a href="#" data-p="health"  onclick="go('health',event)"><span class="ic">🩺</span> Warehouse Health</a>
+      <a href="#" data-p="flow"    onclick="go('flow',event)"><span class="ic">🔀</span> Flow Analysis</a>
+      <a href="#" data-p="compare" onclick="go('compare',event)"><span class="ic">⚖️</span> เปรียบเทียบ</a>
       <div class="navlbl">Dashboard</div>
       <a href="#" data-p="fg"      onclick="go('fg',event)"><span class="ic">📦</span> FG [Outbound &amp; Inbound]</a>
       <a href="#" data-p="prepare" onclick="go('prepare',event)"><span class="ic">⏱️</span> DO Preparing</a>
@@ -379,7 +407,7 @@ details summary{cursor:pointer;user-select:none}
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-04.21';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-05.2';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -413,7 +441,10 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth:{ persistSes
 let ME = null, TOKEN = null, CHARTS = {}, PAGE = 'fg';
 
 /* ตัวกรองใช้ร่วมกันทุกหน้า + แคชข้อมูลไว้ ไม่ต้องยิงซ้ำตอนเปลี่ยนตัวกรอง */
-let FILTERS = { month:'', factory:'', shty:'' };
+let FILTERS = { months:[], factories:[], shtys:[], dim:'gate', keys:[] };
+let MONTHS_CACHE = [];        // รายชื่อเดือนที่มีข้อมูล ใช้ร่วมกันทุกหน้า
+const hasF = k => (FILTERS[k]||[]).length > 0;
+const orNull = k => hasF(k) ? FILTERS[k] : null;
 const CACHE  = {};
 async function getData(fn){
   if(!CACHE[fn]) CACHE[fn] = await rpc(fn);
@@ -782,7 +813,7 @@ async function boot(){
   el('navImport').classList.toggle('hide',!adm);
   el('navUsers').classList.toggle('hide',!adm);
   show('appView');
-  go('fg');
+  go('health');
 }
 function show(id){ ['authView','pendView','appView'].forEach(v=>el(v).classList.toggle('hide', v!==id)); }
 
@@ -811,9 +842,70 @@ window.addEventListener('scroll', ()=>{
 }, {passive:true});
 
 /* =========================================================================
+   ตัวกรองแบบติ๊กเลือกได้หลายค่า
+   FILTERS เก็บเป็นอาเรย์ทั้งหมด · อาเรย์ว่าง = ไม่กรอง (เอาทุกค่า)
+   ========================================================================= */
+let MS_OPEN = null;
+
+function msRender(id, label, options, selected, onchange, fmtOpt){
+  const sel = selected || [];
+  const txt = !sel.length ? 'ทั้งหมด'
+            : sel.length === 1 ? (fmtOpt ? fmtOpt(sel[0]) : sel[0])
+            : `เลือกไว้ ${sel.length}`;
+  return `<div class="msWrap" id="ms_${id}">
+    <div class="fld" style="margin:0"><label>${esc(label)}</label>
+      <button type="button" class="msBtn${sel.length?' on':''}" onclick="msToggle('${id}',event)">
+        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(txt)}</span>
+        ${sel.length>1?`<span class="cnt">${sel.length}</span>`:''}
+        <span class="arw">▼</span>
+      </button></div>
+    <div class="msPanel hide" id="msp_${id}">
+      <div class="hd">
+        <button type="button" onclick="msAll('${id}',true)">เลือกทั้งหมด</button>
+        <button type="button" onclick="msAll('${id}',false)">ล้าง</button>
+      </div>
+      <div class="bd">${options.map(o=>{
+        const v = typeof o === 'object' ? o.v : o;
+        const t = typeof o === 'object' ? o.t : (fmtOpt ? fmtOpt(o) : o);
+        return `<label><input type="checkbox" data-ms="${id}" value="${esc(v)}"
+                  ${sel.includes(v)?'checked':''} onchange="msChange('${id}','${esc(onchange)}')">
+                <span>${esc(t)}</span></label>`;
+      }).join('')}</div>
+    </div></div>`;
+}
+
+function msToggle(id, e){
+  if(e) e.stopPropagation();
+  const p = el('msp_'+id);
+  if(!p) return;
+  if(MS_OPEN && MS_OPEN !== id){ const o = el('msp_'+MS_OPEN); if(o) o.classList.add('hide'); }
+  const opening = p.classList.contains('hide');
+  p.classList.toggle('hide');
+  MS_OPEN = opening ? id : null;
+}
+function msAll(id, on){
+  document.querySelectorAll(`input[data-ms="${id}"]`).forEach(c=>c.checked = on);
+  const first = document.querySelector(`input[data-ms="${id}"]`);
+  if(first) first.dispatchEvent(new Event('change'));
+}
+function msValues(id){
+  return [...document.querySelectorAll(`input[data-ms="${id}"]`)].filter(c=>c.checked).map(c=>c.value);
+}
+function msChange(id, fn){
+  FILTERS[id] = msValues(id);
+  if(window[fn]) window[fn]();
+}
+document.addEventListener('click', ()=>{
+  if(MS_OPEN){ const p = el('msp_'+MS_OPEN); if(p) p.classList.add('hide'); MS_OPEN = null; }
+});
+
+/* =========================================================================
    ROUTER
    ========================================================================= */
 const PAGES = {
+  health:  {t:'Warehouse <span class="ac">Health</span>', s:'สุขภาพคลังในหนึ่งหน้า เทียบกับเดือนก่อนและ Target', f:pageHealth},
+  flow:    {t:'Flow <span class="ac">Analysis</span>',   s:'ไล่สายงานทีละขั้น หาว่าเวลาหายไปตรงไหน', f:pageFlow},
+  compare: {t:'<span class="ac">เปรียบเทียบ</span>',      s:'วางเคียงกันเพื่อหาความต่างที่ชัดเจน', f:pageCompare},
   fg:      {t:'FG <span class="ac">[Outbound &amp; Inbound]</span>', s:'ภาพรวมการรับเข้าและจ่ายออกสินค้าสำเร็จรูป — ข้อมูลทั้งหมด', f:pageFG},
   prepare: {t:'DO <span class="ac">Preparing</span>',       s:'เวลาที่ใช้จัดเตรียมสินค้าตาม Delivery Order — ข้อมูลทั้งหมด', f:pagePrepare},
   milkrun: {t:'Milk <span class="ac">Run</span>',           s:'การเคลื่อนย้ายสินค้าระหว่างโรง — ข้อมูลทั้งหมด', f:pageMilk},
@@ -823,7 +915,7 @@ const PAGES = {
 };
 function go(p,e){
   if(e) e.preventDefault();
-  if((p==='import'||p==='users') && ME.role!=='admin') p='fg';
+  if((p==='import'||p==='users') && ME.role!=='admin') p='health';
   PAGE = p;
   document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.p===p));
   el('pgTitle').innerHTML = PAGES[p].t;
@@ -1054,13 +1146,13 @@ const DS = {
 };
 
 function applyFilters(rows, kind){
-  const d = DS[kind];
+  const d = DS[kind], mo = FILTERS.months||[], fa = FILTERS.factories||[];
   return rows.filter(r=>{
-    if(FILTERS.month && monthKey(r[d.date]) !== FILTERS.month) return false;
-    if(FILTERS.factory){
+    if(mo.length && !mo.includes(monthKey(r[d.date]))) return false;
+    if(fa.length){
       const f = d.fac(r);
-      if(Array.isArray(f)){ if(!f.includes(FILTERS.factory)) return false; }
-      else if(f !== FILTERS.factory) return false;
+      const list = Array.isArray(f) ? f : [f];
+      if(!list.some(x=>fa.includes(x))) return false;
     }
     return true;
   });
@@ -1082,18 +1174,9 @@ function buildOptions(sets){
 
 function filterBar(sets, shown, total, fn){
   const {months,facs} = buildOptions(sets);
-  const noMap = sets.some(s=>s.kind==='fg'||s.kind==='prepare') && !SLOC_MAP_READY;
   return `<div class="filters anim">
-    <div class="fld"><label>เดือน</label>
-      <select id="fMonth" onchange="setFilter('month',this.value,'${fn}')">
-        <option value="">ทุกเดือน</option>
-        ${months.map(m=>`<option value="${m}"${FILTERS.month===m?' selected':''}>${monthLabel(m)}</option>`).join('')}
-      </select></div>
-    <div class="fld"><label>โรงงาน</label>
-      <select id="fFac" onchange="setFilter('factory',this.value,'${fn}')">
-        <option value="">ทุกโรง</option>
-        ${facs.map(f=>`<option value="${esc(f)}"${FILTERS.factory===f?' selected':''}>${esc(f)}</option>`).join('')}
-      </select></div>
+    ${msRender('months','เดือน',months,FILTERS.months,fn,monthLabel)}
+    ${msRender('factories','โรงงาน',facs,FILTERS.factories,fn)}
     <button class="fbtn alt" onclick="resetFilters('${fn}')">ล้างตัวกรอง</button>
     <button class="fbtn alt" onclick="clearCache();${fn}()">↻ โหลดใหม่</button>
     <div style="margin-left:auto;text-align:right">
@@ -1101,40 +1184,24 @@ function filterBar(sets, shown, total, fn){
       <div style="font-weight:500;font-size:15px">${fmt(shown)}
         <span class="sm" style="font-weight:300">จาก ${fmt(total)} รายการ</span></div>
     </div>
-    ${noMap?`<div class="msg warn" style="width:100%;margin:6px 0 0">
-      ยังไม่ได้ตั้งกฎแปลง <b>Storage Location → โรงงาน</b> — ตัวกรองโรงงานจึงยังไม่มีผลกับข้อมูล FG/Prepare
-      (แก้ที่ตัวแปร <code>SLOC_TO_FACTORY</code> ในไฟล์ index.html)</div>`:''}
   </div>`;
 }
 
-function setFilter(k,v,fn){ FILTERS[k] = v; window[fn](); }
-function resetFilters(fn){ FILTERS = {month:'',factory:'',shty:''}; window[fn](); }
+function resetFilters(fn){
+  FILTERS.months=[]; FILTERS.factories=[]; FILTERS.shtys=[]; FILTERS.keys=[];
+  window[fn]();
+}
 
-/* แถบตัวกรองสำหรับหน้าที่รวมยอดมาจากฐานข้อมูลแล้ว (ตัวเลือกมากับผลลัพธ์) */
+/* แถบตัวกรองของหน้า FG (ติ๊กเลือกได้หลายค่า) */
 function filterBarAgg(R, fn){
   const months = R.months || [];
-  const facs = [...new Set([
-      ...(R.all_facs||[]),
-      ...Object.values(SLOC_TO_FACTORY)
-    ])].sort();
+  const facs = [...new Set([...(R.all_facs||[]), ...Object.values(SLOC_TO_FACTORY)])].sort();
+  const shty = (R.all_shty||[]).slice().sort();
   const shown = (+R.kpi.rows) + (+R.kpi.tm_rows);
   return `<div class="filters anim">
-    <div class="fld"><label>เดือน</label>
-      <select id="fMonth" onchange="setFilter('month',this.value,'${fn}')">
-        <option value="">ทุกเดือน</option>
-        ${months.map(m=>`<option value="${m}"${FILTERS.month===m?' selected':''}>${monthLabel(m)}</option>`).join('')}
-      </select></div>
-    <div class="fld"><label>โรงงาน</label>
-      <select id="fFac" onchange="setFilter('factory',this.value,'${fn}')">
-        <option value="">ทุกโรง</option>
-        ${facs.map(f=>`<option value="${esc(f)}"${FILTERS.factory===f?' selected':''}>${esc(f)}</option>`).join('')}
-      </select></div>
-    <div class="fld"><label>ประเภทการส่ง</label>
-      <select id="fShty" onchange="setFilter('shty',this.value,'${fn}')">
-        <option value="">ทุกประเภท</option>
-        ${(R.all_shty||[]).sort().map(s=>
-          `<option value="${esc(s)}"${FILTERS.shty===s?' selected':''}>${esc(s)}</option>`).join('')}
-      </select></div>
+    ${msRender('months','เดือน',months,FILTERS.months,fn,monthLabel)}
+    ${msRender('factories','โรงงาน',facs,FILTERS.factories,fn)}
+    ${msRender('shtys','ประเภทการส่ง',shty,FILTERS.shtys,fn)}
     <button class="fbtn alt" onclick="resetFilters('${fn}')">ล้างตัวกรอง</button>
     <button class="fbtn alt" onclick="${fn}()">↻ โหลดใหม่</button>
     <div style="margin-left:auto;text-align:right">
@@ -1142,11 +1209,557 @@ function filterBarAgg(R, fn){
       <div style="font-weight:500;font-size:15px">${fmt(shown)}
         <span class="sm" style="font-weight:300">รายการ</span></div>
     </div>
-    ${FILTERS.factory && !SLOC_MAP_READY ? `<div class="msg warn" style="width:100%;margin:6px 0 0">
-      ยังไม่ได้ตั้งกฎแปลง Storage Location → โรงงาน ตัวกรองโรงจึงมีผลเฉพาะข้อมูล Timeout</div>`:''}
   </div>`;
 }
-function errCard(m){ return `<div class="card anim"><div class="msg err">โหลดข้อมูลไม่สำเร็จ: ${esc(m)}</div></div>`; }
+
+
+/* =========================================================================
+   มุมผู้จัดการคลัง — ตัวช่วยร่วม
+   ========================================================================= */
+/* ประเมินไฟเขียว-เหลือง-แดง จากค่า Target ที่คำนวณจากข้อมูลจริง */
+function rag(T, metric, v){
+  const t = T && T[metric];
+  if(!t || v == null || isNaN(v)) return {cls:'', txt:'', ok:null};
+  const g = +t.green_max, a = +t.amber_max;
+  const good = t.higher_better ? (v >= g) : (v <= g);
+  const mid  = t.higher_better ? (v >= a) : (v <= a);
+  return good ? {cls:'g', txt:'ตามเป้า', ok:true}
+       : mid  ? {cls:'o', txt:'เฝ้าระวัง', ok:null}
+              : {cls:'r', txt:'เกินเป้า', ok:false};
+}
+/* ส่วนต่างเทียบเดือนก่อน */
+function delta(cur, prev, lowerBetter){
+  if(cur==null || prev==null || !isFinite(cur) || !isFinite(prev) || prev===0)
+    return '<span class="sm">— เทียบไม่ได้</span>';
+  const d = cur - prev, pct = d/Math.abs(prev)*100;
+  const better = lowerBetter ? d < 0 : d > 0;
+  const arrow = d > 0 ? '▲' : d < 0 ? '▼' : '=';
+  const col = Math.abs(pct) < 1 ? 'var(--muted)' : (better ? 'var(--ok)' : 'var(--bad)');
+  return `<span style="color:${col};font-weight:500">${arrow} ${Math.abs(pct).toFixed(1)}%</span>
+          <span class="sm"> เทียบเดือนก่อน</span>`;
+}
+const hhmm2 = v => v==null||isNaN(v) ? '—'
+  : (()=>{const t=Math.round(v*60); return pad(Math.floor(t/60))+':'+pad(t%60);})();
+
+function monthFilterBar(R, fn){
+  if((R.months||[]).length) MONTHS_CACHE = R.months;
+  return `<div class="filters anim">
+    ${msRender('months','เดือน',R.months||[],FILTERS.months,fn,monthLabel)}
+    <button class="fbtn alt" onclick="resetFilters('${fn}')">ล้างตัวกรอง</button>
+    <button class="fbtn alt" onclick="${fn}()">↻ โหลดใหม่</button>
+    <div style="margin-left:auto;text-align:right">
+      <div class="sm">กำลังดู</div>
+      <div style="font-weight:500;font-size:15px">${
+        (R.months_sel||[]).map(monthLabel).join(' · ') || '—'}</div>
+    </div></div>`;
+}
+
+/* =========================================================================
+   PAGE — WAREHOUSE HEALTH
+   ========================================================================= */
+async function pageHealth(){
+  let R;
+  try{ R = await rpc('app_wh_health',{p_months: orNull('months')}); }
+  catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
+
+  const bar = monthFilterBar(R,'pageHealth');
+  const C = R.cur, P = R.prev || {}, T = R.targets || {};
+  if(!C){ body(bar + emptyBox('ไม่พบข้อมูลในเดือนที่เลือก')); return; }
+
+  const N = v => v==null ? null : +v;
+  const ton=N(C.ton), trucks=N(C.trucks), days=N(C.days), custs=N(C.custs);
+  const ready=N(C.ready), loadm=N(C.load_m), lost=N(C.lost), prep=N(C.prep);
+  const tpt=N(C.tpt), finish=N(C.finish), overT=N(C.over_t), daysT=N(C.days_t);
+  const tonIn=N(C.ton_in), tonOut=N(C.ton_out);
+
+  const rReady=rag(T,'m_ready_to_truck',ready), rLoad=rag(T,'m_load',loadm),
+        rLost=rag(T,'lost_gate_min',lost), rPrep=rag(T,'m_prep',prep),
+        rFin=rag(T,'finish_hour',finish), rTpt=rag(T,'ton_per_truck',tpt);
+
+  /* คัดเรื่องที่ต้องดูก่อน จากค่าที่หลุดเป้ามากที่สุด */
+  const issues = [];
+  const push = (r, title, val, why, act) => {
+    if(r.ok === false) issues.push({sev:2,title,val,why,act});
+    else if(r.ok === null && r.cls==='o') issues.push({sev:1,title,val,why,act});
+  };
+  push(rReady,'ของพร้อมแล้วแต่รถยังไม่มา', `${fmt(ready,0)} นาที (เป้า ≤ ${T.m_ready_to_truck?.green_max})`,
+       'ช่วงนี้กินเวลามากที่สุดในสายงาน และไม่ได้เกิดจากการหยิบของ',
+       'ดูการนัดหมายรถกับการปล่อยงานเตรียม ให้เตรียมใกล้เวลารถมาถึงมากขึ้น');
+  push(rLost,'รถรอเข้า Gate นาน', `${fmt(lost,0)} นาที (เป้า ≤ ${T.lost_gate_min?.green_max})`,
+       'รถมาถึงแล้วแต่ยังเข้าประตูไม่ได้ มักเกิดตอนรถกระจุกช่วงบ่าย',
+       'กระจายเวลานัดรถออกจากช่วง 14:00–16:00');
+  push(rFin,'เลิกงานเกินเป้า', `${hhmm2(finish)} · เกินเป้า ${fmt(overT)} จาก ${fmt(daysT)} วัน`,
+       'เวลาเลิกงานผูกกับปริมาณงานเข้าวันนั้นอย่างชัดเจน',
+       'เกลี่ยงานวันหนักไปวันเบา หรือเพิ่มกำลังเฉพาะวันที่คาดว่าเกิน 180 คัน');
+  push(rLoad,'เวลาโหลดต่อคันสูง', `${fmt(loadm,0)} นาที (เป้า ≤ ${T.m_load?.green_max})`,
+       'รถอยู่หน้าประตูนานทำให้คิวถัดไปรอ',
+       'ดูประตูที่ใช้เวลาสูงผิดปกติในตารางด้านล่าง');
+  push(rTpt,'บรรทุกต่อคันต่ำ', `${fmt(tpt,2)} ตัน/คัน (เป้า ≥ ${T.ton_per_truck?.green_max})`,
+       'ใช้รถไม่คุ้ม ต้นทุนต่อตันสูงขึ้น',
+       'รวมออเดอร์ปลายทางใกล้กันให้ไปคันเดียว');
+  issues.sort((a,b)=>b.sev-a.sev);
+
+  const gates = (R.gates||[]).map(g=>({...g,lost:+g.lost,load:+g.load,ton:+g.ton,trucks:+g.trucks}));
+  const D = R.daily||[], H = R.hourly||[];
+
+  body(bar + `
+  ${issues.length ? `<div class="card anim d1" style="border-left:5px solid ${issues[0].sev===2?'var(--bad)':'var(--org)'}">
+    <h3>เรื่องที่ควรดูก่อน</h3>
+    ${issues.slice(0,3).map((x,i)=>`
+      <div style="display:flex;gap:12px;padding:11px 0;${i?'border-top:1px solid var(--line)':''}">
+        <div style="flex:none;width:26px;height:26px;border-radius:8px;display:flex;align-items:center;
+             justify-content:center;color:#fff;font-weight:600;font-size:12px;
+             background:${x.sev===2?'var(--bad)':'var(--org)'}">${i+1}</div>
+        <div style="flex:1">
+          <div style="font-weight:500">${esc(x.title)} — <span style="color:${x.sev===2?'var(--bad)':'var(--org)'}">${esc(x.val)}</span></div>
+          <div class="sm" style="margin-top:3px">${esc(x.why)}</div>
+          <div class="sm" style="margin-top:3px;color:var(--navy2)"><b>ทำอะไรได้:</b> ${esc(x.act)}</div>
+        </div></div>`).join('')}
+  </div>` : `<div class="card anim d1"><div class="msg ok" style="margin:0">
+      ทุกตัวชี้วัดอยู่ในเกณฑ์ ไม่มีเรื่องเร่งด่วนในเดือนที่เลือก</div></div>`}
+
+  <div class="kpis">
+    <div class="kpi o anim d1"><div class="k">ปริมาณรวม</div><div class="v">${fmt(ton,0)}</div>
+      <div class="s">ตัน · ${fmt(days)} วันทำงาน<br>${delta(ton,N(P.ton),false)}</div></div>
+    <div class="kpi anim d2"><div class="k">จำนวนคัน</div><div class="v">${fmt(trucks)}</div>
+      <div class="s">คัน · เฉลี่ย ${days?fmt(trucks/days,0):'—'}/วัน<br>${delta(trucks,N(P.trucks),false)}</div></div>
+    <div class="kpi ${rTpt.cls} anim d3"><div class="k">บรรทุกต่อคัน ${rTpt.txt?'· '+rTpt.txt:''}</div>
+      <div class="v">${fmt(tpt,2)}</div>
+      <div class="s">ตัน/คัน · เป้า ≥ ${T.ton_per_truck?.green_max}<br>${delta(tpt,N(P.tpt),false)}</div></div>
+    <div class="kpi ${rReady.cls} anim d4"><div class="k">รอรถ ${rReady.txt?'· '+rReady.txt:''}</div>
+      <div class="v">${fmt(ready,0)}</div>
+      <div class="s">นาที · เป้า ≤ ${T.m_ready_to_truck?.green_max}<br>${delta(ready,N(P.ready),true)}</div></div>
+    <div class="kpi ${rLost.cls} anim d5"><div class="k">รถรอเข้า Gate ${rLost.txt?'· '+rLost.txt:''}</div>
+      <div class="v">${fmt(lost,0)}</div>
+      <div class="s">นาที · เป้า ≤ ${T.lost_gate_min?.green_max}<br>${delta(lost,N(P.lost),true)}</div></div>
+    <div class="kpi ${rLoad.cls} anim d5"><div class="k">โหลดต่อคัน ${rLoad.txt?'· '+rLoad.txt:''}</div>
+      <div class="v">${fmt(loadm,0)}</div>
+      <div class="s">นาที · เป้า ≤ ${T.m_load?.green_max}<br>${delta(loadm,N(P.load_m),true)}</div></div>
+    <div class="kpi ${rFin.cls} anim d6"><div class="k">เวลาเลิกงาน ${rFin.txt?'· '+rFin.txt:''}</div>
+      <div class="v">${hhmm2(finish)}</div>
+      <div class="s">เกินเป้า ${fmt(overT)}/${fmt(daysT)} วัน<br>${delta(finish,N(P.finish),true)}</div></div>
+    <div class="kpi ${rPrep.cls} anim d6"><div class="k">เวลาหยิบของ ${rPrep.txt?'· '+rPrep.txt:''}</div>
+      <div class="v">${fmt(prep,0)}</div>
+      <div class="s">นาที · เป้า ≤ ${T.m_prep?.green_max}<br>${delta(prep,N(P.prep),true)}</div></div>
+  </div>
+
+  <div class="card anim d3"><h3>ปริมาณงานรายวัน เทียบเวลาเลิกงาน</h3>
+    <div class="chartbox" style="height:300px"><canvas id="h1"></canvas></div>
+    <p class="sm" style="margin-top:10px">แท่ง = ตันต่อวัน · เส้น = เวลาเลิกงานช้าสุดของวัน · เส้นประแดง = เป้า 20:30</p></div>
+
+  <div class="grid2">
+    <div class="card anim d4"><h3>รถเข้ารายชั่วโมง เทียบเวลารอเข้า Gate</h3>
+      <div class="chartbox"><canvas id="h2"></canvas></div></div>
+    <div class="card anim d4"><h3>เวลารอรถรายวัน (นาที)</h3>
+      <div class="chartbox"><canvas id="h3"></canvas></div></div>
+  </div>
+
+  <div class="card anim d5"><h3>ประตูที่ควรจับตา</h3>` + tableHTML([
+    {h:'ประตู',k:'k',raw:1,f:r=>`<span class="pill b">${esc(r.k)}</span>`},
+    {h:'จำนวนคัน',k:'trucks',n:1,f:r=>fmt(r.trucks)},
+    {h:'ตัน',k:'ton',n:1,f:r=>fmt(r.ton,0)},
+    {h:'ตัน/คัน',k:'tpt',n:1,f:r=>fmt(r.ton/Math.max(r.trucks,1),2)},
+    {h:'รถรอเข้า (นาที)',k:'lost',n:1,raw:1,
+     f:r=>`<span class="pill ${rag(T,'lost_gate_min',r.lost).cls||'n'}">${fmt(r.lost,0)}</span>`},
+    {h:'โหลด (นาที)',k:'load',n:1,raw:1,
+     f:r=>`<span class="pill ${rag(T,'m_load',r.load).cls||'n'}">${fmt(r.load,0)}</span>`}
+  ],gates) + `</div>`);
+
+  const axisFont={font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'};
+  chart('h1','bar',D.map(x=>dmy(x.d)),[
+    {type:'bar',label:'ตัน',yAxisID:'y',data:D.map(x=>+x.ton),
+     backgroundColor:'#ff7a18',borderRadius:5,maxBarThickness:22,labelPos:'inBottom'},
+    {type:'line',label:'เวลาเลิกงาน',yAxisID:'y1',data:D.map(x=>x.finish==null?null:+x.finish),
+     borderColor:'#0b2447',backgroundColor:'#0b2447',tension:.3,spanGaps:true,borderWidth:2.5,
+     pointRadius:D.map(x=>x.finish!=null&&+x.finish>20.5?5:3.5),
+     pointBackgroundColor:D.map(x=>x.finish!=null&&+x.finish>20.5?'#e03131':'#fff'),
+     pointBorderColor:D.map(x=>x.finish!=null&&+x.finish>20.5?'#e03131':'#0b2447')},
+    {type:'line',label:'เป้า 20:30',yAxisID:'y1',data:D.map(()=>20.5),
+     borderColor:'#e03131',borderDash:[7,5],borderWidth:2,pointRadius:0}
+  ],{layout:{padding:{top:20}},
+     scales:{y:{beginAtZero:true,grace:'80%',grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+             y1:{position:'right',suggestedMin:12,suggestedMax:24,grid:{display:false},border:{display:false},
+                 ticks:Object.assign({},axisFont,{callback:v=>hhmm2(v)})},
+             x:{grid:{display:false},ticks:axisFont}},
+     plugins:{legend:{position:'bottom',labels:{font:{family:'Kanit',size:11,weight:'300'},boxWidth:12,padding:12}},
+              tooltip:{callbacks:{label:c=>c.dataset.yAxisID==='y1'
+                ? c.dataset.label+': '+hhmm2(c.parsed.y) : 'ตัน: '+fmt(c.parsed.y,1)}}},
+     vl:(v,i,ds)=> ds.label==='เป้า 20:30' ? null
+                 : ds.yAxisID==='y1' ? (D.length>20 && i%2 ? null : hhmm2(v))
+                 : (D.length>20 && i%2 ? null : fmt(v,0))});
+
+  chart('h2','bar',H.map(x=>pad(x.h)+':00'),[
+    {type:'bar',label:'จำนวนคัน',yAxisID:'y',data:H.map(x=>+x.trucks),
+     backgroundColor:'#1d4f92',borderRadius:5},
+    {type:'line',label:'รอเข้า Gate (นาที)',yAxisID:'y1',data:H.map(x=>x.lost==null?null:+x.lost),
+     borderColor:'#ff7a18',backgroundColor:'#ff7a18',tension:.3,borderWidth:2.5,pointRadius:3.5}
+  ],{layout:{padding:{top:18}},
+     scales:{y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+             y1:{position:'right',beginAtZero:true,grid:{display:false},border:{display:false},ticks:axisFont},
+             x:{grid:{display:false},ticks:axisFont}},
+     vl:(v,i,ds)=> ds.type==='line'? fmt(v,0) : fmt(v,0)});
+
+  chart('h3','line',D.map(x=>dmy(x.d)),[{label:'นาที',data:D.map(x=>x.ready==null?null:+x.ready),
+    borderColor:'#ff7a18',backgroundColor:'rgba(255,122,24,.13)',fill:true,tension:.35,
+    pointRadius:3,spanGaps:true}],
+    {layout:{padding:{top:18}},
+     scales:{y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+             x:{grid:{display:false},ticks:axisFont}},
+     vl:(v,i)=> D.length>16 && i%2 ? null : fmt(v,0)});
+}
+
+/* =========================================================================
+   PAGE — FLOW ANALYSIS
+   ========================================================================= */
+async function pageFlow(){
+  let R;
+  try{ R = await rpc('app_wh_flow',{p_months: orNull('months')}); }
+  catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
+
+  const bar = monthFilterBar(R,'pageFlow');
+  const T = R.targets||{}, S = (R.stages||[]).map(s=>({...s,p50:+s.p50,p75:+s.p75,p90:+s.p90,a:+s.a,n:+s.n}));
+  if(!S.length || !S.some(s=>s.n)){ body(bar + emptyBox('ไม่พบข้อมูลในเดือนที่เลือก')); return; }
+
+  const H = R.hourly||[], G = (R.gates||[]).map(g=>({...g,lost:+g.lost,load:+g.load,ready:+g.ready,
+                                                     ton:+g.ton,trucks:+g.trucks}));
+  const LD = R.lead||[];
+  const totalP50 = S.reduce((a,s)=>a+(s.p50||0),0);
+
+  /* ขั้นที่หลุดเป้ามากที่สุด = คอขวด */
+  const scored = S.map(s=>{
+    const t = T[s.k]; const g = t? +t.green_max : null;
+    return {...s, over: g ? s.p50/g : 0, target:g, r:rag(T,s.k,s.p50)};
+  }).sort((a,b)=>b.over-a.over);
+  const worst = scored[0];
+
+  const sameDay = LD.find(x=>+x.d===0);
+  const adv = LD.filter(x=>+x.d>0).reduce((a,x)=>a+(+x.n),0);
+  const sameN = sameDay? +sameDay.n : 0;
+  const totN = sameN + adv;
+
+  body(bar + `
+  <div class="card anim d1" style="border-left:5px solid ${worst.r.cls==='r'?'var(--bad)':'var(--org)'}">
+    <h3>คอขวดของสายงาน</h3>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+      <div style="flex:1;min-width:260px">
+        <div style="font-size:19px;font-weight:600">${esc(worst.lbl)}</div>
+        <div class="sm" style="margin-top:5px">
+          มัธยฐาน <b style="color:var(--bad);font-size:15px">${fmt(worst.p50,0)} นาที</b>
+          · เป้า ≤ ${worst.target} นาที
+          · คิดเป็น <b>${totalP50?((worst.p50/totalP50)*100).toFixed(0):0}%</b> ของเวลาทั้งสาย<br>
+          ช้าสุด 10% ของงานใช้ถึง <b>${fmt(worst.p90,0)} นาที</b>
+        </div>
+      </div>
+      <div class="kpi ${worst.r.cls}" style="min-width:180px;margin:0">
+        <div class="k">เกินเป้าไป</div>
+        <div class="v">${worst.target? ((worst.p50/worst.target-1)*100).toFixed(0) : '—'}%</div>
+        <div class="s">${fmt(worst.n)} รายการที่วัดได้</div></div>
+    </div>
+  </div>
+
+  <div class="card anim d2"><h3>เวลาแต่ละขั้นของสายงาน (นาที)</h3>
+    <div class="chartbox" style="height:300px"><canvas id="w1"></canvas></div>
+    <p class="sm" style="margin-top:10px">แท่ง = มัธยฐาน (ครึ่งหนึ่งของงานเร็วกว่านี้) ·
+      เส้น = ช้าสุด 10% (p90) · เส้นประ = เป้า</p>
+  </div>
+
+  <div class="card anim d3"><h3>รายละเอียดแต่ละขั้น</h3>` + tableHTML([
+    {h:'ขั้นตอน',k:'lbl'},
+    {h:'จำนวนที่วัดได้',k:'n',n:1,f:r=>fmt(r.n)},
+    {h:'มัธยฐาน',k:'p50',n:1,raw:1,
+     f:r=>`<span class="pill ${rag(T,r.k,r.p50).cls||'n'}">${fmt(r.p50,0)} น.</span>`},
+    {h:'p75',k:'p75',n:1,f:r=>fmt(r.p75,0)+' น.'},
+    {h:'ช้าสุด 10% (p90)',k:'p90',n:1,f:r=>fmt(r.p90,0)+' น.'},
+    {h:'เฉลี่ย',k:'a',n:1,f:r=>fmt(r.a,0)+' น.'},
+    {h:'เป้า',k:'k',n:1,f:r=>T[r.k]? fmt(+T[r.k].green_max,0)+' น.' : '—'},
+    {h:'สัดส่วนของเวลาทั้งสาย',k:'p50',n:1,f:r=>totalP50?((r.p50/totalP50)*100).toFixed(0)+'%':'—'}
+  ],S) + `</div>
+
+  <div class="grid2">
+    <div class="card anim d4"><h3>รถเข้ารายชั่วโมง เทียบเวลารอและเวลาโหลด</h3>
+      <div class="chartbox"><canvas id="w2"></canvas></div>
+      <p class="sm" style="margin-top:10px">ช่วงที่รถกระจุกคือช่วงที่เวลารอพุ่ง — เกลี่ยนัดหมายออกจากช่วงนี้จะช่วยได้มากที่สุด</p></div>
+    <div class="card anim d4"><h3>ออเดอร์เปิดล่วงหน้ากี่วัน</h3>
+      <div class="chartbox"><canvas id="w3"></canvas></div>
+      <p class="sm" style="margin-top:10px">
+        <b>${totN?((sameN/totN)*100).toFixed(0):0}%</b> ของออเดอร์เปิดวันเดียวกับวันโหลด
+        ที่เหลือเป็นการจองล่วงหน้า — เวลารอของกลุ่มจองล่วงหน้าคือการวางแผน ไม่ใช่ความล่าช้า</p></div>
+  </div>
+
+  <div class="card anim d5"><h3>เทียบรายประตู</h3>` + tableHTML([
+    {h:'ประตู',k:'k',raw:1,f:r=>`<span class="pill b">${esc(r.k)}</span>`},
+    {h:'คัน',k:'trucks',n:1,f:r=>fmt(r.trucks)},
+    {h:'ตัน',k:'ton',n:1,f:r=>fmt(r.ton,0)},
+    {h:'ตัน/คัน',k:'x',n:1,f:r=>fmt(r.ton/Math.max(r.trucks,1),2)},
+    {h:'รอรถ (นาที)',k:'ready',n:1,raw:1,
+     f:r=>`<span class="pill ${rag(T,'m_ready_to_truck',r.ready).cls||'n'}">${fmt(r.ready,0)}</span>`},
+    {h:'รถรอเข้า (นาที)',k:'lost',n:1,raw:1,
+     f:r=>`<span class="pill ${rag(T,'lost_gate_min',r.lost).cls||'n'}">${fmt(r.lost,0)}</span>`},
+    {h:'โหลด (นาที)',k:'load',n:1,raw:1,
+     f:r=>`<span class="pill ${rag(T,'m_load',r.load).cls||'n'}">${fmt(r.load,0)}</span>`}
+  ],G) + `</div>
+
+  <div class="card anim d6"><h3>ข้อเสนอจากข้อมูล</h3>
+    ${flowAdvice(S,H,G,T).map((a,i)=>`
+      <div style="display:flex;gap:12px;padding:11px 0;${i?'border-top:1px solid var(--line)':''}">
+        <div style="flex:none;width:26px;height:26px;border-radius:8px;display:flex;align-items:center;
+             justify-content:center;background:var(--org-soft);color:var(--org);font-weight:600;font-size:12px">${i+1}</div>
+        <div><div style="font-weight:500">${esc(a.t)}</div>
+          <div class="sm" style="margin-top:3px">${esc(a.d)}</div></div>
+      </div>`).join('')}
+    <p class="sm" style="margin-top:10px;font-style:italic">
+      ข้อเสนอเหล่านี้มาจากตัวเลขในระบบล้วนๆ ควรใช้ประกอบกับความเข้าใจหน้างานจริงก่อนตัดสินใจ</p>
+  </div>`);
+
+  const axisFont={font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'};
+  chart('w1','bar',S.map(s=>s.lbl.split(' (')[0]),[
+    {type:'bar',label:'มัธยฐาน',data:S.map(s=>s.p50),
+     backgroundColor:S.map(s=>{const c=rag(T,s.k,s.p50).cls; return c==='r'?'#e03131':c==='o'?'#ff7a18':'#0f9d58';}),
+     borderRadius:7,maxBarThickness:70},
+    {type:'line',label:'ช้าสุด 10% (p90)',data:S.map(s=>s.p90),
+     borderColor:'#0b2447',backgroundColor:'#0b2447',borderWidth:2.5,pointRadius:5,tension:.2},
+    {type:'line',label:'เป้า',data:S.map(s=>T[s.k]?+T[s.k].green_max:null),
+     borderColor:'#7086a3',borderDash:[6,4],borderWidth:2,pointRadius:0,spanGaps:true}
+  ],{layout:{padding:{top:20}},
+     scales:{y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},
+                title:{display:true,text:'นาที',font:{family:'Kanit',size:11},color:'#7086a3'},ticks:axisFont},
+             x:{grid:{display:false},ticks:axisFont}},
+     plugins:{legend:{position:'bottom',labels:{font:{family:'Kanit',size:11,weight:'300'},boxWidth:12,padding:12}}},
+     vl:(v,i,ds)=> ds.label==='เป้า' ? null : fmt(v,0)});
+
+  chart('w2','bar',H.map(x=>pad(x.h)+':00'),[
+    {type:'bar',label:'จำนวนคัน',yAxisID:'y',data:H.map(x=>+x.trucks),
+     backgroundColor:'#1d4f92',borderRadius:5},
+    {type:'line',label:'รอเข้า Gate',yAxisID:'y1',data:H.map(x=>x.lost==null?null:+x.lost),
+     borderColor:'#ff7a18',borderWidth:2.5,pointRadius:3.5,tension:.3},
+    {type:'line',label:'เวลาโหลด',yAxisID:'y1',data:H.map(x=>x.load==null?null:+x.load),
+     borderColor:'#0b2447',borderWidth:2,borderDash:[5,4],pointRadius:3,tension:.3}
+  ],{layout:{padding:{top:18}},
+     scales:{y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+             y1:{position:'right',beginAtZero:true,grid:{display:false},border:{display:false},ticks:axisFont},
+             x:{grid:{display:false},ticks:axisFont}},
+     plugins:{legend:{position:'bottom',labels:{font:{family:'Kanit',size:11,weight:'300'},boxWidth:12,padding:12}}},
+     vl:(v,i,ds)=> ds.type==='line' && ds.label==='เวลาโหลด' ? null : fmt(v,0)});
+
+  chart('w3','bar',LD.map(x=>+x.d===0?'วันเดียวกัน':(+x.d)+' วัน'),[
+    {label:'จำนวนรายการ',data:LD.map(x=>+x.n),
+     backgroundColor:LD.map(x=>+x.d===0?'#0f9d58':'#c6d3e4'),borderRadius:6}
+  ],{layout:{padding:{top:18}},
+     scales:{y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+             x:{grid:{display:false},ticks:axisFont}},
+     vl:v=>fmt(v,0)});
+}
+
+/* ข้อเสนอที่สร้างจากตัวเลขจริง */
+function flowAdvice(S,H,G,T){
+  const out=[];
+  const st = k => S.find(s=>s.k===k) || {};
+  const ready = st('m_ready_to_truck'), load = st('m_load'), lost = st('lost_gate_min');
+
+  if(H.length){
+    const tot = H.reduce((a,x)=>a+(+x.trucks),0);
+    const sorted = [...H].sort((a,b)=>b.trucks-a.trucks).slice(0,3).sort((a,b)=>a.h-b.h);
+    const share = tot? sorted.reduce((a,x)=>a+(+x.trucks),0)/tot*100 : 0;
+    const peakLost = sorted.reduce((a,x)=>a+(+x.lost||0),0)/Math.max(sorted.length,1);
+    const offPeak = H.filter(x=>!sorted.includes(x));
+    const offLost = offPeak.length? offPeak.reduce((a,x)=>a+(+x.lost||0),0)/offPeak.length : 0;
+    if(share > 30)
+      out.push({t:`เกลี่ยรถออกจากช่วง ${pad(sorted[0].h)}:00–${pad(sorted[sorted.length-1].h)}:00`,
+        d:`ช่วงนี้รับรถ ${share.toFixed(0)}% ของทั้งวัน และเวลารอเข้า Gate เฉลี่ย ${fmt(peakLost,0)} นาที `+
+          `เทียบกับ ${fmt(offLost,0)} นาทีในช่วงอื่น การย้ายรถบางส่วนไปช่วงเช้าจะลดคิวได้โดยไม่ต้องเพิ่มประตู`});
+  }
+  if(ready.p50 && T.m_ready_to_truck && ready.p50 > +T.m_ready_to_truck.green_max)
+    out.push({t:'จับคู่เวลาเตรียมของกับเวลานัดรถให้ใกล้กันขึ้น',
+      d:`ของเตรียมเสร็จแล้วต้องรอรถเฉลี่ย ${fmt(ready.p50,0)} นาที และช้าสุด 10% รอถึง ${fmt(ready.p90,0)} นาที `+
+        `ของที่เตรียมไว้ก่อนกินพื้นที่หน้า Gate และมักต้องขยับซ้ำ`});
+  if(G.length >= 2){
+    const byLost = [...G].sort((a,b)=>b.lost-a.lost);
+    const hi = byLost[0], lo = byLost[byLost.length-1];
+    if(hi.lost - lo.lost > 8)
+      out.push({t:`ประตู ${hi.k} รถรอนานกว่าประตู ${lo.k} อยู่ ${fmt(hi.lost-lo.lost,0)} นาที`,
+        d:`${hi.k} รับ ${fmt(hi.trucks)} คัน รอเฉลี่ย ${fmt(hi.lost,0)} นาที ส่วน ${lo.k} รับ ${fmt(lo.trucks)} คัน `+
+          `รอเพียง ${fmt(lo.lost,0)} นาที ลองย้ายงานบางส่วนหรือดูวิธีทำงานของ ${lo.k} มาปรับใช้`});
+    const byLoad = [...G].sort((a,b)=>b.load-a.load);
+    if(byLoad[0].load > (byLoad[byLoad.length-1].load||0)*1.5)
+      out.push({t:`ประตู ${byLoad[0].k} ใช้เวลาโหลดต่อคันสูงผิดปกติ`,
+        d:`โหลดเฉลี่ย ${fmt(byLoad[0].load,0)} นาที เทียบกับ ${fmt(byLoad[byLoad.length-1].load,0)} นาทีที่ `+
+          `${byLoad[byLoad.length-1].k} อาจมาจากชนิดสินค้า อุปกรณ์ยก หรือพื้นที่จัดวาง`});
+  }
+  if(!out.length) out.push({t:'ทุกขั้นอยู่ในเกณฑ์',d:'ยังไม่พบจุดที่ต้องแก้เร่งด่วนจากข้อมูลเดือนที่เลือก'});
+  return out;
+}
+
+/* =========================================================================
+   PAGE — COMPARE (เปรียบเทียบ)
+   ========================================================================= */
+const CMP_DIMS = [
+  {v:'gate',     t:'ประตู'},
+  {v:'month',    t:'เดือน'},
+  {v:'sloc',     t:'Storage Location'},
+  {v:'vehicle',  t:'ประเภทรถ'},
+  {v:'product',  t:'กลุ่มสินค้า'},
+  {v:'ptype',    t:'ประเภทสินค้า'},
+  {v:'customer', t:'กลุ่มลูกค้า'},
+  {v:'direction',t:'ทิศทาง (เข้า/ออก)'},
+  {v:'shty',     t:'ประเภทการส่ง'},
+  {v:'dow',      t:'วันในสัปดาห์'}
+];
+
+async function pageCompare(){
+  const dim = FILTERS.dim || 'gate';
+  let R;
+  try{ R = await rpc('app_wh_compare',
+        {p_dim: dim, p_months: orNull('months'), p_keys: orNull('keys')}); }
+  catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
+
+  const T = R.targets||{};
+  const rows = (R.rows||[]).map(r=>({
+    k:r.k, ton:+r.ton, trucks:+r.trucks, lines:+r.lines, days:+r.days, custs:+r.custs,
+    tpt:+r.ton_per_truck, tpd:+r.ton_per_day,
+    ready:r.ready==null?null:+r.ready, load:r.load_m==null?null:+r.load_m,
+    lost:r.lost==null?null:+r.lost, prep:r.prep==null?null:+r.prep
+  }));
+  const allKeys = R.all_keys || [];
+  const months = MONTHS_CACHE.length ? MONTHS_CACHE : (R.months_sel||[]);
+
+  const bar = `<div class="filters anim">
+    <div class="fld" style="margin:0"><label>เปรียบเทียบตาม</label>
+      <select onchange="FILTERS.dim=this.value;FILTERS.keys=[];pageCompare()">
+        ${CMP_DIMS.map(d=>`<option value="${d.v}"${dim===d.v?' selected':''}>${esc(d.t)}</option>`).join('')}
+      </select></div>
+    ${msRender('months','เดือน',months,FILTERS.months,'pageCompare',monthLabel)}
+    ${msRender('keys','เลือกเฉพาะ',allKeys,FILTERS.keys,'pageCompare')}
+    <button class="fbtn alt" onclick="resetFilters('pageCompare')">ล้างตัวกรอง</button>
+    <div style="margin-left:auto;text-align:right">
+      <div class="sm">กำลังเทียบ</div>
+      <div style="font-weight:500;font-size:15px">${fmt(rows.length)} กลุ่ม</div>
+    </div></div>`;
+
+  if(!rows.length){ body(bar + emptyBox('ไม่พบข้อมูลตามตัวกรองที่เลือก')); return; }
+
+  /* หาแถวที่ดีที่สุด-แย่ที่สุดของแต่ละตัวชี้วัด เพื่อไฮไลต์ */
+  const best = {}, worst = {};
+  [['tpt',true],['ready',false],['load',false],['lost',false],['prep',false],['tpd',true]].forEach(([f,hi])=>{
+    const vals = rows.filter(r=>r[f]!=null && isFinite(r[f]));
+    if(vals.length < 2) return;
+    const s = [...vals].sort((a,b)=> hi ? b[f]-a[f] : a[f]-b[f]);
+    best[f]=s[0].k; worst[f]=s[s.length-1].k;
+  });
+  const mark = (f,r,txt) => {
+    if(r.k===best[f])  return `<b style="color:var(--ok)">${txt}</b>`;
+    if(r.k===worst[f]) return `<b style="color:var(--bad)">${txt}</b>`;
+    return txt;
+  };
+
+  const dimName = (CMP_DIMS.find(d=>d.v===dim)||{}).t || dim;
+  const top = [...rows].sort((a,b)=>b.ton-a.ton).slice(0,8);
+  const TR = R.trend||[];
+  const keys = top.map(r=>r.k);
+  const dates = [...new Set(TR.map(x=>x.d))].sort();
+
+  body(bar + `
+  <div class="card anim d1"><h3>สรุปการเทียบตาม${esc(dimName)}</h3>
+    <p class="sm" style="margin-bottom:12px">
+      ตัวเลข<b style="color:var(--ok)">เขียว</b> = ดีที่สุดในกลุ่ม ·
+      <b style="color:var(--bad)">แดง</b> = แย่ที่สุด · ป้ายสีคือการเทียบกับเป้า</p>` + tableHTML([
+    {h:dimName,k:'k',raw:1,f:r=>`<span class="pill b">${esc(r.k)}</span>`},
+    {h:'ตัน',k:'ton',n:1,f:r=>fmt(r.ton,0)},
+    {h:'คัน',k:'trucks',n:1,f:r=>fmt(r.trucks)},
+    {h:'วัน',k:'days',n:1,f:r=>fmt(r.days)},
+    {h:'ตัน/วัน',k:'tpd',n:1,raw:1,f:r=>mark('tpd',r,fmt(r.tpd,1))},
+    {h:'ตัน/คัน',k:'tpt',n:1,raw:1,
+     f:r=>`<span class="pill ${rag(T,'ton_per_truck',r.tpt).cls||'n'}">${mark('tpt',r,fmt(r.tpt,2))}</span>`},
+    {h:'รอรถ (น.)',k:'ready',n:1,raw:1,
+     f:r=>r.ready==null?'—':`<span class="pill ${rag(T,'m_ready_to_truck',r.ready).cls||'n'}">${mark('ready',r,fmt(r.ready,0))}</span>`},
+    {h:'รถรอเข้า (น.)',k:'lost',n:1,raw:1,
+     f:r=>r.lost==null?'—':`<span class="pill ${rag(T,'lost_gate_min',r.lost).cls||'n'}">${mark('lost',r,fmt(r.lost,0))}</span>`},
+    {h:'โหลด (น.)',k:'load',n:1,raw:1,
+     f:r=>r.load==null?'—':`<span class="pill ${rag(T,'m_load',r.load).cls||'n'}">${mark('load',r,fmt(r.load,0))}</span>`},
+    {h:'หยิบของ (น.)',k:'prep',n:1,raw:1,
+     f:r=>r.prep==null?'—':`<span class="pill ${rag(T,'m_prep',r.prep).cls||'n'}">${mark('prep',r,fmt(r.prep,0))}</span>`},
+    {h:'ลูกค้า',k:'custs',n:1,f:r=>fmt(r.custs)}
+  ],rows) + `</div>
+
+  <div class="grid2">
+    <div class="card anim d2"><h3>ปริมาณ (ตัน) — 8 อันดับแรก</h3>
+      <div class="chartbox"><canvas id="c1"></canvas></div></div>
+    <div class="card anim d2"><h3>ประสิทธิภาพการบรรทุก (ตัน/คัน)</h3>
+      <div class="chartbox"><canvas id="c2"></canvas></div></div>
+  </div>
+
+  <div class="card anim d3"><h3>เวลาแต่ละขั้น เทียบกัน (นาที)</h3>
+    <div class="chartbox" style="height:320px"><canvas id="c3"></canvas></div>
+    <p class="sm" style="margin-top:10px">แท่งยิ่งสูงยิ่งช้า — มองหากลุ่มที่แท่งใดแท่งหนึ่งโดดขึ้นมาผิดปกติ</p></div>
+
+  <div class="card anim d4"><h3>แนวโน้มราย${esc(R.bucket||'วัน')} (ตัน)</h3>
+    <div class="chartbox" style="height:320px"><canvas id="c4"></canvas></div></div>
+
+  ${cmpInsight(rows,dimName,best,worst,T)}`);
+
+  const axisFont={font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'};
+  const hBar={indexAxis:'y',layout:{padding:{right:30}},scales:{
+      x:{beginAtZero:true,grace:'14%',grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+      y:{grid:{display:false},ticks:axisFont}}};
+
+  chart('c1','bar',top.map(r=>String(r.k).slice(0,22)),
+    [{label:'ตัน',data:top.map(r=>r.ton),backgroundColor:'#ff7a18',borderRadius:6}],
+    Object.assign({},hBar,{vl:v=>fmt(v,0)}));
+
+  const byTpt=[...rows].sort((a,b)=>b.tpt-a.tpt).slice(0,8);
+  chart('c2','bar',byTpt.map(r=>String(r.k).slice(0,22)),
+    [{label:'ตัน/คัน',data:byTpt.map(r=>r.tpt),
+      backgroundColor:byTpt.map(r=>{const c=rag(T,'ton_per_truck',r.tpt).cls;
+        return c==='g'?'#0f9d58':c==='o'?'#ff7a18':c==='r'?'#e03131':'#1d4f92';}),borderRadius:6}],
+    Object.assign({},hBar,{vl:v=>fmt(v,2)}));
+
+  chart('c3','bar',top.map(r=>String(r.k).slice(0,18)),[
+    {label:'รอรถ',data:top.map(r=>r.ready),backgroundColor:'#ff7a18',borderRadius:5},
+    {label:'รถรอเข้า Gate',data:top.map(r=>r.lost),backgroundColor:'#1d4f92',borderRadius:5},
+    {label:'โหลด',data:top.map(r=>r.load),backgroundColor:'#0b2447',borderRadius:5},
+    {label:'หยิบของ',data:top.map(r=>r.prep),backgroundColor:'#ffc78a',borderRadius:5}
+  ],{layout:{padding:{top:18}},
+     scales:{y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+             x:{grid:{display:false},ticks:axisFont}},
+     plugins:{legend:{position:'bottom',labels:{font:{family:'Kanit',size:11,weight:'300'},boxWidth:12,padding:12}}},
+     vl:v=> v==null? null : fmt(v,0)});
+
+  chart('c4','line',dates.map(dmy),
+    keys.slice(0,6).map((k,i)=>({
+      label:String(k).slice(0,20),
+      data:dates.map(d=>{const f=TR.find(x=>x.d===d&&x.k===k); return f? +f.ton : null;}),
+      borderColor:PAL[i%PAL.length],backgroundColor:PAL[i%PAL.length],
+      tension:.3,spanGaps:true,pointRadius:2.5,borderWidth:2})),
+    {scales:{y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+             x:{grid:{display:false},ticks:axisFont}},
+     plugins:{legend:{position:'bottom',labels:{font:{family:'Kanit',size:11,weight:'300'},boxWidth:12,padding:12}}}});
+}
+
+/* ข้อสังเกตจากการเทียบ */
+function cmpInsight(rows,dimName,best,worst,T){
+  if(rows.length < 2) return '';
+  const li=[];
+  const gap=(f,lbl,unit,hi)=>{
+    const a=rows.find(r=>r.k===best[f]), b=rows.find(r=>r.k===worst[f]);
+    if(!a||!b||a.k===b.k) return;
+    const d=Math.abs(a[f]-b[f]);
+    if(!isFinite(d)||d<=0) return;
+    li.push(`<b>${esc(lbl)}</b> ต่างกันมากที่สุดระหว่าง <b style="color:var(--ok)">${esc(a.k)}</b>
+      (${fmt(a[f],unit==='ตัน'?2:0)} ${unit}) กับ <b style="color:var(--bad)">${esc(b.k)}</b>
+      (${fmt(b[f],unit==='ตัน'?2:0)} ${unit}) — ห่างกัน ${fmt(d,unit==='ตัน'?2:0)} ${unit}`);
+  };
+  gap('lost','เวลารถรอเข้า Gate','นาที');
+  gap('load','เวลาโหลดต่อคัน','นาที');
+  gap('ready','เวลารอรถ','นาที');
+  gap('tpt','ประสิทธิภาพการบรรทุก','ตัน',true);
+  const totTon = rows.reduce((a,r)=>a+r.ton,0);
+  const top1 = [...rows].sort((a,b)=>b.ton-a.ton)[0];
+  if(totTon>0) li.push(`<b>${esc(top1.k)}</b> คิดเป็น ${(top1.ton/totTon*100).toFixed(0)}%
+     ของปริมาณทั้งหมดใน${esc(dimName)}นี้`);
+  if(!li.length) return '';
+  return `<div class="card anim d5"><h3>ข้อสังเกต</h3>
+    <ul style="margin:0;padding-left:20px;line-height:2;font-weight:300">
+      ${li.map(x=>`<li>${x}</li>`).join('')}</ul></div>`;
+}
 
 /* =========================================================================
    PAGE 1 — FG [OUTBOUND & INBOUND]
@@ -1158,22 +1771,23 @@ async function pageFG(){
      ทิศทาง Inbound-Outbound แยกจากคอลัมน์ Shipment type ของชีท FG
      น้ำหนัก = ตัน · จำนวนคัน = นับ Shipment ไม่ซ้ำ
      เวลาเลิกงานรายวัน = เวลาช้าที่สุดของวันนั้นรวมทุกโรง · Target 20:30 */
-  const slocs = FILTERS.factory
-      ? Object.keys(SLOC_TO_FACTORY).filter(k=>SLOC_TO_FACTORY[k]===FILTERS.factory)
+  // โรงงานที่เลือก → แปลงกลับเป็นรหัสคลังสำหรับกรองฝั่ง FG
+  const slocs = hasF('factories')
+      ? Object.keys(SLOC_TO_FACTORY).filter(k=>FILTERS.factories.includes(SLOC_TO_FACTORY[k]))
       : null;
 
   let R;
   try{ R = await rpc('app_dash_fg_agg',{
-        p_month: FILTERS.month || null,
-        p_slocs: FILTERS.factory ? (slocs.length ? slocs : ['__NO_MATCH__']) : null,
-        p_facs : FILTERS.factory ? [FILTERS.factory] : null,
-        p_shty : FILTERS.shty || null }); }
+        p_months: orNull('months'),
+        p_slocs : hasF('factories') ? (slocs.length ? slocs : ['__NO_MATCH__']) : null,
+        p_facs  : orNull('factories'),
+        p_shtys : orNull('shtys') }); }
   catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
 
   const K = R.kpi;
   const bar = filterBarAgg(R, 'pageFG');
   if(!(+K.rows) && !(+K.tm_rows)){
-    body(bar + emptyBox(FILTERS.month||FILTERS.factory||FILTERS.shty
+    body(bar + emptyBox(hasF('months')||hasF('factories')||hasF('shtys')
       ? 'ไม่พบข้อมูลตามตัวกรองที่เลือก' : 'ยังไม่มีข้อมูล FG ในระบบ'));
     return;
   }
