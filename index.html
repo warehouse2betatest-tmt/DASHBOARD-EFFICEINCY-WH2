@@ -192,6 +192,7 @@ th{background:var(--navy);color:#fff;padding:11px 13px;text-align:left;font-weig
 td{padding:9px 13px;border-bottom:1px solid #eef2f8;font-weight:300}
 tbody tr{transition:.15s}
 tbody tr:hover{background:var(--org-soft)}
+tbody tr.shrow:hover{background:var(--navy-soft)}
 tbody tr:last-child td{border-bottom:none}
 .num{text-align:right;font-variant-numeric:tabular-nums}
 .pill{display:inline-block;padding:3px 11px;border-radius:99px;font-size:11px;font-weight:400}
@@ -336,7 +337,7 @@ details summary{cursor:pointer;user-select:none}
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-04.8';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-04.12';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -797,6 +798,16 @@ function valueLabelPlugin(vl){
     afterDatasetsDraw(c){
       const ctx = c.ctx;
       const isH = c.options.indexAxis === 'y';
+      const area = c.chartArea;
+      const placed = [];                       // กล่องข้อความที่วางไปแล้ว ใช้กันตัวเลขทับกัน
+      const free = (x,y,w,hh) => {
+        for(const r of placed)
+          if(x < r.x+r.w && x+w > r.x && y < r.y+r.h && y+hh > r.y) return false;
+        return true;
+      };
+
+      // เก็บรายการที่จะเขียนก่อน แล้วค่อยเรียงลำดับความสำคัญ (เส้นก่อน แท่งทีหลัง)
+      const cand = [];
       c.data.datasets.forEach((ds,di)=>{
         const meta = c.getDatasetMeta(di);
         if(meta.hidden || ds.noLabel) return;
@@ -806,29 +817,57 @@ function valueLabelPlugin(vl){
           if(raw === null || raw === undefined) return;
           const txt = vl(raw, i, ds, di);
           if(txt === null || txt === undefined || txt === '') return;
-          const lines = String(txt).split('\n');
-          ctx.save();
-          if(kind === 'doughnut' || kind === 'pie'){
-            const ang = Math.abs((elm.endAngle||0) - (elm.startAngle||0));
-            if(ang < 0.30){ ctx.restore(); return; }        // ชิ้นเล็กเกินไป เขียนแล้วจะทับกัน
-            const p = elm.tooltipPosition();
-            ctx.textAlign='center'; ctx.textBaseline='middle';
-            ctx.font='500 10px Kanit'; ctx.fillStyle='#fff';
-            ctx.shadowColor='rgba(0,0,0,.45)'; ctx.shadowBlur=4;
-            const y0 = p.y - (lines.length-1)*6;
-            lines.forEach((ln,k)=>ctx.fillText(ln, p.x, y0 + k*12));
-          }else if(isH){
-            ctx.textAlign='left'; ctx.textBaseline='middle';
-            ctx.font='500 9.5px Kanit'; ctx.fillStyle='#0b2447';
-            ctx.fillText(txt, elm.x + 6, elm.y);
-          }else{
-            ctx.textAlign='center'; ctx.textBaseline='bottom';
-            ctx.font='500 9.5px Kanit';
-            ctx.fillStyle = kind==='line' ? (ds.borderColor||'#0b2447') : '#0b2447';
-            ctx.fillText(txt, elm.x, elm.y - 5);
-          }
-          ctx.restore();
+          cand.push({ds,di,i,elm,kind,lines:String(txt).split('\n'),
+                     pri: kind==='line' ? 0 : 1});
         });
+      });
+      cand.sort((a,b)=> a.pri - b.pri || a.i - b.i);
+
+      const PAD = 2;
+      cand.forEach(o=>{
+        const {ds,elm,kind,lines} = o;
+        ctx.save();
+        let font, fill, align, baseline, x, yTop, lh = 11, shadow = false;
+
+        if(kind === 'doughnut' || kind === 'pie'){
+          const ang = Math.abs((elm.endAngle||0) - (elm.startAngle||0));
+          if(ang < 0.30){ ctx.restore(); return; }
+          const pt = elm.tooltipPosition();
+          font='500 10px Kanit'; fill='#fff'; align='center'; baseline='middle';
+          shadow = true; lh = 12;
+          x = pt.x; yTop = pt.y - (lines.length*lh)/2;
+        }else if(isH){
+          font='500 9.5px Kanit'; fill='#0b2447'; align='left'; baseline='middle';
+          x = elm.x + 6; yTop = elm.y - (lines.length*lh)/2;
+        }else if(ds.labelPos === 'inBottom'){
+          // วางในแท่ง ชิดฐาน กันชนกับเส้นกราฟด้านบน
+          const base = c.scales[ds.yAxisID || 'y'].getPixelForValue(0);
+          const bh = Math.abs(base - elm.y);
+          lh = 10; font='600 9px Kanit'; align='center'; baseline='bottom';
+          const inside = bh > (lines.length*lh + 10);
+          fill = inside ? '#fff' : '#0b2447';
+          x = elm.x;
+          yTop = inside ? base - 6 - lines.length*lh : elm.y - 5 - lines.length*lh;
+        }else{
+          font='500 9.5px Kanit'; align='center'; baseline='bottom';
+          fill = kind==='line' ? (ds.borderColor||'#0b2447') : '#0b2447';
+          x = elm.x; yTop = elm.y - 5 - lines.length*lh;
+        }
+
+        ctx.font = font;
+        const w = Math.max(...lines.map(l=>ctx.measureText(l).width));
+        const hgt = lines.length*lh;
+        const bx = align==='center' ? x - w/2 : (align==='left' ? x : x - w);
+
+        // อยู่นอกพื้นที่กราฟ หรือชนกับตัวเลขอื่น = ไม่ต้องเขียน
+        if(area && (bx < area.left-2 || bx+w > area.right+2 || yTop < area.top-2)){ ctx.restore(); return; }
+        if(!free(bx-PAD, yTop-PAD, w+PAD*2, hgt+PAD*2)){ ctx.restore(); return; }
+        placed.push({x:bx-PAD, y:yTop-PAD, w:w+PAD*2, h:hgt+PAD*2});
+
+        ctx.fillStyle = fill; ctx.textAlign = align; ctx.textBaseline = 'top';
+        if(shadow){ ctx.shadowColor='rgba(0,0,0,.45)'; ctx.shadowBlur=4; }
+        lines.forEach((ln,k)=> ctx.fillText(ln, x, yTop + k*lh));
+        ctx.restore();
       });
     }
   };
@@ -1208,7 +1247,8 @@ async function pageFG(){
 
   const dsets = [
     {type:'bar', label:'น้ำหนัก (ตัน)', yAxisID:'y', data:tonArr,
-     backgroundColor:'#ff7a18', borderRadius:6, maxBarThickness:34, order:3}
+     backgroundColor:'#ff7a18', borderRadius:6, maxBarThickness:34, order:3,
+     labelPos:'inBottom'}                       // ตัวเลขอยู่ในแท่ง ชิดฐาน
   ];
   if(hasTime){
     dsets.push(
@@ -1223,11 +1263,12 @@ async function pageFG(){
   chart('f0','bar',dates,dsets,{
     layout:{padding:{top:26}},
     scales:{
-      y :{position:'left',beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},
+      // แท่งถูกบีบให้อยู่ครึ่งล่าง (grace 90%) เส้นเวลาจึงลอยอยู่ครึ่งบน ไม่ทับกัน
+      y :{position:'left',beginAtZero:true,grace:'90%',grid:{color:'#eef2f8'},border:{display:false},
           title:{display:true,text:'น้ำหนัก (ตัน)',font:{family:'Kanit',size:11,weight:'400'},color:'#7086a3'},
           ticks:axisFont},
       y1:{position:'right',display:hasTime,grid:{display:false},border:{display:false},
-          suggestedMin:17,suggestedMax:23,
+          suggestedMin:12,suggestedMax:24,
           title:{display:true,text:'เวลาเลิกงาน',font:{family:'Kanit',size:11,weight:'400'},color:'#7086a3'},
           ticks:Object.assign({},axisFont,{callback:v=>hhmm(v)})},
       x :{grid:{display:false},ticks:axisFont}
@@ -1243,10 +1284,10 @@ async function pageFG(){
     /* ค่ากำกับ: แท่งเขียน ตัน + จำนวนคัน (2 บรรทัด) · เส้นเวลาเขียน HH:MM · เส้น Target ไม่ต้องเขียน */
     vl:(v,i,ds)=>{
       if(ds.label === 'Target 20:30') return null;
-      if(ds.yAxisID === 'y1') return hhmm(v);
-      const step = dates.length > 34 ? 3 : dates.length > 20 ? 2 : 1;
+      const step = dates.length > 40 ? 3 : dates.length > 26 ? 2 : 1;
       if(i % step) return null;
-      return `${fmt(v,0)}\n${fmt(truckArr[i])} คัน`;
+      if(ds.yAxisID === 'y1') return hhmm(v);
+      return `${fmt(v,0)} ตัน\n${fmt(truckArr[i])} คัน`;
     }
   });
 
@@ -1528,8 +1569,10 @@ function pageImport(){
     return;
   }
 
-  const guide = Object.entries(SHEETS).map(([name,cfg])=>`<tr>
-      <td><code style="font-size:13px;font-weight:500">${esc(name)}</code></td>
+  const guide = Object.entries(SHEETS).map(([name,cfg],gi)=>`<tr class="shrow" onclick="toggleSheetDetail(${gi})"
+        style="cursor:pointer" title="คลิกเพื่อดูรายละเอียดคอลัมน์">
+      <td><span id="arw${gi}" style="color:var(--org);display:inline-block;width:12px">▸</span>
+        <code style="font-size:13px;font-weight:500">${esc(name)}</code></td>
       <td>${esc(cfg.label)}</td>
       <td><span class="pill ${cfg.mode==='replace'?'o':'b'}">${cfg.mode==='replace'?'เขียนทับ':'สะสม'}</span></td>
       <td class="num">${cfg.cols.length}${
@@ -1537,7 +1580,9 @@ function pageImport(){
           ? `<div class="sm">เก็บ ${cfg.cols.filter(c=>c[1]!==null).length}</div>` : ''}</td>
       <td class="sm">${esc(cfg.cols.slice(0,3).map(c=>c[0]).join(' · '))} …</td>
       <td class="sm">${cfg.conflict? esc(cfg.conflict.replace(/,/g,' + ')) : '—'}</td>
-    </tr>`).join('');
+    </tr>
+    <tr id="det${gi}" class="hide"><td colspan="6" style="background:#fbfcfe;padding:0">
+      ${sheetDetailHTML(name,cfg)}</td></tr>`).join('');
 
   body(`
   <div class="card anim d1"><h3>ข้อมูลที่มีอยู่ในระบบตอนนี้</h3>
@@ -1674,7 +1719,89 @@ async function loadImportLog(){
   ],data,50);
 }
 
+/* รายละเอียดคอลัมน์ของแต่ละชีท — ชื่อหัว รูปแบบข้อมูล และช่องที่เก็บลงฐานข้อมูล */
+function fmtSpec(fn){
+  if(fn === T)  return ['ข้อความ',   'ตัวอักษรทั่วไป เช่น รหัส ชื่อ หมายเหตุ', 'ท่อเหลี่ยม 50x50'];
+  if(fn === N)  return ['ตัวเลข',    'มีคอมม่าคั่นหลักได้ ระบบตัดให้เอง',      '5,343  หรือ  903.54'];
+  if(fn === D)  return ['วันที่',     'รับได้ทั้ง YYYY-MM-DD และ DD/MM/YYYY',   '2026-01-05  หรือ  05/01/2026'];
+  if(fn === TS) return ['วันที่+เวลา','YYYY-MM-DD HH:MM:SS หรือ D/M/YYYY, HH:MM:SS','2026-01-05 12:15:29'];
+  if(fn === TM) return ['เวลา',      'HH:MM หรือ HH:MM:SS',                    '20:30  หรือ  20:30:00'];
+  if(fn === IV) return ['ช่วงเวลา',   'HH:MM:SS ติดลบได้',                      '00:15:00  หรือ  -02:49:00'];
+  return ['—','',''];
+}
+
+function sheetDetailHTML(name,cfg){
+  const rows = cfg.cols.map(([hdr,field,fn],i)=>{
+    const [kind,rule,ex] = fmtSpec(fn);
+    const keep = field !== null;
+    const isKey = keep && (cfg.conflict||'').split(',').includes(field);
+    return `<tr${keep?'':' style="opacity:.5"'}>
+      <td class="num sm">${i+1}</td>
+      <td><b>${esc(hdr)}</b>${isKey?' <span class="pill o">คีย์</span>':''}</td>
+      <td>${keep?`<code>${esc(field)}</code>`:'<span class="sm">ไม่เก็บ</span>'}</td>
+      <td><span class="pill ${keep?'b':'n'}">${esc(kind)}</span></td>
+      <td class="sm">${esc(rule)}</td>
+      <td class="sm mono">${esc(ex)}</td>
+    </tr>`;
+  }).join('');
+
+  const req = cfg.req.map(f=>{
+    const c = cfg.cols.find(x=>x[1]===f);
+    return c ? c[0] : f;
+  });
+
+  return `<div style="padding:14px 16px">
+    <p class="sm" style="margin-bottom:10px;line-height:1.8">
+      <b>ตารางปลายทาง</b> <code>${esc(cfg.table)}</code> ·
+      <b>โหมด</b> ${cfg.mode==='replace'?'เขียนทับทั้งชุด':'สะสมต่อเนื่อง'} ·
+      <b>คอลัมน์บังคับ</b> ${esc(req.join(' · '))}<br>
+      ระบบจับคู่คอลัมน์<b>ตามชื่อหัวตาราง</b> ไม่ใช่ตามตำแหน่ง — สลับลำดับคอลัมน์ได้
+      คอลัมน์ที่ไฟล์ไม่มีจะเว้นว่างไว้ ไม่ดึงคอลัมน์อื่นมาแทน</p>
+    <div class="tw" style="max-height:340px"><table><thead><tr>
+      <th class="num">#</th><th>ชื่อหัวคอลัมน์ในไฟล์</th><th>เก็บลงช่อง</th>
+      <th>รูปแบบ</th><th>รับรูปแบบไหนได้บ้าง</th><th>ตัวอย่าง</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>
+  </div>`;
+}
+
+function toggleSheetDetail(i){
+  const r = el('det'+i), a = el('arw'+i);
+  if(!r) return;
+  const open = r.classList.toggle('hide') === false;
+  if(a) a.textContent = open ? '▾' : '▸';
+}
+
 function cleanHdr(h){ return String(h??'').replace(/<br\s*\/?>/gi,' ').replace(NBSP,' ').replace(/\s+/g,' ').trim(); }
+
+/* จับคู่คอลัมน์ในไฟล์กับฟิลด์ในฐานข้อมูล "ตามชื่อหัวคอลัมน์" ไม่ใช่ตามตำแหน่ง
+   เหตุผล: ไฟล์ Inbound ไม่มีบางคอลัมน์ที่ Outbound มี ถ้าอ่านตามตำแหน่ง
+   คอลัมน์หลังจากนั้นจะเลื่อนมาทับกันหมด เช่น Vendor ตกไปอยู่ช่อง Sold-to
+   - หัวคอลัมน์ชื่อซ้ำกัน (เช่น Start Time ในชีท Milk Run) ไล่จับตามลำดับที่เจอ
+   - คอลัมน์ที่ไฟล์ไม่มี ปล่อยเป็นค่าว่าง ไม่ดึงคอลัมน์อื่นมาแทน
+   - ถ้าจับคู่ตามชื่อได้น้อยกว่าครึ่ง แปลว่าหัวตารางเพี้ยนมาก จะถอยไปใช้ตำแหน่งแทน */
+function mapColumns(hdr, cfg){
+  const pool = new Map();
+  hdr.forEach((name,i)=>{
+    if(!name) return;
+    if(!pool.has(name)) pool.set(name,[]);
+    pool.get(name).push(i);
+  });
+  const used = new Set(), idx = [], missing = [];
+  cfg.cols.forEach(([hName,field])=>{
+    const q = pool.get(hName);
+    let take = null;
+    if(q && q.length){ take = q.shift(); used.add(take); }
+    idx.push(take);
+    if(take===null && field!==null) missing.push(hName);
+  });
+  const matched = idx.filter(x=>x!==null).length;
+  const extra = hdr.map((n,i)=>({n,i})).filter(x=>x.n && !used.has(x.i)).map(x=>x.n);
+  if(matched < cfg.cols.length/2){
+    return {idx: cfg.cols.map((_,i)=> i < hdr.length ? i : null),
+            missing: [], extra: [], byName:false, matched:0};
+  }
+  return {idx, missing, extra, byName:true, matched};
+}
 
 function readFile(file){
   if(!file) return;
@@ -1696,21 +1823,29 @@ function parseWB(wb,fname){
     if(!aoa.length){ warn.push(`ชีท <code>${esc(name)}</code> ว่างเปล่า`); continue; }
 
     const hdr = (aoa[0]||[]).map(cleanHdr);
-    if(hdr.length !== cfg.cols.length)
-      warn.push(`ชีท <code>${esc(name)}</code> มี ${hdr.length} คอลัมน์ แต่ระบบคาดไว้ ${cfg.cols.length} — อ่านตามลำดับคอลัมน์ กรุณาตรวจผลก่อนยืนยัน`);
+    const map = mapColumns(hdr, cfg);
+    if(!map.byName)
+      warn.push(`ชีท <code>${esc(name)}</code> หัวคอลัมน์ไม่ตรงกับที่ระบบรู้จักเลย — ถอยไปอ่านตามลำดับคอลัมน์แทน กรุณาตรวจผลให้ดีก่อนยืนยัน`);
+
+    // ฟิลด์บังคับ (คีย์กันซ้ำ) ที่หาไม่เจอในไฟล์ = ชีทนี้นำเข้าไม่ได้
+    const reqMissing = cfg.req.filter(k=>{
+      const ci = cfg.cols.findIndex(c=>c[1]===k);
+      return ci < 0 || map.idx[ci] === null;
+    });
 
     const rows = [], skipped = [];
     const nc = cfg.cols.length;
-    for(let i=1;i<aoa.length;i++){
+    if(!reqMissing.length) for(let i=1;i<aoa.length;i++){
       const raw = aoa[i]||[];
       if(raw.every(v=>v===null||v==='')) continue;
-      // สร้าง object แบบตัดค่า null ทิ้ง — ลดขนาด JSON ที่ส่งขึ้นเซิร์ฟเวอร์ได้มาก
-      // (Postgres จะเติม null ให้เองอยู่แล้วเมื่อ key ไม่มีใน jsonb)
+      // ตัดค่า null ทิ้ง ลดขนาด JSON ที่ส่งขึ้นเซิร์ฟเวอร์
       const o = {};
       for(let ci=0; ci<nc; ci++){
         const field = cfg.cols[ci][1];
         if(field === null) continue;                 // คอลัมน์ที่ไม่ต้องเก็บ
-        const v = cfg.cols[ci][2](raw[ci]);
+        const src = map.idx[ci];
+        if(src === null) continue;                   // ไฟล์นี้ไม่มีคอลัมน์นั้น ปล่อยว่าง
+        const v = cfg.cols[ci][2](raw[src]);
         if(v !== null && v !== undefined) o[field] = v;
       }
       let miss = null;
@@ -1726,7 +1861,7 @@ function parseWB(wb,fname){
         if(seen.has(k)) dupInFile++; seen.set(k,r); });
       if(dupInFile){ rows.length = 0; rows.push(...seen.values()); }
     }
-    out.push({name,cfg,hdr,rows,skipped,dupInFile,total:aoa.length-1,scan:null});
+    out.push({name,cfg,hdr,rows,skipped,dupInFile,total:aoa.length-1,scan:null,map,reqMissing});
   }
   PARSED = {fname,out};
   renderPreview(warn);
@@ -1780,7 +1915,7 @@ function renderPreview(warn){
 
   const rowsHTML = out.map((s,i)=>`<tr>
       <td style="text-align:center">
-        <input type="checkbox" class="shchk" id="sh${i}" data-i="${i}" ${s.rows.length?'checked':'disabled'}
+        <input type="checkbox" class="shchk" id="sh${i}" data-i="${i}" ${s.rows.length && !(s.reqMissing||[]).length ?'checked':'disabled'}
                onchange="updateImportBtn()" style="width:17px;height:17px;accent-color:var(--org);cursor:pointer"></td>
       <td><label for="sh${i}" style="cursor:pointer"><b>${esc(s.name)}</b>
           <div class="sm">${esc(s.cfg.label)}</div></label></td>
@@ -1799,11 +1934,23 @@ function renderPreview(warn){
       esc([...new Set(s.skipped.flatMap(x=>x.miss))].join(', '))})</p>`).join('');
 
   const hdrCheck = out.map(s=>{
-    const diff = s.cfg.cols.map(([exp],i)=>({exp,got:s.hdr[i]})).filter(x=>x.got && x.exp!==x.got);
-    if(!diff.length) return '';
-    return `<details style="margin-top:9px"><summary class="sm">ชีท <b>${esc(s.name)}</b> — หัวคอลัมน์ต่างจากที่คาด ${diff.length} จุด (คลิกดู)</summary>
-      <div class="mono" style="margin-top:7px;line-height:1.8">${
-        diff.map(x=>`คาด: <b>${esc(x.exp)}</b> → ในไฟล์: ${esc(x.got)}`).join('<br>')}</div></details>`;
+    const m = s.map || {}, blocked = (s.reqMissing||[]).length > 0;
+    if(blocked) return `<div class="msg err" style="margin-top:11px">
+        ชีท <b>${esc(s.name)}</b> นำเข้าไม่ได้ — ไม่พบคอลัมน์ที่จำเป็น
+        <b>${esc(s.reqMissing.join(', '))}</b><br>
+        <span class="sm">คอลัมน์เหล่านี้ใช้เป็นคีย์กันข้อมูลซ้ำ ถ้าไม่มีระบบจะแยกแถวไม่ออก</span></div>`;
+    const miss = m.missing || [], extra = m.extra || [];
+    if(!miss.length && !extra.length) return '';
+    return `<details style="margin-top:9px"${miss.length?' open':''}>
+      <summary class="sm">ชีท <b>${esc(s.name)}</b> — จับคู่ตามชื่อคอลัมน์ได้ ${m.matched}/${s.cfg.cols.length}${
+        miss.length?` · ไฟล์นี้ไม่มี ${miss.length} คอลัมน์`:''}${extra.length?` · มีคอลัมน์เกิน ${extra.length}`:''} (คลิกดู)</summary>
+      <div style="margin-top:8px">
+        ${miss.length?`<div class="msg warn" style="margin-bottom:0">
+          <b>ไฟล์นี้ไม่มีคอลัมน์:</b> ${esc(miss.join(' · '))}<br>
+          <span class="sm">ช่องเหล่านี้จะบันทึกเป็นค่าว่าง ไม่มีการดึงคอลัมน์อื่นมาแทน ข้อมูลเดิมจึงไม่เพี้ยน</span></div>`:''}
+        ${extra.length?`<div class="msg info" style="margin:8px 0 0">
+          <b>คอลัมน์ในไฟล์ที่ระบบไม่ได้ใช้:</b> ${esc(extra.join(' · '))}</div>`:''}
+      </div></details>`;
   }).join('');
 
   el('preview').innerHTML = `
