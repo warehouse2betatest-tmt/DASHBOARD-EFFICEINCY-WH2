@@ -379,7 +379,7 @@ details summary{cursor:pointer;user-select:none}
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-04.17';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-04.19';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -469,19 +469,23 @@ function sessionExpiredCard(){
 /* =========================================================================
    ตัวแปลงชนิดข้อมูล — ทำความสะอาดค่าจาก Excel ก่อนส่งขึ้น Postgres
    ========================================================================= */
-const NBSP = /[ ​]/g;
+// ล้างช่องว่างพิเศษ: เขียนเป็นรหัส \u ทั้งหมด ห้ามใส่ตัวอักษรจริงเด็ดขาด
+// (เคยพลาดมาแล้ว — ตัวอักษร NBSP ตัวจริงในโค้ดถูกแปลงเป็นช่องว่างธรรมดาระหว่างแก้ไฟล์
+//  ทำให้ล้าง NBSP ไม่สำเร็จ และค่าเดียวกันกลายเป็น 2 ค่าที่ตาเห็นเหมือนกัน)
+const NBSP = /[\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g;
+const squash = s => s.replace(NBSP,' ').replace(/\s+/g,' ').trim();
 
 function T(v){
   if(v===null||v===undefined||v==='') return null;
   if(v instanceof Date) return isoTS(v);
   if(typeof v==='number') return String(v);
-  const s = String(v).replace(NBSP,' ').trim();
+  const s = squash(String(v));            // รวม NBSP และช่องว่างซ้ำให้เหลือช่องเดียว
   return s===''? null : s;
 }
 function N(v){
   if(v===null||v===undefined||v==='') return null;
   if(typeof v==='number') return isFinite(v)? v : null;
-  const s = String(v).replace(NBSP,'').replace(/,/g,'').trim();
+  const s = String(v).replace(NBSP,'').replace(/[\s,]/g,'').trim();
   if(s==='') return null;
   const n = parseFloat(s);
   return isFinite(n)? n : null;
@@ -495,7 +499,7 @@ function D(v){
   if(v===null||v===undefined||v==='') return null;
   if(v instanceof Date) return isoD(v);
   if(typeof v==='number') return isoD(xlSerialToDate(v));
-  let s = String(v).replace(NBSP,' ').trim().split(',')[0].trim();
+  let s = squash(String(v)).split(',')[0].trim();
   let m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);        if(m) return m[0];
   m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);     // d/m/yyyy แบบไทย
   if(m) return m[3]+'-'+pad(m[2])+'-'+pad(m[1]);
@@ -506,7 +510,7 @@ function TS(v){
   if(v===null||v===undefined||v==='') return null;
   if(v instanceof Date) return isoTS(v);
   if(typeof v==='number') return isoTS(xlSerialToDate(v));
-  let s = String(v).replace(NBSP,' ').trim();
+  let s = squash(String(v));
   let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4}),?\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
   if(m) return m[3]+'-'+pad(m[2])+'-'+pad(m[1])+' '+pad(m[4])+':'+m[5]+':'+(m[6]||'00');
   m = s.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
@@ -523,7 +527,7 @@ function TM(v){
     const t = Math.round((v - Math.floor(v))*86400);
     return pad(Math.floor(t/3600))+':'+pad(Math.floor(t%3600/60))+':'+pad(t%60);
   }
-  const m = String(v).replace(NBSP,'').trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+  const m = squash(String(v)).replace(/\s/g,'').match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
   return m ? pad(+m[1])+':'+m[2]+':'+(m[3]||'00') : null;
 }
 function IV(v){          // interval — รองรับค่าติดลบ เช่น -2:49:00
@@ -533,7 +537,7 @@ function IV(v){          // interval — รองรับค่าติดล
     const t = Math.round(Math.abs(v)*86400), sg = v<0?'-':'';
     return sg+pad(Math.floor(t/3600))+':'+pad(Math.floor(t%3600/60))+':'+pad(t%60);
   }
-  const m = String(v).replace(NBSP,'').trim().match(/^(-?)(\d{1,3}):(\d{2})(?::(\d{2}))?$/);
+  const m = squash(String(v)).replace(/\s/g,'').match(/^(-?)(\d{1,3}):(\d{2})(?::(\d{2}))?$/);
   return m ? m[1]+pad(+m[2])+':'+m[3]+':'+(m[4]||'00') : null;
 }
 
@@ -1022,6 +1026,12 @@ const TH_MONTH = ['มกราคม','กุมภาพันธ์','มี�
                   'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
 
 function monthKey(d){ return d ? String(d).slice(0,7) : null; }          // 'YYYY-MM'
+/* แสดงวันที่แบบไทย dd-mm-yyyy (ข้อมูลในฐานยังเก็บเป็น YYYY-MM-DD เหมือนเดิม) */
+function dmy(d){
+  if(!d) return '—';
+  const m = String(d).slice(0,10).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : String(d);
+}
 function monthLabel(k){
   if(!k) return '—';
   const [y,m] = k.split('-');
@@ -1194,7 +1204,7 @@ async function pageFG(){
         shipTo=kv(R.shipto_top), truckDist=kv(R.truck_dist), shipByShty=kv(R.ship_by_shty);
 
   const TL     = R.timeline || [];
-  const dates  = TL.map(x=>x.d);
+  const dates  = TL.map(x=>dmy(x.d));        // แกน x แสดงเป็น dd-mm-yyyy
   const tonArr = TL.map(x=>+x.t);
   const truckArr = TL.map(x=>+x.c);
   const outHArr  = TL.map(x=>x.h==null?null:+x.h);
@@ -1226,7 +1236,7 @@ async function pageFG(){
   <div class="kpis">
     <div class="kpi o anim d1"><div class="k">Peak Daily Weight</div>
       <div class="v">${peakTon==null?'—':fmt(peakTon,1)}</div>
-      <div class="s">ตัน${peakDate?` · ${esc(peakDate)} · ${fmt(peakTrucks)} คัน`:''}</div></div>
+      <div class="s">ตัน${peakDate?` · ${esc(dmy(peakDate))} · ${fmt(peakTrucks)} คัน`:''}</div></div>
     <div class="kpi anim d2"><div class="k">น้ำหนักเฉลี่ยต่อวัน</div>
       <div class="v">${fmt(avgDayTon,1)}</div><div class="s">ตัน/วัน</div></div>
     <div class="kpi ${avgMaxH==null?'':(avgMaxH>TARGET_H?'r':'g')} anim d3"><div class="k">Average Time</div>
@@ -1257,7 +1267,7 @@ async function pageFG(){
       <div class="v">${fmt(maxTonTruck,2)}</div><div class="s">ตัน</div></div>
     <div class="kpi anim d3"><div class="k">Peak คันต่อวัน</div>
       <div class="v">${fmt(pkTruck)}</div>
-      <div class="s">คัน${pkTruckDate?` · ${esc(pkTruckDate)}`:''}</div></div>
+      <div class="s">คัน${pkTruckDate?` · ${esc(dmy(pkTruckDate))}`:''}</div></div>
     <div class="kpi anim d4"><div class="k">รายการเฉลี่ยต่อคัน</div>
       <div class="v">${fmt(linesPerTruck,1)}</div><div class="s">รายการสินค้า/คัน</div></div>
   </div>
@@ -1474,7 +1484,7 @@ async function pagePrepare(){
       สัดส่วนมัดเต็ม <b>${(bFull+bPart)?((bFull/(bFull+bPart))*100).toFixed(1):'0'}%</b></p></div>
   </div>
   <div class="card anim d6"><h3>รายการจัดเตรียม</h3>` + tableHTML([
-    {h:'วันที่',k:'loading_date'},{h:'DO',k:'delivery_order'},{h:'Item',k:'delivery_item'},
+    {h:'วันที่',k:'loading_date',f:r=>dmy(r.loading_date)},{h:'DO',k:'delivery_order'},{h:'Item',k:'delivery_item'},
     {h:'ลูกค้า',k:'sold_to_name',f:r=>(r.sold_to_name||'').slice(0,26)},
     {h:'รหัสสินค้า',k:'material_code'},
     {h:'ปริมาณ',k:'actual_qty',n:1,f:r=>fmt(r.actual_qty)},{h:'Gate',k:'user_gate'},
@@ -1485,7 +1495,7 @@ async function pagePrepare(){
     {h:'รวม (น.)',k:'mins_total_lead',n:1,f:r=>r.mins_total_lead==null?'—':fmt(r.mins_total_lead,0)}
   ],rows) + `</div>`);
 
-  chart('p1','line',byDate.map(x=>x[0]),[{label:'นาที',data:byDate.map(x=>x[1]),
+  chart('p1','line',byDate.map(x=>dmy(x[0])),[{label:'นาที',data:byDate.map(x=>x[1]),
     borderColor:'#0b2447',backgroundColor:'rgba(11,36,71,.1)',fill:true,tension:.35,
     pointBackgroundColor:'#fff',pointBorderColor:'#0b2447',pointBorderWidth:2,pointRadius:4}],
     {layout:{padding:{top:20}}, vl:v=>fmt(v,0)});
@@ -1573,7 +1583,7 @@ async function pageMilk(){
       <div class="chartbox"><canvas id="m6"></canvas></div></div>
   </div>
   <div class="card anim d6"><h3>รายการ Milk Run</h3>` + tableHTML([
-    {h:'วันที่',k:'run_date'},{h:'Milk Run',k:'milk_run_no'},
+    {h:'วันที่',k:'run_date',f:r=>dmy(r.run_date)},{h:'Milk Run',k:'milk_run_no'},
     {h:'เส้นทาง',k:'route',raw:1,f:r=>`<span class="pill b">${esc(r.route)}</span>`},
     {h:'หัวลาก',k:'truck_head'},{h:'Delivery',k:'delivery'},{h:'Item',k:'do_item'},
     {h:'สินค้า',k:'material_desc',f:r=>(r.material_desc||'').slice(0,28)},
@@ -1605,7 +1615,7 @@ async function pageMilk(){
     chart('m4','bar',byDriver.map(x=>x[0]),[{label:'รายการ',data:byDriver.map(x=>x[1]),
       backgroundColor:'#1d4f92',borderRadius:7,maxBarThickness:56}],
       {layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
-    chart('m5','line',byDate.map(x=>x[0]),[{label:'ตัน',data:byDate.map(x=>x[1]/1000),
+    chart('m5','line',byDate.map(x=>dmy(x[0])),[{label:'ตัน',data:byDate.map(x=>x[1]/1000),
       borderColor:'#ff7a18',backgroundColor:'rgba(255,122,24,.13)',fill:true,tension:.35,
       pointBackgroundColor:'#fff',pointBorderColor:'#ff7a18',pointBorderWidth:2,pointRadius:4}],
       {layout:{padding:{top:20}}, vl:v=>fmt(v,1)});
@@ -1856,7 +1866,7 @@ async function loadDataSummary(){
       <td class="num">${has?fmt(x.months):'—'}</td>
       <td class="sm">${has?esc(mRange(x.month_list)):'—'}</td>
       <td class="num">${has?fmt(x.days):'—'}</td>
-      <td class="sm">${has?`${esc(x.from)} ถึง ${esc(x.to)}`:'—'}</td>
+      <td class="sm">${has?`${esc(dmy(x.from))} ถึง ${esc(dmy(x.to))}`:'—'}</td>
       <td class="sm">${nice(x.imported_at)}</td>
       <td>${has?'<span class="pill g">มีข้อมูล</span>':'<span class="pill n">ยังไม่มี</span>'}</td>
       <td>${has?`<button class="fbtn red" style="padding:5px 12px;font-size:12px"
@@ -1981,7 +1991,7 @@ function toggleSheetDetail(i){
   if(a) a.textContent = open ? '▾' : '▸';
 }
 
-function cleanHdr(h){ return String(h??'').replace(/<br\s*\/?>/gi,' ').replace(NBSP,' ').replace(/\s+/g,' ').trim(); }
+function cleanHdr(h){ return squash(String(h??'').replace(/<br\s*\/?>/gi,' ')); }
 
 /* จับคู่คอลัมน์ในไฟล์กับฟิลด์ในฐานข้อมูล "ตามชื่อหัวคอลัมน์" ไม่ใช่ตามตำแหน่ง
    เหตุผล: ไฟล์ Inbound ไม่มีบางคอลัมน์ที่ Outbound มี ถ้าอ่านตามตำแหน่ง
@@ -2045,7 +2055,7 @@ function renderScanCells(){
     }
     const days = (sc.by_date||[]).length;
     if(sc.overlap_rows > 0){
-      const sample = (sc.by_date||[]).slice(0,2).map(x=>`${x.d} (${fmt(x.n)})`).join(', ');
+      const sample = (sc.by_date||[]).slice(0,2).map(x=>`${dmy(x.d)} (${fmt(x.n)})`).join(', ');
       td.innerHTML = `<span class="pill o">เคยวางแล้ว</span>
         <div class="sm">ซ้ำ ${fmt(sc.overlap_rows)} แถว จาก ${days} วัน<br>${esc(sample)}${days>2?' …':''}</div>`;
     }else{
