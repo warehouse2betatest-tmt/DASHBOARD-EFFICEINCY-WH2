@@ -324,7 +324,7 @@ details summary{cursor:pointer;user-select:none}
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-04.2';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-04.3';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -358,7 +358,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth:{ persistSes
 let ME = null, TOKEN = null, CHARTS = {}, PAGE = 'fg';
 
 /* ตัวกรองใช้ร่วมกันทุกหน้า + แคชข้อมูลไว้ ไม่ต้องยิงซ้ำตอนเปลี่ยนตัวกรอง */
-let FILTERS = { month:'', factory:'' };
+let FILTERS = { month:'', factory:'', shty:'' };
 const CACHE  = {};
 async function getData(fn){
   if(!CACHE[fn]) CACHE[fn] = await rpc(fn);
@@ -559,11 +559,13 @@ const SHEETS = {
           ['Lost Time Center Process - Shipment Start','lost_center_vs_ship',IV],['Issue','issue',T]],
     req:['shipment','material_desc','gate_name','weight'] },
 
+  // ชีท Timeout ยังมี 7 คอลัมน์เหมือนเดิม แต่เก็บเข้าฐานข้อมูลแค่ วันที่ / โรง / เวลาเลิก
+  // คอลัมน์ที่ตั้งชื่อฟิลด์เป็น null คือ "อ่านผ่าน ไม่ต้องเก็บ"
   'Timeout': { table:'factory_timeout', mode:'upsert', conflict:'work_date,factory',
-    label:'เวลาปิดงานรายโรง',
-    cols:[['Timestamp','submitted_at',TS],['Month','month',T],['Date','work_date',D],
+    label:'เวลาเลิกงานรายโรง',
+    cols:[['Timestamp',null,T],['Month',null,T],['Date','work_date',D],
           ['Factory','factory',T],['Time Out','time_out',TM],
-          ['รับเข้า PD','receive_pd',N],['จ่ายออก PD','issue_pd',N]],
+          ['รับเข้า PD',null,N],['จ่ายออก PD',null,N]],
     req:['work_date','factory'] }
 };
 
@@ -916,7 +918,7 @@ function filterBar(sets, shown, total, fn){
 }
 
 function setFilter(k,v,fn){ FILTERS[k] = v; window[fn](); }
-function resetFilters(fn){ FILTERS = {month:'',factory:''}; window[fn](); }
+function resetFilters(fn){ FILTERS = {month:'',factory:'',shty:''}; window[fn](); }
 
 /* แถบตัวกรองสำหรับหน้าที่รวมยอดมาจากฐานข้อมูลแล้ว (ตัวเลือกมากับผลลัพธ์) */
 function filterBarAgg(R, fn){
@@ -937,6 +939,12 @@ function filterBarAgg(R, fn){
         <option value="">ทุกโรง</option>
         ${facs.map(f=>`<option value="${esc(f)}"${FILTERS.factory===f?' selected':''}>${esc(f)}</option>`).join('')}
       </select></div>
+    <div class="fld"><label>ประเภทการส่ง</label>
+      <select id="fShty" onchange="setFilter('shty',this.value,'${fn}')">
+        <option value="">ทุกประเภท</option>
+        ${(R.all_shty||[]).sort().map(s=>
+          `<option value="${esc(s)}"${FILTERS.shty===s?' selected':''}>${esc(s)}</option>`).join('')}
+      </select></div>
     <button class="fbtn alt" onclick="resetFilters('${fn}')">ล้างตัวกรอง</button>
     <button class="fbtn alt" onclick="${fn}()">↻ โหลดใหม่</button>
     <div style="margin-left:auto;text-align:right">
@@ -956,153 +964,144 @@ function errCard(m){ return `<div class="card anim"><div class="msg err">โห�
    แสดงข้อมูลทั้งหมด ไม่มีตัวกรองวันที่
    ========================================================================= */
 async function pageFG(){
-  /* รวมยอดที่ฐานข้อมูล ส่งกลับมาเฉพาะผลสรุป (~100 KB) แทนข้อมูลดิบหลายสิบ MB */
+  /* รวมยอดที่ฐานข้อมูล ส่งกลับเฉพาะผลสรุป (~90 KB) แทนข้อมูลดิบหลายสิบ MB
+     ทิศทาง Inbound/Outbound แยกจากคอลัมน์ Shipment type ของชีท FG
+       Z001 จัดส่งให้ลูกค้า / ลูกค้ามารับเอง = Outbound
+       Z005 รับสินค้าเข้า · Z006 รับสินค้าเข้า จาก PO = Inbound
+     น้ำหนักทั้งหมดคิดเป็น "ตัน" */
   const slocs = FILTERS.factory
       ? Object.keys(SLOC_TO_FACTORY).filter(k=>SLOC_TO_FACTORY[k]===FILTERS.factory)
       : null;
-  const facs  = FILTERS.factory ? [FILTERS.factory] : null;
 
   let R;
   try{ R = await rpc('app_dash_fg_agg',{
         p_month: FILTERS.month || null,
-        p_slocs: slocs && slocs.length ? slocs : (FILTERS.factory ? ['__NO_MATCH__'] : null),
-        p_facs : facs }); }
+        p_slocs: FILTERS.factory ? (slocs.length ? slocs : ['__NO_MATCH__']) : null,
+        p_facs : FILTERS.factory ? [FILTERS.factory] : null,
+        p_shty : FILTERS.shty || null }); }
   catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
 
   const K = R.kpi, rows = R.rows || [], tm = R.tm_list || [];
   const bar = filterBarAgg(R, 'pageFG');
-  if(!K.rows && !K.tm_rows){
-    body(bar + emptyBox(FILTERS.month||FILTERS.factory
+  if(!(+K.rows) && !(+K.tm_rows)){
+    body(bar + emptyBox(FILTERS.month||FILTERS.factory||FILTERS.shty
       ? 'ไม่พบข้อมูลตามตัวกรองที่เลือก' : 'ยังไม่มีข้อมูล FG และ Timeout ในระบบ'));
     return;
   }
 
-  const totWt=+K.weight, totQty=+K.qty, nShip=+K.shipments, nDel=+K.deliveries,
-        nSku=+K.skus, noCust=+K.no_cust, nRows=+K.rows;
-  const totIn=+K.pd_in, totOut=+K.pd_out, netPD=totIn-totOut,
-        nFac=+K.factories, avgOut=K.avg_out_hours, nTm=+K.tm_rows;
-  const avgPerShip = nShip ? totWt/nShip : null;
+  const ton=+K.ton, tonOut=+K.ton_out, tonIn=+K.ton_in;
+  const qtyOut=+K.qty_out, qtyIn=+K.qty_in;
+  const nRows=+K.rows, rowsOut=+K.rows_out, rowsIn=+K.rows_in;
+  const nShip=+K.shipments, shipOut=+K.ship_out, shipIn=+K.ship_in;
+  const nDel=+K.deliveries, nSku=+K.skus, noCust=+K.no_cust;
+  const nTm=+K.tm_rows, nFac=+K.factories, avgOut=K.avg_out_hours;
+  const netTon = tonIn - tonOut;
+  const tonPerShip = nShip ? ton/nShip : null;
 
   const kv = a => (a||[]).map(x=>[x.k, +x.v]);
-  const byGrp=kv(R.by_group), byCust=kv(R.by_customer), bySloc=kv(R.by_sloc),
-        byName=kv(R.top_customer), byType=kv(R.by_type), bySku=kv(R.top_sku),
-        inByFac=kv(R.fac_in), outByFac=kv(R.fac_out), outHrFac=kv(R.fac_hours);
-  const facList = [...new Set([...inByFac,...outByFac].map(x=>x[0]))].sort();
+  const byDir=kv(R.by_direction), byShty=kv(R.by_shty), byGrp=kv(R.by_group),
+        byCust=kv(R.by_customer), bySloc=kv(R.by_sloc), byName=kv(R.top_customer),
+        bySku=kv(R.top_sku), facHours=kv(R.fac_hours), facDays=kv(R.fac_days);
 
   const TL = R.timeline || [];
-  const allDates = TL.map(x=>x.d);
-  const wtByDate = new Map(TL.map(x=>[x.d,+x.w]));
-  const inByDate = new Map(TL.map(x=>[x.d,+x.i]));
-  const opByDate = new Map(TL.map(x=>[x.d,+x.o]));
+  const dates  = TL.map(x=>x.d);
+  const outTon = TL.map(x=>+x.o);
+  const inTon  = TL.map(x=>+x.i);
+
+  const hhmm = h => h==null ? '—' : (Math.floor(h)+':'+pad(Math.round((h%1)*60)));
 
   body(bar + `
-  <!-- ===== ภาพรวม ===== -->
+  <!-- ภาพรวม -->
   <div class="kpis">
-    <div class="kpi o anim d1"><div class="k">น้ำหนักรวม</div><div class="v">${fmt(totWt)}</div>
-      <div class="s">กิโลกรัม · เฉลี่ย ${avgPerShip==null?'—':fmt(avgPerShip,0)} กก./Shipment</div></div>
-    <div class="kpi anim d2"><div class="k">ปริมาณรวม</div><div class="v">${fmt(totQty)}</div>
-      <div class="s">หน่วย · ${fmt(nSku)} รหัสสินค้า</div></div>
-    <div class="kpi anim d3"><div class="k">จำนวน Shipment</div><div class="v">${fmt(nShip)}</div>
-      <div class="s">${fmt(nDel)} Delivery · ${fmt(nRows)} รายการ</div></div>
-    <div class="kpi g anim d4"><div class="k">รับเข้า PD (Inbound)</div><div class="v">${fmt(totIn)}</div>
-      <div class="s">${fmt(nFac)} โรง · ${fmt(nTm)} บันทึก</div></div>
-    <div class="kpi o anim d5"><div class="k">จ่ายออก PD (Outbound)</div><div class="v">${fmt(totOut,2)}</div>
-      <div class="s">จากบันทึกรายโรง</div></div>
-    <div class="kpi ${netPD>=0?'g':'r'} anim d6"><div class="k">สุทธิ รับเข้า − จ่ายออก</div>
-      <div class="v">${fmt(netPD,2)}</div>
-      <div class="s">เวลาปิดงานเฉลี่ย ${avgOut==null?'—':(Math.floor(avgOut)+':'+pad(Math.round((avgOut%1)*60)))} น.</div></div>
+    <div class="kpi o anim d1"><div class="k">น้ำหนักรวม</div><div class="v">${fmt(ton,1)}</div>
+      <div class="s">ตัน · เฉลี่ย ${tonPerShip==null?'—':fmt(tonPerShip,2)} ตัน/Shipment</div></div>
+    <div class="kpi anim d2"><div class="k">จ่ายออก Outbound</div><div class="v">${fmt(tonOut,1)}</div>
+      <div class="s">ตัน · ${fmt(shipOut)} Shipment · ${fmt(rowsOut)} รายการ</div></div>
+    <div class="kpi g anim d3"><div class="k">รับเข้า Inbound</div><div class="v">${fmt(tonIn,1)}</div>
+      <div class="s">ตัน · ${fmt(shipIn)} Shipment · ${fmt(rowsIn)} รายการ</div></div>
+    <div class="kpi ${netTon>=0?'g':'o'} anim d4"><div class="k">สุทธิ รับเข้า − จ่ายออก</div>
+      <div class="v">${fmt(netTon,1)}</div><div class="s">ตัน</div></div>
+    <div class="kpi anim d5"><div class="k">Shipment / Delivery</div><div class="v">${fmt(nShip)}</div>
+      <div class="s">${fmt(nDel)} Delivery · ${fmt(nSku)} รหัสสินค้า</div></div>
+    <div class="kpi ${noCust?'r':'g'} anim d6"><div class="k">ไม่พบในทะเบียนลูกค้า</div>
+      <div class="v">${fmt(noCust)}</div>
+      <div class="s">${(noCust/Math.max(nRows,1)*100).toFixed(1)}% ของ ${fmt(nRows)} รายการ</div></div>
   </div>
 
-  <!-- ===== ไทม์ไลน์รวม ===== -->
-  <div class="card anim d3"><h3>ภาพรวมรายวัน — น้ำหนักจ่ายออก เทียบกับ รับเข้า / จ่ายออก PD</h3>
-    <div class="chartbox" style="height:290px"><canvas id="f0"></canvas></div>
-    <p class="sm" style="margin-top:10px">แท่งส้ม = น้ำหนัก FG (แกนซ้าย, กก.) · เส้น = จำนวน PD รายโรงรวม (แกนขวา)</p></div>
+  <!-- ไทม์ไลน์ -->
+  <div class="card anim d3"><h3>รับเข้า / จ่ายออก รายวัน (ตัน)</h3>
+    <div class="chartbox" style="height:290px"><canvas id="f0"></canvas></div></div>
 
-  <!-- ===== Inbound / Outbound รายโรง ===== -->
-  <div class="grid2">
-    <div class="card anim d4"><h3>รับเข้า / จ่ายออก PD รายโรง</h3>
+  <div class="grid3">
+    <div class="card anim d4"><h3>น้ำหนักตามประเภทการส่ง (ตัน)</h3>
       <div class="chartbox"><canvas id="f1"></canvas></div></div>
-    <div class="card anim d4"><h3>เวลาปิดงานเฉลี่ยรายโรง (ชั่วโมง)</h3>
+    <div class="card anim d4"><h3>สัดส่วน Inbound / Outbound</h3>
       <div class="chartbox"><canvas id="f2"></canvas></div></div>
   </div>
 
-  <!-- ===== มิติสินค้า / ลูกค้า ===== -->
-  <div class="grid3">
-    <div class="card anim d5"><h3>น้ำหนักตามกลุ่มสินค้า</h3><div class="chartbox"><canvas id="f3"></canvas></div></div>
-    <div class="card anim d5"><h3>สัดส่วนตามกลุ่มลูกค้า</h3><div class="chartbox"><canvas id="f4"></canvas></div></div>
+  <div class="grid2">
+    <div class="card anim d5"><h3>น้ำหนักตามกลุ่มสินค้า (ตัน)</h3><div class="chartbox"><canvas id="f3"></canvas></div></div>
+    <div class="card anim d5"><h3>สัดส่วนตามกลุ่มลูกค้า (ตัน)</h3><div class="chartbox"><canvas id="f4"></canvas></div></div>
   </div>
   <div class="grid2">
-    <div class="card anim d5"><h3>10 อันดับลูกค้าตามน้ำหนัก</h3><div class="chartbox"><canvas id="f5"></canvas></div></div>
-    <div class="card anim d5"><h3>10 อันดับรหัสสินค้าตามน้ำหนัก</h3><div class="chartbox"><canvas id="f6"></canvas></div></div>
+    <div class="card anim d5"><h3>10 อันดับลูกค้า (ตัน)</h3><div class="chartbox"><canvas id="f5"></canvas></div></div>
+    <div class="card anim d5"><h3>10 อันดับรหัสสินค้า (ตัน)</h3><div class="chartbox"><canvas id="f6"></canvas></div></div>
   </div>
   <div class="grid2">
-    <div class="card anim d6"><h3>น้ำหนักตาม Storage Location</h3><div class="chartbox"><canvas id="f7"></canvas></div></div>
-    <div class="card anim d6"><h3>ประเภทการจัดส่ง</h3><div class="chartbox"><canvas id="f8"></canvas></div>
-      ${noCust?`<p class="sm" style="margin-top:10px">⚠ มี <b>${fmt(noCust)}</b> รายการ
-        (${(noCust/Math.max(nRows,1)*100).toFixed(1)}%) ที่รหัสลูกค้าไม่พบในทะเบียน</p>`:''}</div>
+    <div class="card anim d6"><h3>น้ำหนักตาม Storage Location (ตัน)</h3><div class="chartbox"><canvas id="f7"></canvas></div></div>
+    <div class="card anim d6"><h3>เวลาเลิกงานเฉลี่ยรายโรง (ชั่วโมง)</h3>
+      <div class="chartbox"><canvas id="f8"></canvas></div>
+      <p class="sm" style="margin-top:10px">${nTm? `${fmt(nTm)} บันทึก · ${fmt(nFac)} โรง · เฉลี่ยรวม ${hhmm(avgOut)} น.`
+        : 'ยังไม่มีข้อมูลชีท Timeout'}</p></div>
   </div>
 
-  <!-- ===== ตาราง ===== -->
-  <div class="card anim d6"><h3>รายการจ่ายออกสินค้าสำเร็จรูป (FG)</h3>
+  <div class="card anim d6"><h3>รายการ FG</h3>
     <p class="sm" style="margin-bottom:11px">แสดง 200 รายการล่าสุดจากทั้งหมด ${fmt(nRows)} รายการ —
       ตัวเลขสรุปและกราฟด้านบนคำนวณจากข้อมูลครบทุกแถว</p>` + tableHTML([
-    {h:'วันที่',k:'load_date'},{h:'Shipment',k:'shipment'},{h:'Delivery',k:'delivery'},
-    {h:'Item',k:'item'},{h:'รหัสสินค้า',k:'material_code'},
-    {h:'รายละเอียด',k:'description',f:r=>(r.description||'').slice(0,40)},
+    {h:'วันที่',k:'load_date'},
+    {h:'ทิศทาง',k:'direction',raw:1,
+     f:r=>`<span class="pill ${r.direction==='Inbound'?'g':'o'}">${esc(r.direction)}</span>`},
+    {h:'ประเภทการส่ง',k:'shipment_type'},
+    {h:'Shipment',k:'shipment'},{h:'Delivery',k:'delivery'},{h:'Item',k:'item'},
+    {h:'รหัสสินค้า',k:'material_code'},
+    {h:'รายละเอียด',k:'description',f:r=>(r.description||'').slice(0,38)},
     {h:'กลุ่มสินค้า',k:'group_product'},
     {h:'ปริมาณ',k:'delivery_qty',n:1,f:r=>fmt(r.delivery_qty)},
-    {h:'น้ำหนัก (กก.)',k:'gross_weight',n:1,f:r=>fmt(r.gross_weight,1)},
+    {h:'น้ำหนัก (ตัน)',k:'weight_ton',n:1,f:r=>fmt(r.weight_ton,3)},
     {h:'ลูกค้า',k:'sold_to_name',f:r=>(r.sold_to_name||'').slice(0,26)},
     {h:'กลุ่มลูกค้า',k:'customer_group',raw:1,
      f:r=>`<span class="pill ${r.customer_group==='ไม่พบในทะเบียนลูกค้า'?'r':'b'}">${esc(r.customer_group)}</span>`},
-    {h:'ประเภทส่ง',k:'shipment_type'},{h:'Sloc',k:'storage_location'}
+    {h:'Sloc',k:'storage_location'}
   ],rows) + `</div>
 
-  <div class="card anim d6"><h3>บันทึกรับเข้า / จ่ายออก รายโรง (Timeout)</h3>` + tableHTML([
+  <div class="card anim d6"><h3>เวลาเลิกงานรายโรง (Timeout)</h3>` + tableHTML([
     {h:'วันที่',k:'work_date'},
     {h:'โรง',k:'factory',raw:1,f:r=>`<span class="pill b">${esc(r.factory)}</span>`},
-    {h:'เวลาปิดงาน',k:'time_out'},
-    {h:'รับเข้า PD',k:'receive_pd',n:1,f:r=>fmt(r.receive_pd)},
-    {h:'จ่ายออก PD',k:'issue_pd',n:1,f:r=>r.issue_pd==null?'—':fmt(r.issue_pd,2)},
-    {h:'สุทธิ',k:'net_pd',n:1,raw:1,
-     f:r=>`<span class="pill ${(+r.net_pd)>=0?'g':'r'}">${fmt(r.net_pd,2)}</span>`}
+    {h:'เวลาเลิกงาน',k:'time_out'}
   ],tm) + `</div>`);
 
   /* ---------- กราฟ ---------- */
   const axisFont = {font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'};
+  const tonScale = {y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},
+                       title:{display:true,text:'ตัน',font:{family:'Kanit',size:11,weight:'400'},color:'#7086a3'},
+                       ticks:axisFont},
+                    x:{grid:{display:false},ticks:axisFont}};
 
-  chart('f0','bar',allDates,[
-    {type:'bar',label:'น้ำหนัก FG (กก.)',yAxisID:'y',
-     data:allDates.map(d=>wtByDate.get(d)??0),backgroundColor:'#ff7a18',borderRadius:6,maxBarThickness:36},
-    {type:'line',label:'รับเข้า PD',yAxisID:'y1',
-     data:allDates.map(d=>inByDate.get(d)??null),borderColor:'#0b2447',backgroundColor:'#0b2447',
-     tension:.3,spanGaps:true,pointRadius:4,borderWidth:2.5},
-    {type:'line',label:'จ่ายออก PD',yAxisID:'y1',
-     data:allDates.map(d=>opByDate.get(d)??null),borderColor:'#1d4f92',backgroundColor:'#1d4f92',
-     tension:.3,spanGaps:true,pointRadius:4,borderWidth:2.5,borderDash:[6,4]}
-  ],{
-    scales:{
-      y :{position:'left', beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},
-          title:{display:true,text:'น้ำหนัก (กก.)',font:{family:'Kanit',size:11,weight:'400'},color:'#7086a3'},
-          ticks:axisFont},
-      y1:{position:'right',beginAtZero:true,grid:{display:false},border:{display:false},
-          title:{display:true,text:'จำนวน PD',font:{family:'Kanit',size:11,weight:'400'},color:'#7086a3'},
-          ticks:axisFont},
-      x :{grid:{display:false},ticks:axisFont}
-    }});
+  chart('f0','bar',dates,[
+    {label:'จ่ายออก Outbound',data:outTon,backgroundColor:'#ff7a18',borderRadius:6,maxBarThickness:34},
+    {label:'รับเข้า Inbound', data:inTon, backgroundColor:'#0b2447',borderRadius:6,maxBarThickness:34}
+  ], {scales:tonScale});
 
-  chart('f1','bar',facList,[
-    {label:'รับเข้า PD', data:facList.map(f=>(inByFac.find(x=>x[0]===f)||[0,0])[1]),
-     backgroundColor:'#0b2447',borderRadius:7},
-    {label:'จ่ายออก PD',data:facList.map(f=>(outByFac.find(x=>x[0]===f)||[0,0])[1]),
-     backgroundColor:'#ff7a18',borderRadius:7}
-  ]);
+  chart('f1','bar',byShty.map(x=>x[0]),[{label:'ตัน',data:byShty.map(x=>x[1]),
+    backgroundColor:byShty.map((x,i)=>((R.by_shty[i]||{}).d==='Inbound')?'#0b2447':'#ff7a18'),
+    borderRadius:7,maxBarThickness:56}], {scales:tonScale});
 
-  chart('f2','bar',outHrFac.map(x=>x[0]),[{label:'ชั่วโมง',data:outHrFac.map(x=>x[1]),
-    backgroundColor:'#1d4f92',borderRadius:7,maxBarThickness:48}]);
+  chart('f2','doughnut',byDir.map(x=>x[0]),[{data:byDir.map(x=>x[1]),
+    backgroundColor:byDir.map(x=>x[0]==='Inbound'?'#0b2447':'#ff7a18'),
+    borderWidth:3,borderColor:'#fff'}],{cutout:'60%'});
 
-  chart('f3','bar',byGrp.map(x=>x[0]),[{label:'น้ำหนัก (กก.)',data:byGrp.map(x=>x[1]),
-    backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:52}]);
+  chart('f3','bar',byGrp.map(x=>x[0]),[{label:'ตัน',data:byGrp.map(x=>x[1]),
+    backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:52}], {scales:tonScale});
 
   chart('f4','doughnut',byCust.map(x=>x[0]),[{data:byCust.map(x=>x[1]),
     backgroundColor:PAL,borderWidth:3,borderColor:'#fff'}],{cutout:'58%'});
@@ -1110,16 +1109,16 @@ async function pageFG(){
   const hBar = {indexAxis:'y',scales:{
       x:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
       y:{grid:{display:false},ticks:axisFont}}};
-  chart('f5','bar',byName.map(x=>x[0].slice(0,24)),[{label:'น้ำหนัก (กก.)',
+  chart('f5','bar',byName.map(x=>x[0].slice(0,24)),[{label:'ตัน',
     data:byName.map(x=>x[1]),backgroundColor:'#ff7a18',borderRadius:6}],hBar);
-  chart('f6','bar',bySku.map(x=>x[0].slice(0,24)),[{label:'น้ำหนัก (กก.)',
+  chart('f6','bar',bySku.map(x=>x[0].slice(0,24)),[{label:'ตัน',
     data:bySku.map(x=>x[1]),backgroundColor:'#1d4f92',borderRadius:6}],hBar);
 
-  chart('f7','bar',bySloc.map(x=>x[0]),[{label:'น้ำหนัก (กก.)',data:bySloc.map(x=>x[1]),
-    backgroundColor:'#2d6ca8',borderRadius:7,maxBarThickness:46}]);
-  chart('f8','doughnut',byType.map(x=>x[0]),[{data:byType.map(x=>x[1]),
-    backgroundColor:['#ff7a18','#0b2447','#1d4f92','#ff9945','#5b8fc4'],
-    borderWidth:3,borderColor:'#fff'}],{cutout:'58%'});
+  chart('f7','bar',bySloc.map(x=>x[0]),[{label:'ตัน',data:bySloc.map(x=>x[1]),
+    backgroundColor:'#2d6ca8',borderRadius:7,maxBarThickness:46}], {scales:tonScale});
+
+  chart('f8','bar',facHours.map(x=>x[0]),[{label:'ชั่วโมง',data:facHours.map(x=>x[1]),
+    backgroundColor:'#ff9945',borderRadius:7,maxBarThickness:48}]);
 }
 
 /* =========================================================================
@@ -1216,7 +1215,7 @@ async function pageMilk(){
   if(!R.length){ body(head + emptyBox('ไม่พบข้อมูลตามตัวกรองที่เลือก')); return; }
 
   const trips  = new Set(R.map(r=>r.milk_run_no)).size;
-  const totWt  = R.reduce((s,r)=>s+(+r.weight||0),0);
+  const totTon = R.reduce((s,r)=>s+(+r.weight||0),0)/1000;   // ข้อมูลเก็บเป็น กก. แสดงผลเป็นตัน
   const avgTrip= avg(R.map(r=>r.trip_mins));
   const routes = new Set(R.map(r=>r.route)).size;
   const seg = { wait:avg(R.map(r=>r.mins_wait_pick)), trav:avg(R.map(r=>r.mins_travel)),
@@ -1240,12 +1239,12 @@ async function pageMilk(){
   <div class="kpis">
     <div class="kpi anim d1"><div class="k">จำนวนเที่ยว Milk Run</div><div class="v">${fmt(trips)}</div>
       <div class="s">${fmt(R.length)} รายการสินค้า</div></div>
-    <div class="kpi o anim d2"><div class="k">น้ำหนักขนย้ายรวม</div><div class="v">${fmt(totWt)}</div><div class="s">กิโลกรัม</div></div>
+    <div class="kpi o anim d2"><div class="k">น้ำหนักขนย้ายรวม</div><div class="v">${fmt(totTon,1)}</div><div class="s">ตัน</div></div>
     <div class="kpi g anim d3"><div class="k">เวลาต่อเที่ยวเฉลี่ย</div>
       <div class="v">${avgTrip==null?'—':fmt(avgTrip,0)}</div><div class="s">นาที · ${fmt(routes)} เส้นทาง</div></div>
     <div class="kpi anim d4"><div class="k">น้ำหนักเฉลี่ยต่อเที่ยว</div>
-      <div class="v">${trips?fmt(totWt/trips,0):'—'}</div>
-      <div class="s">กิโลกรัม · ${fmt(new Set(R.map(r=>r.truck_head)).size)} หัวลาก</div></div>
+      <div class="v">${trips?fmt(totTon/trips,2):'—'}</div>
+      <div class="s">ตัน · ${fmt(new Set(R.map(r=>r.truck_head)).size)} หัวลาก</div></div>
   </div>
   <div class="card anim d3"><h3>เวลาที่ใช้แต่ละช่วงของ Milk Run (นาทีเฉลี่ย)</h3>
     <div class="kpis" style="margin-bottom:0">
@@ -1259,12 +1258,12 @@ async function pageMilk(){
     <div class="card anim d4"><h3>เวลาแต่ละช่วงแยกตามเส้นทาง (นาที)</h3><div class="chartbox"><canvas id="m2"></canvas></div></div>
   </div>
   <div class="grid2">
-    <div class="card anim d5"><h3>น้ำหนักตามหัวลาก</h3><div class="chartbox"><canvas id="m3"></canvas></div></div>
+    <div class="card anim d5"><h3>น้ำหนักตามหัวลาก (ตัน)</h3><div class="chartbox"><canvas id="m3"></canvas></div></div>
     <div class="card anim d5"><h3>จำนวนรายการตามพนักงานขับ</h3><div class="chartbox"><canvas id="m4"></canvas></div></div>
   </div>
   <div class="grid2">
-    <div class="card anim d5"><h3>แนวโน้มน้ำหนักขนย้ายรายวัน</h3><div class="chartbox"><canvas id="m5"></canvas></div></div>
-    <div class="card anim d5"><h3>น้ำหนักออกจากโรง (ต้นทาง) เทียบ เข้าโรง (ปลายทาง)</h3>
+    <div class="card anim d5"><h3>แนวโน้มน้ำหนักขนย้ายรายวัน (ตัน)</h3><div class="chartbox"><canvas id="m5"></canvas></div></div>
+    <div class="card anim d5"><h3>น้ำหนักออกจากโรง เทียบ เข้าโรง (ตัน)</h3>
       <div class="chartbox"><canvas id="m6"></canvas></div></div>
   </div>
   <div class="card anim d6"><h3>รายการ Milk Run</h3>` + tableHTML([
@@ -1272,7 +1271,7 @@ async function pageMilk(){
     {h:'เส้นทาง',k:'route',raw:1,f:r=>`<span class="pill b">${esc(r.route)}</span>`},
     {h:'หัวลาก',k:'truck_head'},{h:'Delivery',k:'delivery'},{h:'Item',k:'do_item'},
     {h:'สินค้า',k:'material_desc',f:r=>(r.material_desc||'').slice(0,28)},
-    {h:'น้ำหนัก',k:'weight',n:1,f:r=>fmt(r.weight)},
+    {h:'น้ำหนัก (ตัน)',k:'weight',n:1,f:r=>fmt((+r.weight||0)/1000,3)},
     {h:'รอหยิบ',k:'mins_wait_pick',n:1,f:r=>r.mins_wait_pick==null?'—':fmt(r.mins_wait_pick,0)},
     {h:'เดินทาง',k:'mins_travel',n:1,f:r=>r.mins_travel==null?'—':fmt(r.mins_travel,0)},
     {h:'รอ Check-in',k:'mins_wait_checkin',n:1,f:r=>r.mins_wait_checkin==null?'—':fmt(r.mins_wait_checkin,0)},
@@ -1292,17 +1291,17 @@ async function pageMilk(){
     ],{scales:{x:{stacked:true,grid:{display:false},ticks:{font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'}},
                y:{stacked:true,beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},
                   ticks:{font:{family:'Kanit',size:11,weight:'300'},color:'#7086a3'}}}});
-    chart('m3','bar',byHead.map(x=>x[0]),[{label:'น้ำหนัก (กก.)',data:byHead.map(x=>x[1]),
+    chart('m3','bar',byHead.map(x=>x[0]),[{label:'ตัน',data:byHead.map(x=>x[1]/1000),
       backgroundColor:'#ff7a18',borderRadius:7,maxBarThickness:56}]);
     chart('m4','bar',byDriver.map(x=>x[0]),[{label:'รายการ',data:byDriver.map(x=>x[1]),
       backgroundColor:'#1d4f92',borderRadius:7,maxBarThickness:56}]);
-    chart('m5','line',byDate.map(x=>x[0]),[{label:'น้ำหนัก (กก.)',data:byDate.map(x=>x[1]),
+    chart('m5','line',byDate.map(x=>x[0]),[{label:'ตัน',data:byDate.map(x=>x[1]/1000),
       borderColor:'#ff7a18',backgroundColor:'rgba(255,122,24,.13)',fill:true,tension:.35,
       pointBackgroundColor:'#fff',pointBorderColor:'#ff7a18',pointBorderWidth:2,pointRadius:4}]);
     chart('m6','bar',facLbl,[
-      {label:'ออกจากโรง (ต้นทาง)',data:facLbl.map(x=>(byOrigin.find(y=>y[0]===x)||[0,0])[1]),
+      {label:'ออกจากโรง (ต้นทาง)',data:facLbl.map(x=>(byOrigin.find(y=>y[0]===x)||[0,0])[1]/1000),
        backgroundColor:'#ff7a18',borderRadius:7},
-      {label:'เข้าโรง (ปลายทาง)', data:facLbl.map(x=>(byDest.find(y=>y[0]===x)||[0,0])[1]),
+      {label:'เข้าโรง (ปลายทาง)', data:facLbl.map(x=>(byDest.find(y=>y[0]===x)||[0,0])[1]/1000),
        backgroundColor:'#0b2447',borderRadius:7}
     ]);
   }
@@ -1329,7 +1328,9 @@ function pageImport(){
       <td><code style="font-size:13px;font-weight:500">${esc(name)}</code></td>
       <td>${esc(cfg.label)}</td>
       <td><span class="pill ${cfg.mode==='replace'?'o':'b'}">${cfg.mode==='replace'?'เขียนทับ':'สะสม'}</span></td>
-      <td class="num">${cfg.cols.length}</td>
+      <td class="num">${cfg.cols.length}${
+        cfg.cols.some(c=>c[1]===null)
+          ? `<div class="sm">เก็บ ${cfg.cols.filter(c=>c[1]!==null).length}</div>` : ''}</td>
       <td class="sm">${esc(cfg.cols.slice(0,3).map(c=>c[0]).join(' · '))} …</td>
       <td class="sm">${cfg.conflict? esc(cfg.conflict.replace(/,/g,' + ')) : '—'}</td>
     </tr>`).join('');
@@ -1425,8 +1426,10 @@ function parseWB(wb,fname){
       // (Postgres จะเติม null ให้เองอยู่แล้วเมื่อ key ไม่มีใน jsonb)
       const o = {};
       for(let ci=0; ci<nc; ci++){
+        const field = cfg.cols[ci][1];
+        if(field === null) continue;                 // คอลัมน์ที่ไม่ต้องเก็บ
         const v = cfg.cols[ci][2](raw[ci]);
-        if(v !== null && v !== undefined) o[cfg.cols[ci][1]] = v;
+        if(v !== null && v !== undefined) o[field] = v;
       }
       let miss = null;
       for(const k of cfg.req){ if(o[k]===undefined||o[k]===''){ (miss ||= []).push(k); } }
