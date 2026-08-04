@@ -145,7 +145,7 @@ main{flex:1;margin-left:256px;padding:0 26px 26px;max-width:100%;min-width:0}
 /* ป๊อปอัป */
 .modal{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;
   padding:20px;background:rgba(11,36,71,.55);backdrop-filter:blur(4px);animation:fadeIn .18s both}
-.modalBox{background:#fff;border-radius:18px;width:100%;max-width:640px;max-height:88vh;
+.modalBox{background:#fff;border-radius:18px;width:100%;max-width:940px;max-height:90vh;
   display:flex;flex-direction:column;box-shadow:0 30px 70px rgba(0,0,0,.4);
   animation:pop .28s cubic-bezier(.2,.8,.3,1) both;border-top:5px solid var(--org)}
 .modalHead{display:flex;align-items:center;gap:12px;padding:18px 22px 14px;border-bottom:1px solid var(--line)}
@@ -379,7 +379,7 @@ details summary{cursor:pointer;user-select:none}
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-04.16';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-04.17';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -1621,7 +1621,7 @@ async function pageMilk(){
 /* =========================================================================
    PAGE 4 — IMPORT (admin)
    ========================================================================= */
-let PARSED = null;
+let PARSED = { files: [] };          // รองรับหลายไฟล์พร้อมกัน
 
 function pageImport(){
   /* กันไว้อีกชั้น — เมนูซ่อนอยู่แล้ว และฝั่งฐานข้อมูลก็ตรวจ admin ซ้ำทุกครั้ง */
@@ -1659,17 +1659,16 @@ function pageImport(){
     <div class="msg warn" style="margin-bottom:14px">
       <b>ชื่อชีทต้องสะกดตรงตามนี้ทุกตัวอักษร</b> (ตัวพิมพ์เล็ก-ใหญ่ และช่องว่างมีผล)
       เช่น <code>Milk Run</code> มีช่องว่างตรงกลาง · <code>Master</code> ไม่ใช่ <code>master</code><br>
-      ชีทที่ชื่อไม่ตรงจะถูกข้ามไปเงียบๆ และระบบจะแจ้งว่า “ไม่พบชีท” ตอนอัปโหลด<br>
-      ลำดับคอลัมน์ในแต่ละชีทต้องเรียงเหมือนเดิม เพราะระบบอ่านตามตำแหน่งคอลัมน์
+      ชีทที่ชื่อไม่ตรงจะถูกข้ามไป และระบบจะแจ้งว่า “ไม่พบชีท” ตอนอัปโหลด<br>
+      คลิกที่แถวเพื่อดูรายละเอียดคอลัมน์และรูปแบบข้อมูลที่รับได้
     </div>
-    <div class="tw"><table><thead><tr>
+    <div class="tw" style="max-height:none"><table><thead><tr>
       <th>ชื่อชีท</th><th>เก็บอะไร</th><th>โหมด</th>
       <th class="num">คอลัมน์</th><th>3 คอลัมน์แรกต้องเป็น</th><th>คีย์กันซ้ำ</th>
     </tr></thead><tbody>${guide}</tbody></table></div>
     <p class="sm" style="margin-top:11px;line-height:1.7">
-      <b>เขียนทับ</b> = ล้างข้อมูลเดิมในตารางทิ้งทั้งหมดแล้วใส่ของใหม่ (ใช้กับทะเบียนที่ต้องตรงกับปัจจุบันเสมอ)<br>
-      <b>สะสม</b> = แถวที่ “คีย์กันซ้ำ” ตรงกับของเดิมจะถูกเขียนทับ ส่วนแถวใหม่จะเพิ่มเข้าไป
-      จึงอัปไฟล์เดิมซ้ำได้โดยข้อมูลไม่บานปลาย</p>
+      <b>เขียนทับ</b> = ล้างข้อมูลเดิมในตารางทิ้งทั้งหมดแล้วใส่ของใหม่<br>
+      <b>สะสม</b> = แถวที่ “คีย์กันซ้ำ” ตรงกับของเดิมจะถูกเขียนทับ ส่วนแถวใหม่จะเพิ่มเข้าไป</p>
   </div>
 
   <div id="preview"></div>
@@ -1681,28 +1680,117 @@ function pageImport(){
   loadImportLog();
 }
 
-/* ป๊อปอัปอัปโหลดไฟล์ */
+/* ========================= ป๊อปอัปนำเข้าข้อมูล =========================
+   ทุกขั้นตอนอยู่ในป๊อปอัปเดียว: วางไฟล์ → ตรวจสอบ → เลือกชีท → นำเข้า
+   รองรับหลายไฟล์พร้อมกัน (เช่น แยกไฟล์ Outbound กับ Inbound)
+   ===================================================================== */
 function openUpload(){
-  openModal('อัปโหลดไฟล์ Excel', `
-    <p class="sm" style="margin-bottom:15px;line-height:1.8">
-      ระบบจะอ่านทุกชีทที่รู้จักในไฟล์ ตรวจว่าเคยวางไปแล้วหรือยัง
-      แล้วให้เลือกว่าจะวางชีทไหนบ้างก่อนบันทึกจริง</p>
+  PARSED = { files: [] };
+  openModal('นำเข้าข้อมูลจาก Excel', `
     <div class="drop" id="drop" onclick="el('file').click()">
       <div class="ic">📁</div>
       <div class="t">ลากไฟล์มาวาง หรือคลิกเพื่อเลือก</div>
-      <div class="h">รองรับ .xlsx และ .xls · รองรับข้อมูลระดับ 40,000 แถว</div>
+      <div class="h">เลือกได้หลายไฟล์พร้อมกัน · .xlsx และ .xls · รองรับระดับ 40,000 แถว</div>
     </div>
-    <input type="file" id="file" class="hide" accept=".xlsx,.xls" onchange="readFile(this.files[0])">
-    <p class="sm" style="margin-top:14px">
+    <input type="file" id="file" class="hide" accept=".xlsx,.xls" multiple
+           onchange="readFiles(this.files); this.value='';">
+    <p class="sm" style="margin-top:12px">
       จับคู่คอลัมน์ตามชื่อหัวตาราง ไม่ใช่ตำแหน่ง — ไฟล์ที่คอลัมน์ไม่ครบก็อัปได้
-      ช่องที่ไม่มีจะเว้นว่างไว้</p>`);
+      ช่องที่ไม่มีจะเว้นว่างไว้</p>
+    <div id="mPreview"></div>`);
 
   const d = el('drop');
   d.ondragover  = e=>{e.preventDefault(); d.classList.add('over')};
   d.ondragleave = ()=>d.classList.remove('over');
   d.ondrop      = e=>{e.preventDefault(); d.classList.remove('over');
-                      if(e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0])};
+                      if(e.dataTransfer.files.length) readFiles(e.dataTransfer.files)};
 }
+
+/* อ่านหลายไฟล์เรียงกัน แล้วต่อท้ายรายการเดิม */
+async function readFiles(fileList){
+  const files = [...fileList].filter(f=>/\.xlsx?$/i.test(f.name));
+  if(!files.length){ return; }
+  el('mPreview').innerHTML =
+    `<div class="spin"></div><p class="sm" style="text-align:center">กำลังอ่าน ${files.length} ไฟล์…</p>`;
+
+  for(const f of files){
+    if(PARSED.files.some(x=>x.fname === f.name)) continue;   // ไฟล์ชื่อซ้ำ ไม่อ่านซ้ำ
+    try{
+      const buf = await f.arrayBuffer();
+      const wb  = XLSX.read(new Uint8Array(buf),{type:'array',cellDates:true});
+      PARSED.files.push(parseWB(wb, f.name));
+    }catch(err){
+      PARSED.files.push({fname:f.name, out:[], warn:[`อ่านไฟล์ไม่สำเร็จ: ${esc(err.message)}`], failed:true});
+    }
+  }
+  renderPreview();
+  scanExisting();
+}
+
+function removeFile(i){
+  PARSED.files.splice(i,1);
+  renderPreview();
+  if(PARSED.files.length) scanExisting();
+}
+
+function parseWB(wb, fname){
+  const out = [], warn = [];
+  for(const [name,cfg] of Object.entries(SHEETS)){
+    const ws = wb.Sheets[name];
+    if(!ws) continue;                       // ไม่มีชีทนี้ในไฟล์ ก็แค่ข้าม ไม่ต้องเตือน
+    const aoa = XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:null,blankrows:false,rawNumbers:true});
+    if(!aoa.length){ warn.push(`ชีท <code>${esc(name)}</code> ว่างเปล่า`); continue; }
+
+    const hdr = (aoa[0]||[]).map(cleanHdr);
+    const map = mapColumns(hdr, cfg);
+    if(!map.byName)
+      warn.push(`ชีท <code>${esc(name)}</code> หัวคอลัมน์ไม่ตรงกับที่ระบบรู้จักเลย — ถอยไปอ่านตามลำดับคอลัมน์แทน`);
+
+    const reqMissing = cfg.req.filter(k=>{
+      const ci = cfg.cols.findIndex(c=>c[1]===k);
+      return ci < 0 || map.idx[ci] === null;
+    });
+
+    const rows = [], skipped = [];
+    const nc = cfg.cols.length;
+    if(!reqMissing.length) for(let i=1;i<aoa.length;i++){
+      const raw = aoa[i]||[];
+      if(raw.every(v=>v===null||v==='')) continue;
+      const o = {};
+      for(let ci=0; ci<nc; ci++){
+        const field = cfg.cols[ci][1];
+        if(field === null) continue;
+        const src = map.idx[ci];
+        if(src === null) continue;
+        const v = cfg.cols[ci][2](raw[src]);
+        if(v !== null && v !== undefined) o[field] = v;
+      }
+      let miss = null;
+      for(const k of cfg.req){ if(o[k]===undefined||o[k]===''){ (miss ||= []).push(k); } }
+      if(miss){ skipped.push({row:i+1,miss}); continue; }
+      rows.push(o);
+    }
+
+    let dupInFile = 0;
+    if(cfg.mode==='upsert'){
+      const keys = cfg.conflict.split(','), seen = new Map();
+      rows.forEach(r=>{ const k = keys.map(x=>r[x]).join('||');
+        if(seen.has(k)) dupInFile++; seen.set(k,r); });
+      if(dupInFile){ rows.length = 0; rows.push(...seen.values()); }
+    }
+    out.push({name,cfg,hdr,rows,skipped,dupInFile,total:aoa.length-1,scan:null,map,reqMissing});
+  }
+  if(!out.length) warn.push('ไม่พบชีทที่ระบบรู้จักในไฟล์นี้');
+  return {fname, out, warn};
+}
+
+/* รายการชีททั้งหมดจากทุกไฟล์ พร้อมรหัสอ้างอิง */
+function allEntries(){
+  const list = [];
+  PARSED.files.forEach((f,fi)=> f.out.forEach((s,si)=> list.push({f,fi,s,si,id:`${fi}_${si}`})));
+  return list;
+}
+
 
 /* ป๊อปอัปลบข้อมูลรายชีท — เลือกเฉพาะเดือนได้ ถ้าไม่มีเดือนคือลบทั้งหมด */
 function openDelete(table, sheet, months){
@@ -1925,79 +2013,14 @@ function mapColumns(hdr, cfg){
   return {idx, missing, extra, byName:true, matched};
 }
 
-function readFile(file){
-  if(!file) return;
-  closeModal();                     // ปิดป๊อปอัป แล้วไปแสดงผลตรวจสอบในหน้าหลัก
-  el('preview').innerHTML = '<div class="card"><div class="spin"></div><p class="sm" style="text-align:center">กำลังอ่านไฟล์…</p></div>';
-  el('preview').scrollIntoView({behavior:'smooth', block:'start'});
-  const fr = new FileReader();
-  fr.onload = e=>{
-    try{ parseWB(XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true}), file.name); }
-    catch(err){ el('preview').innerHTML = `<div class="card"><div class="msg err">อ่านไฟล์ไม่สำเร็จ: ${esc(err.message)}</div></div>`; }
-  };
-  fr.readAsArrayBuffer(file);
-}
 
-function parseWB(wb,fname){
-  const out = [], warn = [];
-  for(const [name,cfg] of Object.entries(SHEETS)){
-    const ws = wb.Sheets[name];
-    if(!ws){ warn.push(`ไม่พบชีท <code>${esc(name)}</code> ในไฟล์`); continue; }
-    const aoa = XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:null,blankrows:false,rawNumbers:true});
-    if(!aoa.length){ warn.push(`ชีท <code>${esc(name)}</code> ว่างเปล่า`); continue; }
-
-    const hdr = (aoa[0]||[]).map(cleanHdr);
-    const map = mapColumns(hdr, cfg);
-    if(!map.byName)
-      warn.push(`ชีท <code>${esc(name)}</code> หัวคอลัมน์ไม่ตรงกับที่ระบบรู้จักเลย — ถอยไปอ่านตามลำดับคอลัมน์แทน กรุณาตรวจผลให้ดีก่อนยืนยัน`);
-
-    // ฟิลด์บังคับ (คีย์กันซ้ำ) ที่หาไม่เจอในไฟล์ = ชีทนี้นำเข้าไม่ได้
-    const reqMissing = cfg.req.filter(k=>{
-      const ci = cfg.cols.findIndex(c=>c[1]===k);
-      return ci < 0 || map.idx[ci] === null;
-    });
-
-    const rows = [], skipped = [];
-    const nc = cfg.cols.length;
-    if(!reqMissing.length) for(let i=1;i<aoa.length;i++){
-      const raw = aoa[i]||[];
-      if(raw.every(v=>v===null||v==='')) continue;
-      // ตัดค่า null ทิ้ง ลดขนาด JSON ที่ส่งขึ้นเซิร์ฟเวอร์
-      const o = {};
-      for(let ci=0; ci<nc; ci++){
-        const field = cfg.cols[ci][1];
-        if(field === null) continue;                 // คอลัมน์ที่ไม่ต้องเก็บ
-        const src = map.idx[ci];
-        if(src === null) continue;                   // ไฟล์นี้ไม่มีคอลัมน์นั้น ปล่อยว่าง
-        const v = cfg.cols[ci][2](raw[src]);
-        if(v !== null && v !== undefined) o[field] = v;
-      }
-      let miss = null;
-      for(const k of cfg.req){ if(o[k]===undefined||o[k]===''){ (miss ||= []).push(k); } }
-      if(miss){ skipped.push({row:i+1,miss}); continue; }
-      rows.push(o);
-    }
-    // กันคีย์ซ้ำภายในไฟล์เดียวกัน (upsert จะ error ถ้าคีย์ซ้ำใน batch เดียว)
-    let dupInFile = 0;
-    if(cfg.mode==='upsert'){
-      const keys = cfg.conflict.split(','), seen = new Map();
-      rows.forEach(r=>{ const k = keys.map(x=>r[x]).join('||');
-        if(seen.has(k)) dupInFile++; seen.set(k,r); });
-      if(dupInFile){ rows.length = 0; rows.push(...seen.values()); }
-    }
-    out.push({name,cfg,hdr,rows,skipped,dupInFile,total:aoa.length-1,scan:null,map,reqMissing});
-  }
-  PARSED = {fname,out};
-  renderPreview(warn);
-  scanExisting();                       // ตรวจซ้ำกับข้อมูลเดิมในระบบ (ทำหลังวาดหน้า จะได้ไม่หน่วง)
-}
-
-/* ตรวจว่าข้อมูลในไฟล์เคยนำเข้าไปแล้วหรือยัง — ส่งขึ้นแค่รายการวันที่ ไม่ส่งทั้งแถว */
+/* ตรวจว่าข้อมูลในไฟล์เคยนำเข้าไปแล้วหรือยัง */
 const SHEET_DATE_COL = { fg_outbound:'load_date', prepare_do:'loading_date',
   milk_run:'run_date', shipment_job:'shipment_date', factory_timeout:'work_date' };
 
 async function scanExisting(){
-  await Promise.all(PARSED.out.map(async s=>{
+  await Promise.all(allEntries().map(async e=>{
+    const s = e.s;
     try{
       const dc = SHEET_DATE_COL[s.cfg.table];
       const dates = dc ? [...new Set(s.rows.map(r=>r[dc]).filter(Boolean))] : null;
@@ -2008,12 +2031,11 @@ async function scanExisting(){
 }
 
 function renderScanCells(){
-  PARSED.out.forEach((s,i)=>{
-    const td = el('scan'+i); if(!td) return;
-    const sc = s.scan;
+  allEntries().forEach(e=>{
+    const td = el('scan'+e.id); if(!td) return;
+    const sc = e.s.scan;
     if(!sc){ td.innerHTML = '<span class="sm">…</span>'; return; }
     if(sc.error){ td.innerHTML = `<span class="pill r">ตรวจไม่ได้</span>`; return; }
-
     if(sc.mode === 'replace'){
       td.innerHTML = sc.existing_total > 0
         ? `<span class="pill o">มีอยู่ ${fmt(sc.existing_total)} แถว</span>
@@ -2023,9 +2045,9 @@ function renderScanCells(){
     }
     const days = (sc.by_date||[]).length;
     if(sc.overlap_rows > 0){
-      const sample = (sc.by_date||[]).slice(0,3).map(x=>`${x.d} (${fmt(x.n)})`).join(', ');
+      const sample = (sc.by_date||[]).slice(0,2).map(x=>`${x.d} (${fmt(x.n)})`).join(', ');
       td.innerHTML = `<span class="pill o">เคยวางแล้ว</span>
-        <div class="sm">ซ้ำ ${fmt(sc.overlap_rows)} แถว จาก ${days} วัน<br>${esc(sample)}${days>3?' …':''}</div>`;
+        <div class="sm">ซ้ำ ${fmt(sc.overlap_rows)} แถว จาก ${days} วัน<br>${esc(sample)}${days>2?' …':''}</div>`;
     }else{
       td.innerHTML = `<span class="pill g">ข้อมูลใหม่</span>
         <div class="sm">ไม่ซ้ำกับที่มีอยู่ ${fmt(sc.existing_total)} แถว</div>`;
@@ -2033,122 +2055,134 @@ function renderScanCells(){
   });
 }
 
-function renderPreview(warn){
-  const {fname,out} = PARSED;
-  if(!out.length){ el('preview').innerHTML = `<div class="card"><div class="msg err">ไม่พบชีทที่ระบบรู้จักในไฟล์นี้</div></div>`; return; }
+/* วาดผลตรวจสอบทั้งหมดในป๊อปอัป */
+function renderPreview(){
+  const box = el('mPreview');
+  if(!box) return;
+  if(!PARSED.files.length){ box.innerHTML = ''; updateImportBtn(); return; }
 
-  const rowsHTML = out.map((s,i)=>`<tr>
-      <td style="text-align:center">
-        <input type="checkbox" class="shchk" id="sh${i}" data-i="${i}" ${s.rows.length && !(s.reqMissing||[]).length ?'checked':'disabled'}
-               onchange="updateImportBtn()" style="width:17px;height:17px;accent-color:var(--org);cursor:pointer"></td>
-      <td><label for="sh${i}" style="cursor:pointer"><b>${esc(s.name)}</b>
-          <div class="sm">${esc(s.cfg.label)}</div></label></td>
-      <td><code>${esc(s.cfg.table)}</code></td>
-      <td><span class="pill ${s.cfg.mode==='replace'?'o':'b'}">${s.cfg.mode==='replace'?'เขียนทับ':'สะสม'}</span></td>
-      <td class="num">${fmt(s.total)}</td>
-      <td class="num"><b>${fmt(s.rows.length)}</b></td>
-      <td class="num">${s.skipped.length?`<span class="pill r">${fmt(s.skipped.length)}</span>`:'—'}</td>
-      <td class="num">${s.dupInFile?`<span class="pill o">${fmt(s.dupInFile)}</span>`:'—'}</td>
-      <td id="scan${i}" style="white-space:normal;min-width:180px"><span class="sm">กำลังตรวจ…</span></td>
-    </tr>`).join('');
+  // ชีทโหมดเขียนทับที่ซ้ำกันหลายไฟล์ = อันหลังจะทับอันแรก ต้องเตือน
+  const replCount = {};
+  allEntries().forEach(e=>{ if(e.s.cfg.mode==='replace')
+    replCount[e.s.name] = (replCount[e.s.name]||0)+1; });
+  const dupRepl = Object.keys(replCount).filter(k=>replCount[k]>1);
 
-  const skipDetail = out.filter(s=>s.skipped.length).map(s=>
-    `<p class="sm"><b>${esc(s.name)}</b> ข้าม ${s.skipped.length} แถว — ตัวอย่างแถวที่ ${
-      s.skipped.slice(0,5).map(x=>x.row).join(', ')} (ขาดค่าในคอลัมน์คีย์: ${
-      esc([...new Set(s.skipped.flatMap(x=>x.miss))].join(', '))})</p>`).join('');
+  const fileBlocks = PARSED.files.map((f,fi)=>{
+    const warn = (f.warn||[]).length
+      ? `<div class="msg warn" style="margin:0 0 10px">${f.warn.join('<br>')}</div>` : '';
+    const rows = f.out.map((s,si)=>{
+      const id = `${fi}_${si}`;
+      const blocked = (s.reqMissing||[]).length > 0;
+      return `<tr>
+        <td style="text-align:center">
+          <input type="checkbox" class="shchk" id="sh${id}" data-id="${id}"
+                 ${s.rows.length && !blocked ?'checked':'disabled'}
+                 onchange="updateImportBtn()" style="width:17px;height:17px;accent-color:var(--org);cursor:pointer"></td>
+        <td><label for="sh${id}" style="cursor:pointer"><b>${esc(s.name)}</b>
+            <div class="sm">→ <code>${esc(s.cfg.table)}</code></div></label></td>
+        <td><span class="pill ${s.cfg.mode==='replace'?'o':'b'}">${s.cfg.mode==='replace'?'เขียนทับ':'สะสม'}</span></td>
+        <td class="num">${fmt(s.total)}</td>
+        <td class="num"><b>${fmt(s.rows.length)}</b></td>
+        <td class="num">${s.skipped.length?`<span class="pill r">${fmt(s.skipped.length)}</span>`:'—'}</td>
+        <td class="num">${s.dupInFile?`<span class="pill o">${fmt(s.dupInFile)}</span>`:'—'}</td>
+        <td id="scan${id}" style="white-space:normal;min-width:150px"><span class="sm">กำลังตรวจ…</span></td>
+      </tr>` + colNote(s);
+    }).join('');
 
-  const hdrCheck = out.map(s=>{
-    const m = s.map || {}, blocked = (s.reqMissing||[]).length > 0;
-    if(blocked) return `<div class="msg err" style="margin-top:11px">
-        ชีท <b>${esc(s.name)}</b> นำเข้าไม่ได้ — ไม่พบคอลัมน์ที่จำเป็น
-        <b>${esc(s.reqMissing.join(', '))}</b><br>
-        <span class="sm">คอลัมน์เหล่านี้ใช้เป็นคีย์กันข้อมูลซ้ำ ถ้าไม่มีระบบจะแยกแถวไม่ออก</span></div>`;
-    const miss = m.missing || [], extra = m.extra || [];
-    if(!miss.length && !extra.length) return '';
-    return `<details style="margin-top:9px"${miss.length?' open':''}>
-      <summary class="sm">ชีท <b>${esc(s.name)}</b> — จับคู่ตามชื่อคอลัมน์ได้ ${m.matched}/${s.cfg.cols.length}${
-        miss.length?` · ไฟล์นี้ไม่มี ${miss.length} คอลัมน์`:''}${extra.length?` · มีคอลัมน์เกิน ${extra.length}`:''} (คลิกดู)</summary>
-      <div style="margin-top:8px">
-        ${miss.length?`<div class="msg warn" style="margin-bottom:0">
-          <b>ไฟล์นี้ไม่มีคอลัมน์:</b> ${esc(miss.join(' · '))}<br>
-          <span class="sm">ช่องเหล่านี้จะบันทึกเป็นค่าว่าง ไม่มีการดึงคอลัมน์อื่นมาแทน ข้อมูลเดิมจึงไม่เพี้ยน</span></div>`:''}
-        ${extra.length?`<div class="msg info" style="margin:8px 0 0">
-          <b>คอลัมน์ในไฟล์ที่ระบบไม่ได้ใช้:</b> ${esc(extra.join(' · '))}</div>`:''}
-      </div></details>`;
+    return `<div class="card" style="margin-bottom:12px;box-shadow:none;background:#fbfcfe">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <b style="font-size:14px;flex:1">📄 ${esc(f.fname)}</b>
+        <span class="sm">${f.out.length} ชีท · ${fmt(f.out.reduce((a,x)=>a+x.rows.length,0))} แถว</span>
+        <button class="fbtn alt" style="padding:4px 10px;font-size:12px" onclick="removeFile(${fi})">เอาออก</button>
+      </div>
+      ${warn}
+      ${f.out.length ? `<div class="tw" style="max-height:none"><table><thead><tr>
+        <th style="width:40px;text-align:center">เลือก</th><th>ชีท</th><th>โหมด</th>
+        <th class="num">ในไฟล์</th><th class="num">พร้อมบันทึก</th><th class="num">ข้าม</th>
+        <th class="num">คีย์ซ้ำ</th><th>สถานะในระบบ</th>
+      </tr></thead><tbody>${rows}</tbody></table></div>` : ''}
+    </div>`;
   }).join('');
 
-  el('preview').innerHTML = `
-  <div class="card anim">
-    <h3>เลือกชีทที่ต้องการวาง</h3>
-    <p class="sm" style="margin-bottom:13px">ไฟล์: <code>${esc(fname)}</code> —
-      ติ๊กเลือกเฉพาะชีทที่ต้องการนำเข้า ชีทที่ไม่ติ๊กจะถูกข้ามไปโดยไม่แตะข้อมูลเดิม</p>
-    ${warn.length?`<div class="msg warn">${warn.join('<br>')}</div>`:''}
-    <div style="display:flex;gap:9px;margin-bottom:12px;flex-wrap:wrap">
+  box.innerHTML = `
+    <div style="border-top:1px solid var(--line);margin:16px 0 14px"></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
       <button class="fbtn alt" onclick="pickSheets('all')">เลือกทั้งหมด</button>
       <button class="fbtn alt" onclick="pickSheets('none')">ไม่เลือกเลย</button>
-      <button class="fbtn alt" onclick="pickSheets('master')">เฉพาะ Master (เขียนทับ)</button>
-      <button class="fbtn alt" onclick="pickSheets('tx')">เฉพาะ Transaction (สะสม)</button>
+      <button class="fbtn alt" onclick="pickSheets('master')">เฉพาะ Master</button>
+      <button class="fbtn alt" onclick="pickSheets('tx')">เฉพาะ Transaction</button>
     </div>
-    <div class="tw"><table><thead><tr>
-      <th style="width:44px;text-align:center">เลือก</th>
-      <th>ชีท</th><th>ตารางปลายทาง</th><th>โหมด</th>
-      <th class="num">แถวในไฟล์</th><th class="num">พร้อมบันทึก</th>
-      <th class="num">ข้าม</th><th class="num">คีย์ซ้ำในไฟล์</th>
-      <th>สถานะในระบบ</th>
-    </tr></thead><tbody>${rowsHTML}</tbody></table></div>
-    ${skipDetail?`<div class="msg warn" style="margin-top:13px">${skipDetail}</div>`:''}
-    ${hdrCheck}
+    ${dupRepl.length ? `<div class="msg warn">ชีท <b>${esc(dupRepl.join(', '))}</b> เป็นโหมดเขียนทับ
+      แต่มีอยู่ในหลายไฟล์ — ไฟล์ที่ทำทีหลังจะลบของไฟล์ก่อนหน้าทิ้ง แนะนำให้เลือกแค่ไฟล์เดียว</div>` : ''}
+    ${fileBlocks}
     <div id="impBarWrap" style="display:none">
       <div class="bar"><i id="impBar"></i><span id="impPct">0%</span></div>
       <div class="barInfo"><span id="impLeft">—</span><span id="impRight">—</span></div>
     </div>
     <div id="impStatus"></div>
-    <button class="btn" id="impBtn" style="margin-top:15px" onclick="runImport()"></button>
-    <div class="log hide" id="impLogBox" style="margin-top:15px"></div>
-  </div>`;
+    <button class="btn" id="impBtn" style="margin-top:6px" onclick="runImport()"></button>
+    <button class="btn ghost" style="margin-top:9px" onclick="el('file').click()">+ เพิ่มไฟล์อีก</button>
+    <div class="log hide" id="impLogBox" style="margin-top:13px"></div>`;
   updateImportBtn();
 }
 
-/* เลือกชีทแบบกลุ่ม */
+/* หมายเหตุคอลัมน์ที่ขาด/เกิน ของแต่ละชีท */
+function colNote(s){
+  const m = s.map || {}, blocked = (s.reqMissing||[]).length > 0;
+  if(blocked) return `<tr><td colspan="8" style="padding:0 0 10px">
+    <div class="msg err" style="margin:0">ไม่พบคอลัมน์ที่จำเป็น <b>${esc(s.reqMissing.join(', '))}</b>
+    — ชีทนี้นำเข้าไม่ได้</div></td></tr>`;
+  const miss = m.missing || [], extra = m.extra || [];
+  if(!miss.length && !extra.length) return '';
+  return `<tr><td colspan="8" style="padding:0 0 10px"><div class="sm" style="line-height:1.7">
+    ${miss.length?`<span class="pill o">ไฟล์นี้ไม่มี ${miss.length} คอลัมน์</span> ${esc(miss.join(' · '))}
+      <div>ช่องเหล่านี้จะบันทึกเป็นค่าว่าง ไม่ดึงคอลัมน์อื่นมาแทน</div>`:''}
+    ${extra.length?`<div><span class="pill n">ไม่ได้ใช้ ${extra.length} คอลัมน์</span> ${esc(extra.join(' · '))}</div>`:''}
+  </div></td></tr>`;
+}
+
 function pickSheets(kind){
   document.querySelectorAll('.shchk').forEach(c=>{
     if(c.disabled) return;
-    const m = PARSED.out[+c.dataset.i].cfg.mode;
-    c.checked = kind==='all'    ? true
-              : kind==='none'   ? false
-              : kind==='master' ? (m==='replace')
-              :                   (m==='upsert');
+    const e = allEntries().find(x=>x.id === c.dataset.id);
+    if(!e) return;
+    const m = e.s.cfg.mode;
+    c.checked = kind==='all' ? true : kind==='none' ? false
+              : kind==='master' ? (m==='replace') : (m==='upsert');
   });
   updateImportBtn();
 }
 
 function selectedSheets(){
+  const map = new Map(allEntries().map(e=>[e.id,e]));
   return [...document.querySelectorAll('.shchk')]
     .filter(c=>c.checked && !c.disabled)
-    .map(c=>PARSED.out[+c.dataset.i]);
+    .map(c=>map.get(c.dataset.id))
+    .filter(Boolean);
 }
 
 function updateImportBtn(){
   const b = el('impBtn'); if(!b) return;
   const sel = selectedSheets();
-  const n   = sel.reduce((s,x)=>s+x.rows.length,0);
+  const n   = sel.reduce((s,x)=>s+x.s.rows.length,0);
+  const nf  = new Set(sel.map(x=>x.fi)).size;
   b.disabled    = sel.length === 0;
   b.textContent = sel.length
-    ? `ยืนยันนำเข้า ${sel.length} ชีท · ${fmt(n)} แถว`
+    ? `ยืนยันนำเข้า ${nf} ไฟล์ · ${sel.length} ชีท · ${fmt(n)} แถว`
     : 'ยังไม่ได้เลือกชีท';
 }
 
 function logLine(t,k=''){
-  const b = el('impLogBox'); b.classList.remove('hide');
+  const b = el('impLogBox'); if(!b) return;
+  b.classList.remove('hide');
   b.innerHTML += `<div class="${k}">${t}</div>`; b.scrollTop = b.scrollHeight;
 }
 
 async function runImport(){
-  if(!PARSED) return;
-  const sheets = selectedSheets();
-  if(!sheets.length){ alert('กรุณาเลือกอย่างน้อย 1 ชีท'); return; }
+  const sel = selectedSheets();
+  if(!sel.length){ alert('กรุณาเลือกอย่างน้อย 1 ชีท'); return; }
 
-  const repl = sheets.filter(s=>s.cfg.mode==='replace').map(s=>s.name);
+  const repl = [...new Set(sel.filter(e=>e.s.cfg.mode==='replace').map(e=>e.s.name))];
   if(repl.length && !confirm(
       `ชีท ${repl.join(', ')} จะล้างข้อมูลเดิมในตารางทิ้งทั้งหมดแล้วเขียนใหม่\n\nยืนยันดำเนินการ?`)) return;
 
@@ -2156,12 +2190,9 @@ async function runImport(){
   el('impBarWrap').style.display = 'block';
   el('impLogBox').innerHTML = '';
 
-  /* ส่งข้อมูลแบบ "ตาราง" — ชื่อคอลัมน์ส่งครั้งเดียว ค่าเป็นอาเรย์ต่อแถว
-     ลดขนาดที่ต้องอัปโหลดได้ราวครึ่งหนึ่งเทียบกับส่งเป็น object ทุกแถว */
-  const CHUNK = 4000;          // ก้อนใหญ่ขึ้น = ยิงน้อยรอบ (ฐานข้อมูลใช้ ~80 ms ต่อ 2,500 แถว)
-  const PARALLEL = 5;          // ยิงพร้อมกัน 5 ก้อน (เบราว์เซอร์เปิดได้ 6 ต่อโดเมน)
-
-  const totalRows = sheets.reduce((a,x)=>a+x.rows.length,0);
+  /* ส่งข้อมูลแบบ "ตาราง" — ชื่อคอลัมน์ส่งครั้งเดียว ค่าเป็นอาเรย์ต่อแถว ลดขนาดอัปโหลดราวครึ่งหนึ่ง */
+  const CHUNK = 4000, PARALLEL = 5;
+  const totalRows = sel.reduce((a,x)=>a+x.s.rows.length,0);
   let sentRows = 0, okAll = true, grandTotal = 0;
   const t0 = performance.now();
 
@@ -2173,25 +2204,25 @@ async function runImport(){
     el('impBar').style.width = pct+'%';
     el('impPct').textContent = pct+'%';
     el('impLeft').textContent  = `${fmt(sentRows)} / ${fmt(totalRows)} แถว`;
-    el('impRight').textContent = rate ? `${fmt(rate,0)} แถว/วินาที · ใช้ไป ${sec.toFixed(1)} วิ` +
-        (left!=null && pct<100 ? ` · เหลืออีก ~${left.toFixed(1)} วิ` : '') : 'กำลังเริ่ม…';
+    el('impRight').textContent = rate
+      ? `${fmt(rate,0)} แถว/วินาที · ใช้ไป ${sec.toFixed(1)} วิ`
+        + (left!=null && pct<100 ? ` · เหลืออีก ~${left.toFixed(1)} วิ` : '')
+      : 'กำลังเริ่ม…';
   };
   paint();
 
-  for(const s of sheets){
-    const t1 = performance.now();
-    // คอลัมน์ที่จับคู่ได้จริงในไฟล์นี้เท่านั้น
+  for(const e of sel){
+    const s = e.s, t1 = performance.now();
     const cols = s.cfg.cols
       .map((c,ci)=>({field:c[1], src:s.map ? s.map.idx[ci] : ci}))
       .filter(x=>x.field !== null && x.src !== null)
       .map(x=>x.field);
     const toArr = r => cols.map(c => r[c] === undefined ? null : r[c]);
 
-    logLine(`▶ ${s.name} → ${s.cfg.table} (${fmt(s.rows.length)} แถว, ${s.cfg.mode==='replace'?'เขียนทับ':'สะสม'}, ${cols.length} คอลัมน์)`,'y');
+    logLine(`▶ ${esc(e.f.fname)} › ${s.name} → ${s.cfg.table} (${fmt(s.rows.length)} แถว, ${cols.length} คอลัมน์)`,'y');
     let saved = 0, err = null;
     try{
       if(s.cfg.mode==='replace'){
-        // เขียนทับต้องส่งทีเดียวทั้งชุด เพราะฟังก์ชันล้างของเดิมก่อนในทรานแซกชันเดียว
         saved = await rpc('app_import_rows',
           {p_table:s.cfg.table, p_mode:'replace', p_cols:cols, p_rows:s.rows.map(toArr)});
         sentRows += s.rows.length; paint();
@@ -2215,9 +2246,8 @@ async function runImport(){
       sentRows += s.rows.length - (saved||0); paint();
       logLine(`  ✘ ผิดพลาด: ${esc(ex.message)}`,'r');
     }
-
     try{
-      await rpc('app_import_log_add',{ p_file:PARSED.fname, p_sheet:s.name, p_mode:s.cfg.mode,
+      await rpc('app_import_log_add',{ p_file:e.f.fname, p_sheet:s.name, p_mode:s.cfg.mode,
         p_rows_in:s.rows.length, p_rows_saved:saved, p_status: err?'error':'ok',
         p_message: err? String(err.message).slice(0,400) : null });
     }catch(_){}
@@ -2225,14 +2255,15 @@ async function runImport(){
 
   const secs = ((performance.now()-t0)/1000).toFixed(1);
   sentRows = totalRows; paint();
-  logLine(`รวม ${fmt(grandTotal)} แถว ใช้เวลา ${secs} วินาที (${fmt(grandTotal/Math.max(secs,.01),0)} แถว/วินาที)`,'y');
+  logLine(`รวม ${fmt(grandTotal)} แถว ใช้เวลา ${secs} วินาที`,'y');
   clearCache();
 
-  btn.disabled = false;
-  updateImportBtn();
+  btn.disabled = false; updateImportBtn();
+  const nf = new Set(sel.map(x=>x.fi)).size;
   el('impStatus').innerHTML = okAll
-    ? `<div class="msg ok" style="margin-top:13px">นำเข้า ${sheets.length} ชีท รวม ${fmt(grandTotal)} แถว
-       สำเร็จทั้งหมด ใช้เวลา ${secs} วินาที — ไปดูผลได้ที่เมนู Dashboard</div>`
+    ? `<div class="msg ok" style="margin-top:13px">นำเข้า ${nf} ไฟล์ · ${sel.length} ชีท
+       รวม ${fmt(grandTotal)} แถว สำเร็จทั้งหมด ใช้เวลา ${secs} วินาที<br>
+       <span class="sm">เพิ่มไฟล์อื่นต่อได้เลย หรือปิดหน้าต่างนี้แล้วไปดูผลที่เมนู Dashboard</span></div>`
     : `<div class="msg err" style="margin-top:13px">มีบางชีทนำเข้าไม่สำเร็จ ดูรายละเอียดในบันทึกด้านล่าง</div>`;
   loadImportLog();
   loadDataSummary();
