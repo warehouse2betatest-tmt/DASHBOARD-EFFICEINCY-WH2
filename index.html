@@ -233,9 +233,15 @@ tbody tr:last-child td{border-bottom:none}
 .drop:hover .ic{transform:translateY(-5px) scale(1.07)}
 .drop .t{font-weight:500;font-size:16px;margin-bottom:6px;position:relative}
 .drop .h{color:var(--muted);font-size:13px;position:relative}
-.bar{height:9px;background:var(--navy-soft);border-radius:99px;overflow:hidden;margin:14px 0}
-.bar>div{height:100%;width:0;border-radius:99px;transition:width .3s cubic-bezier(.3,.8,.4,1);
+.bar{height:26px;background:var(--navy-soft);border-radius:99px;overflow:hidden;margin:14px 0;
+  position:relative;border:1px solid var(--line)}
+.bar>i{display:block;height:100%;width:0;border-radius:99px;transition:width .25s cubic-bezier(.3,.8,.4,1);
   background:linear-gradient(90deg,var(--navy3),var(--org))}
+.bar>span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:12.5px;font-weight:600;color:var(--navy);letter-spacing:.3px;
+  text-shadow:0 1px 3px rgba(255,255,255,.9)}
+.barInfo{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px;
+  color:var(--muted);font-weight:300;margin-top:-6px;margin-bottom:12px}
 .sm{font-size:12px;color:var(--muted);font-weight:300}
 code{background:var(--navy-soft);color:var(--navy2);padding:2px 7px;border-radius:5px;font-size:12px;
   font-family:ui-monospace,'Cascadia Code',monospace}
@@ -373,7 +379,7 @@ details summary{cursor:pointer;user-select:none}
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-04.14';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-04.16';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -1698,6 +1704,47 @@ function openUpload(){
                       if(e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0])};
 }
 
+/* ป๊อปอัปลบข้อมูลรายชีท — เลือกเฉพาะเดือนได้ ถ้าไม่มีเดือนคือลบทั้งหมด */
+function openDelete(table, sheet, months){
+  const hasMonth = Array.isArray(months) && months.length > 0;
+  openModal(`ลบข้อมูลชีท ${sheet}`, `
+    <div class="msg warn">การลบย้อนกลับไม่ได้ ต้องอัปโหลดไฟล์ใหม่เท่านั้นถึงจะได้ข้อมูลคืน</div>
+    <p class="sm" style="margin-bottom:14px">ตาราง <code>${esc(table)}</code></p>
+    ${hasMonth ? `
+      <div class="fld"><label>เลือกช่วงที่จะลบ</label>
+        <select id="delMonth">
+          <option value="">ทั้งหมดทุกเดือน (${months.length} เดือน)</option>
+          ${months.slice().sort().map(m=>`<option value="${m}">เฉพาะ ${monthLabel(m)}</option>`).join('')}
+        </select></div>`
+      : `<div class="msg info">ชีทนี้ไม่มีคอลัมน์วันที่ จึงลบได้แบบทั้งหมดเท่านั้น</div>`}
+    <div class="fld"><label>พิมพ์คำว่า <b>ลบ</b> เพื่อยืนยัน</label>
+      <input id="delConfirm" placeholder="ลบ" autocomplete="off"></div>
+    <div id="delMsg"></div>
+    <button class="btn" style="background:linear-gradient(135deg,#e03131,#b91c1c);box-shadow:0 5px 16px rgba(224,49,49,.34)"
+      id="delBtn" onclick="doDelete('${esc(table)}','${esc(sheet)}')">ยืนยันลบข้อมูล</button>
+    <button class="btn ghost" style="margin-top:9px" onclick="closeModal()">ยกเลิก</button>`);
+  setTimeout(()=>{ const i = el('delConfirm'); if(i) i.focus(); }, 60);
+}
+
+async function doDelete(table, sheet){
+  if((el('delConfirm')?.value || '').trim() !== 'ลบ'){
+    el('delMsg').innerHTML = '<div class="msg err">กรุณาพิมพ์คำว่า ลบ ให้ตรงเพื่อยืนยัน</div>'; return; }
+  const m = el('delMonth') ? el('delMonth').value : '';
+  const b = el('delBtn'); b.disabled = true; b.textContent = 'กำลังลบ…';
+  try{
+    const r = await rpc('app_delete_data',{p_table:table, p_month:m || null});
+    closeModal();
+    el('preview').innerHTML = `<div class="card anim"><div class="msg ok">
+      ลบข้อมูลชีท <b>${esc(sheet)}</b> ${m?`เฉพาะ ${monthLabel(m)}`:'ทั้งหมด'} เรียบร้อย —
+      ลบไป <b>${fmt(r.deleted)}</b> แถว</div></div>`;
+    clearCache();
+    loadDataSummary();
+    loadImportLog();
+  }catch(ex){
+    el('delMsg').innerHTML = `<div class="msg err">${esc(ex.message)}</div>`;
+  }finally{ b.disabled = false; b.textContent = 'ยืนยันลบข้อมูล'; }
+}
+
 /* สรุปว่าตอนนี้ในระบบมีข้อมูลอะไร กี่แถว กี่เดือน ช่วงไหน */
 async function loadDataSummary(){
   let S;
@@ -1724,6 +1771,8 @@ async function loadDataSummary(){
       <td class="sm">${has?`${esc(x.from)} ถึง ${esc(x.to)}`:'—'}</td>
       <td class="sm">${nice(x.imported_at)}</td>
       <td>${has?'<span class="pill g">มีข้อมูล</span>':'<span class="pill n">ยังไม่มี</span>'}</td>
+      <td>${has?`<button class="fbtn red" style="padding:5px 12px;font-size:12px"
+        onclick="openDelete('${esc(x.table)}','${esc(x.sheet)}',${JSON.stringify(x.month_list||[]).replace(/"/g,'&quot;')})">ลบข้อมูล</button>`:'—'}</td>
     </tr>`;
   }).join('');
 
@@ -1738,6 +1787,8 @@ async function loadDataSummary(){
         ? ` <span class="pill o">ซ้ำ ${fmt(+x.rows - +x.uniq)}</span>` : ''}</td>
       <td class="sm">${nice(x.imported_at)}</td>
       <td>${has?'<span class="pill g">มีข้อมูล</span>':'<span class="pill n">ยังไม่มี</span>'}</td>
+      <td>${has?`<button class="fbtn red" style="padding:5px 12px;font-size:12px"
+        onclick="openDelete('${esc(x.table)}','${esc(x.sheet)}',[])">ลบข้อมูล</button>`:'—'}</td>
     </tr>`;
   }).join('');
 
@@ -1760,13 +1811,13 @@ async function loadDataSummary(){
   <p class="sm" style="margin:0 0 8px"><b>ข้อมูลรายการ (สะสมต่อเนื่อง)</b></p>
   <div class="tw" style="max-height:none"><table><thead><tr>
     <th>ชีท</th><th>ตาราง</th><th class="num">จำนวนแถว</th><th class="num">กี่เดือน</th>
-    <th>ช่วงเดือน</th><th class="num">กี่วัน</th><th>ช่วงวันที่</th><th>นำเข้าล่าสุด</th><th>สถานะ</th>
+    <th>ช่วงเดือน</th><th class="num">กี่วัน</th><th>ช่วงวันที่</th><th>นำเข้าล่าสุด</th><th>สถานะ</th><th>จัดการ</th>
   </tr></thead><tbody>${txRows}</tbody></table></div>
 
   <p class="sm" style="margin:16px 0 8px"><b>ข้อมูลทะเบียน (เขียนทับทั้งชุด)</b></p>
   <div class="tw" style="max-height:none"><table><thead><tr>
     <th>ชีท</th><th>ตาราง</th><th class="num">จำนวนแถว</th><th class="num">ไม่ซ้ำ</th>
-    <th>นับจาก</th><th>นำเข้าล่าสุด</th><th>สถานะ</th>
+    <th>นับจาก</th><th>นำเข้าล่าสุด</th><th>สถานะ</th><th>จัดการ</th>
   </tr></thead><tbody>${msRows}</tbody></table></div>
 
   <button class="fbtn alt" style="margin-top:14px" onclick="loadDataSummary()">↻ อัปเดตตัวเลข</button>`;
@@ -1780,7 +1831,9 @@ async function loadImportLog(){
   el('impLog').innerHTML = tableHTML([
     {h:'เวลา',k:'created_at',f:r=>new Date(r.created_at).toLocaleString('th-TH')},
     {h:'โดย',k:'by_emp'},{h:'ไฟล์',k:'file_name'},{h:'ชีท',k:'sheet_name'},
-    {h:'โหมด',k:'mode',raw:1,f:r=>`<span class="pill ${r.mode==='replace'?'o':'b'}">${r.mode==='replace'?'เขียนทับ':'สะสม'}</span>`},
+    {h:'โหมด',k:'mode',raw:1,f:r=>{
+      const m = {replace:['o','เขียนทับ'], upsert:['b','สะสม'], delete:['r','ลบข้อมูล']}[r.mode] || ['n', r.mode];
+      return `<span class="pill ${m[0]}">${esc(m[1])}</span>`; }},
     {h:'อ่านได้',k:'rows_in',n:1,f:r=>fmt(r.rows_in)},
     {h:'บันทึก',k:'rows_saved',n:1,f:r=>fmt(r.rows_saved)},
     {h:'สถานะ',k:'status',raw:1,f:r=>`<span class="pill ${r.status==='ok'?'g':'r'}">${r.status==='ok'?'สำเร็จ':'ผิดพลาด'}</span>`},
@@ -2045,7 +2098,10 @@ function renderPreview(warn){
     </tr></thead><tbody>${rowsHTML}</tbody></table></div>
     ${skipDetail?`<div class="msg warn" style="margin-top:13px">${skipDetail}</div>`:''}
     ${hdrCheck}
-    <div class="bar" id="impBarWrap" style="display:none"><div id="impBar"></div></div>
+    <div id="impBarWrap" style="display:none">
+      <div class="bar"><i id="impBar"></i><span id="impPct">0%</span></div>
+      <div class="barInfo"><span id="impLeft">—</span><span id="impRight">—</span></div>
+    </div>
     <div id="impStatus"></div>
     <button class="btn" id="impBtn" style="margin-top:15px" onclick="runImport()"></button>
     <div class="log hide" id="impLogBox" style="margin-top:15px"></div>
@@ -2100,43 +2156,65 @@ async function runImport(){
   el('impBarWrap').style.display = 'block';
   el('impLogBox').innerHTML = '';
 
-  /* ปรับความเร็ว: ก้อนละ 2,500 แถว และยิงพร้อมกันทีละ 4 ก้อน
-     40,000 แถว = 16 ก้อน → 4 รอบ แทนที่จะเป็น 40 รอบเรียงทีละอัน */
-  const CHUNK = 2500, PARALLEL = 4;
+  /* ส่งข้อมูลแบบ "ตาราง" — ชื่อคอลัมน์ส่งครั้งเดียว ค่าเป็นอาเรย์ต่อแถว
+     ลดขนาดที่ต้องอัปโหลดได้ราวครึ่งหนึ่งเทียบกับส่งเป็น object ทุกแถว */
+  const CHUNK = 4000;          // ก้อนใหญ่ขึ้น = ยิงน้อยรอบ (ฐานข้อมูลใช้ ~80 ms ต่อ 2,500 แถว)
+  const PARALLEL = 5;          // ยิงพร้อมกัน 5 ก้อน (เบราว์เซอร์เปิดได้ 6 ต่อโดเมน)
+
+  const totalRows = sheets.reduce((a,x)=>a+x.rows.length,0);
+  let sentRows = 0, okAll = true, grandTotal = 0;
   const t0 = performance.now();
-  let doneUnits = 0, okAll = true, grandTotal = 0;
-  const totalUnits = sheets.reduce((s,x)=>s+Math.max(1,Math.ceil(x.rows.length/CHUNK)),0);
-  const tick = ()=>{ el('impBar').style.width = Math.round(doneUnits/totalUnits*100)+'%'; };
+
+  const paint = ()=>{
+    const pct = totalRows ? Math.min(100, Math.round(sentRows/totalRows*100)) : 100;
+    const sec = (performance.now()-t0)/1000;
+    const rate = sec > 0.2 ? sentRows/sec : 0;
+    const left = rate > 0 ? Math.max(0,(totalRows-sentRows)/rate) : null;
+    el('impBar').style.width = pct+'%';
+    el('impPct').textContent = pct+'%';
+    el('impLeft').textContent  = `${fmt(sentRows)} / ${fmt(totalRows)} แถว`;
+    el('impRight').textContent = rate ? `${fmt(rate,0)} แถว/วินาที · ใช้ไป ${sec.toFixed(1)} วิ` +
+        (left!=null && pct<100 ? ` · เหลืออีก ~${left.toFixed(1)} วิ` : '') : 'กำลังเริ่ม…';
+  };
+  paint();
 
   for(const s of sheets){
     const t1 = performance.now();
-    logLine(`▶ ${s.name} → ${s.cfg.table} (${fmt(s.rows.length)} แถว, ${s.cfg.mode==='replace'?'เขียนทับ':'สะสม'})`,'y');
+    // คอลัมน์ที่จับคู่ได้จริงในไฟล์นี้เท่านั้น
+    const cols = s.cfg.cols
+      .map((c,ci)=>({field:c[1], src:s.map ? s.map.idx[ci] : ci}))
+      .filter(x=>x.field !== null && x.src !== null)
+      .map(x=>x.field);
+    const toArr = r => cols.map(c => r[c] === undefined ? null : r[c]);
+
+    logLine(`▶ ${s.name} → ${s.cfg.table} (${fmt(s.rows.length)} แถว, ${s.cfg.mode==='replace'?'เขียนทับ':'สะสม'}, ${cols.length} คอลัมน์)`,'y');
     let saved = 0, err = null;
     try{
       if(s.cfg.mode==='replace'){
         // เขียนทับต้องส่งทีเดียวทั้งชุด เพราะฟังก์ชันล้างของเดิมก่อนในทรานแซกชันเดียว
-        saved = await rpc('app_import_replace',{p_table:s.cfg.table, p_rows:s.rows});
-        doneUnits++; tick();
+        saved = await rpc('app_import_rows',
+          {p_table:s.cfg.table, p_mode:'replace', p_cols:cols, p_rows:s.rows.map(toArr)});
+        sentRows += s.rows.length; paint();
       }else{
         const chunks = [];
         for(let i=0;i<s.rows.length;i+=CHUNK) chunks.push(s.rows.slice(i,i+CHUNK));
         for(let i=0;i<chunks.length;i+=PARALLEL){
           const batch = chunks.slice(i,i+PARALLEL);
-          const res = await Promise.all(batch.map(c=>
-            rpc('app_import_upsert',{p_table:s.cfg.table, p_rows:c})));
-          res.forEach(n=>{ saved += (n||0); doneUnits++; });
-          tick();
-          logLine(`  … ${fmt(saved)}/${fmt(s.rows.length)} แถว`);
+          const res = await Promise.all(batch.map(ch=>
+            rpc('app_import_rows',
+              {p_table:s.cfg.table, p_mode:'upsert', p_cols:cols, p_rows:ch.map(toArr)})));
+          res.forEach((n,bi)=>{ saved += (n||0); sentRows += batch[bi].length; });
+          paint();
         }
-        if(!chunks.length){ doneUnits++; tick(); }
       }
       grandTotal += saved;
-      logLine(`  ✔ บันทึก ${fmt(saved)} แถว ใน ${((performance.now()-t1)/1000).toFixed(1)} วิ`,'g');
+      const sec1 = (performance.now()-t1)/1000;
+      logLine(`  ✔ บันทึก ${fmt(saved)} แถว ใน ${sec1.toFixed(1)} วิ (${fmt(saved/Math.max(sec1,.01),0)} แถว/วินาที)`,'g');
     }catch(ex){
       okAll = false; err = ex;
+      sentRows += s.rows.length - (saved||0); paint();
       logLine(`  ✘ ผิดพลาด: ${esc(ex.message)}`,'r');
     }
-    tick();
 
     try{
       await rpc('app_import_log_add',{ p_file:PARSED.fname, p_sheet:s.name, p_mode:s.cfg.mode,
@@ -2146,9 +2224,10 @@ async function runImport(){
   }
 
   const secs = ((performance.now()-t0)/1000).toFixed(1);
-  logLine(`รวม ${fmt(grandTotal)} แถว ใช้เวลา ${secs} วินาที`,'y');
-  clearCache();                       // ล้างแคช dashboard จะได้เห็นข้อมูลใหม่ทันที
-  el('impBar').style.width = '100%';
+  sentRows = totalRows; paint();
+  logLine(`รวม ${fmt(grandTotal)} แถว ใช้เวลา ${secs} วินาที (${fmt(grandTotal/Math.max(secs,.01),0)} แถว/วินาที)`,'y');
+  clearCache();
+
   btn.disabled = false;
   updateImportBtn();
   el('impStatus').innerHTML = okAll
@@ -2156,8 +2235,8 @@ async function runImport(){
        สำเร็จทั้งหมด ใช้เวลา ${secs} วินาที — ไปดูผลได้ที่เมนู Dashboard</div>`
     : `<div class="msg err" style="margin-top:13px">มีบางชีทนำเข้าไม่สำเร็จ ดูรายละเอียดในบันทึกด้านล่าง</div>`;
   loadImportLog();
-  loadDataSummary();                  // อัปเดตสรุปข้อมูลในระบบให้ตรงกับของใหม่
-  scanExisting();                     // อัปเดตคอลัมน์ "สถานะในระบบ"
+  loadDataSummary();
+  scanExisting();
 }
 
 /* =========================================================================
