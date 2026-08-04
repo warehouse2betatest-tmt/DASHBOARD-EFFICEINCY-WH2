@@ -379,7 +379,7 @@ details summary{cursor:pointer;user-select:none}
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-04.20';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-04.21';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -1716,11 +1716,43 @@ function openUpload(){
                       if(e.dataTransfer.files.length) readFiles(e.dataTransfer.files)};
 }
 
-/* อ่านหลายไฟล์เรียงกัน แล้วต่อท้ายรายการเดิม
-   หมายเหตุ: SheetJS แกะไฟล์แบบ synchronous จะบล็อกหน้าจอระหว่างทำงาน
-   จึงต้องคืนคิวให้เบราว์เซอร์วาดข้อความก่อนเริ่มแต่ละไฟล์ ไม่งั้นจะดูเหมือนค้าง */
-const yieldUI = () => new Promise(r=>setTimeout(r,16));
+/* อ่านหลายไฟล์เรียงกัน พร้อมหลอด % บอกความคืบหน้า
+   SheetJS แกะไฟล์แบบ synchronous จึงบล็อกหน้าจอ ต้องคืนคิวให้เบราว์เซอร์เป็นระยะ
+   ไม่งั้นหลอดจะไม่ขยับและดูเหมือนค้าง
+   แบ่งความคืบหน้าต่อไฟล์เป็น 3 ช่วง
+     0–25%  อ่านไบต์จากดิสก์ (รู้ % จริงจาก FileReader)
+    25–55%  แกะโครงสร้างไฟล์ (SheetJS ไม่บอกความคืบหน้า จึงกระโดด)
+    55–100% แปลงข้อมูลรายชีท (รู้ % จริงจากจำนวนแถว) */
+const yieldUI = () => new Promise(r=>setTimeout(r,0));
 const MB = b => (b/1048576).toFixed(1)+' MB';
+
+function readProgressUI(){
+  el('mPreview').innerHTML = `
+    <div style="border-top:1px solid var(--line);margin:16px 0 14px"></div>
+    <div class="bar"><i id="rdBar"></i><span id="rdPct">0%</span></div>
+    <div class="barInfo"><span id="rdLeft">กำลังเริ่ม…</span><span id="rdRight"></span></div>
+    <p class="sm" style="text-align:center;margin-top:4px">
+      ระหว่างแกะไฟล์ หน้าจออาจนิ่งเป็นช่วงๆ ถือว่าปกติ</p>`;
+}
+function setRead(pct, left, right){
+  const b=el('rdBar'), p=el('rdPct'), l=el('rdLeft'), r=el('rdRight');
+  if(!b) return;
+  const v = Math.max(0, Math.min(100, Math.round(pct)));
+  b.style.width = v+'%'; p.textContent = v+'%';
+  if(left  != null) l.innerHTML = left;
+  if(right != null) r.textContent = right;
+}
+
+/* อ่านไบต์พร้อมรายงานความคืบหน้าจริง */
+function readBytes(file, onProg){
+  return new Promise((resolve,reject)=>{
+    const fr = new FileReader();
+    fr.onprogress = e=>{ if(e.lengthComputable) onProg(e.loaded/e.total); };
+    fr.onload  = ()=>resolve(new Uint8Array(fr.result));
+    fr.onerror = ()=>reject(fr.error || new Error('อ่านไฟล์ไม่สำเร็จ'));
+    fr.readAsArrayBuffer(file);
+  });
+}
 
 async function readFiles(fileList){
   const files = [...fileList].filter(f=>/\.xlsx?$/i.test(f.name));
@@ -1729,22 +1761,40 @@ async function readFiles(fileList){
   const big = files.filter(f=>f.size > 30*1048576);
   if(big.length && !confirm(
       `ไฟล์ ${big.map(f=>f.name+' ('+MB(f.size)+')').join(', ')} มีขนาดใหญ่มาก\n`+
-      `การแกะไฟล์อาจใช้เวลาหลายสิบวินาที และหน้าจอจะไม่ตอบสนองระหว่างนั้น\n\nดำเนินการต่อ?`)) return;
+      `การแกะไฟล์อาจใช้เวลาหลายสิบวินาที และหน้าจอจะไม่ตอบสนองเป็นช่วงๆ\n\nดำเนินการต่อ?`)) return;
 
-  const box = el('mPreview');
+  readProgressUI();
+  const t00 = performance.now();
+  const totalBytes = files.reduce((a,f)=>a+f.size,0);
+  let doneBytes = 0;
+
   for(let i=0;i<files.length;i++){
     const f = files[i];
-    if(PARSED.files.some(x=>x.fname === f.name)) continue;   // ไฟล์ชื่อซ้ำ ไม่อ่านซ้ำ
-    box.innerHTML = `<div class="spin"></div>
-      <p class="sm" style="text-align:center">กำลังแกะไฟล์ ${i+1}/${files.length}<br>
-        <b>${esc(f.name)}</b> · ${MB(f.size)}<br>
-        <span style="color:var(--muted)">ไฟล์ใหญ่อาจใช้เวลาสักครู่ หน้าจอจะนิ่งชั่วคราว</span></p>`;
+    if(PARSED.files.some(x=>x.fname === f.name)){ doneBytes += f.size; continue; }
+
+    // ความคืบหน้ารวม = ไฟล์ที่เสร็จแล้ว + สัดส่วนของไฟล์ปัจจุบัน ถ่วงด้วยขนาดไฟล์
+    const bump = (frac, note)=>{
+      const overall = (doneBytes + f.size*frac) / Math.max(totalBytes,1) * 100;
+      const sec = (performance.now()-t00)/1000;
+      setRead(overall,
+        `ไฟล์ ${i+1}/${files.length} · <b>${esc(f.name)}</b> · ${MB(f.size)}<br>${note}`,
+        `ใช้ไป ${sec.toFixed(1)} วิ`);
+    };
+
+    bump(0, 'กำลังอ่านไฟล์จากเครื่อง…');
     await yieldUI();
     const t0 = performance.now();
     try{
-      const buf = await f.arrayBuffer();
-      const wb  = XLSX.read(new Uint8Array(buf),{type:'array',cellDates:true});
-      const ent = parseWB(wb, f.name);
+      const bytes = await readBytes(f, r=> bump(r*0.25, `กำลังอ่านไฟล์จากเครื่อง… ${Math.round(r*100)}%`));
+      bump(0.25, 'กำลังแกะโครงสร้างไฟล์ (ขั้นนี้หน้าจอจะนิ่ง)');
+      await yieldUI();
+
+      const wb = XLSX.read(bytes, {type:'array', cellDates:true});
+      bump(0.55, 'กำลังแปลงข้อมูล…');
+      await yieldUI();
+
+      const ent = await parseWB(wb, f.name,
+        (frac, note)=> bump(0.55 + frac*0.45, note));
       ent.readMs = Math.round(performance.now()-t0);
       ent.size   = f.size;
       PARSED.files.push(ent);
@@ -1752,8 +1802,13 @@ async function readFiles(fileList){
       PARSED.files.push({fname:f.name, out:[], size:f.size,
         warn:[`อ่านไฟล์ไม่สำเร็จ: ${esc(err.message)}`], failed:true});
     }
+    doneBytes += f.size;
+    bump(1, 'เสร็จแล้ว');
     await yieldUI();
   }
+
+  setRead(100, 'อ่านครบทุกไฟล์แล้ว', `รวม ${((performance.now()-t00)/1000).toFixed(1)} วินาที`);
+  await yieldUI();
   renderPreview();
   scanExisting();
 }
@@ -1764,11 +1819,15 @@ function removeFile(i){
   if(PARSED.files.length) scanExisting();
 }
 
-function parseWB(wb, fname){
+async function parseWB(wb, fname, onProg){
   const out = [], warn = [];
-  for(const [name,cfg] of Object.entries(SHEETS)){
-    const ws = wb.Sheets[name];
-    if(!ws) continue;                       // ไม่มีชีทนี้ในไฟล์ ก็แค่ข้าม ไม่ต้องเตือน
+  const names = Object.keys(SHEETS).filter(n=>wb.Sheets[n]);
+  const rep = onProg || (()=>{});
+  for(let si=0; si<names.length; si++){
+    const name = names[si], cfg = SHEETS[name], ws = wb.Sheets[name];
+    const base = si/names.length, span = 1/names.length;
+    rep(base, `กำลังอ่านชีท <b>${esc(name)}</b> (${si+1}/${names.length})`);
+    await yieldUI();
     const aoa = XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:null,blankrows:false,rawNumbers:true});
     if(!aoa.length){ warn.push(`ชีท <code>${esc(name)}</code> ว่างเปล่า`); continue; }
 
@@ -1783,8 +1842,13 @@ function parseWB(wb, fname){
     });
 
     const rows = [], skipped = [];
-    const nc = cfg.cols.length;
-    if(!reqMissing.length) for(let i=1;i<aoa.length;i++){
+    const nc = cfg.cols.length, nr = aoa.length;
+    if(!reqMissing.length) for(let i=1;i<nr;i++){
+      // ทุก 8,192 แถว คืนคิวให้เบราว์เซอร์วาดหลอด ไม่งั้นจะดูเหมือนค้าง
+      if((i & 8191) === 0){
+        rep(base + span*(i/nr), `ชีท <b>${esc(name)}</b> — แปลงแล้ว ${fmt(i)} / ${fmt(nr-1)} แถว`);
+        await yieldUI();
+      }
       const raw = aoa[i]||[];
       if(raw.every(v=>v===null||v==='')) continue;
       const o = {};
@@ -1809,7 +1873,8 @@ function parseWB(wb, fname){
         if(seen.has(k)) dupInFile++; seen.set(k,r); });
       if(dupInFile){ rows.length = 0; rows.push(...seen.values()); }
     }
-    out.push({name,cfg,hdr,rows,skipped,dupInFile,total:aoa.length-1,scan:null,map,reqMissing});
+    out.push({name,cfg,hdr,rows,skipped,dupInFile,total:nr-1,scan:null,map,reqMissing});
+    rep(base+span, `ชีท <b>${esc(name)}</b> เสร็จแล้ว · ${fmt(rows.length)} แถว`);
   }
   if(!out.length) warn.push('ไม่พบชีทที่ระบบรู้จักในไฟล์นี้');
   return {fname, out, warn};
