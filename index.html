@@ -135,6 +135,18 @@ main{flex:1;margin-left:256px;padding:24px 26px;max-width:100%;overflow-x:hidden
 .topbar h1 .ac{color:var(--org)}
 .topbar p{color:var(--muted);font-size:12.5px;font-weight:300}
 
+/* หัวข้อ Part ใหญ่ของหน้า */
+.sect{display:flex;align-items:center;gap:13px;margin:26px 0 15px;animation:fadeUp .4s both}
+.sect:first-of-type{margin-top:4px}
+.sect .no{width:34px;height:34px;border-radius:10px;flex:none;display:flex;align-items:center;
+  justify-content:center;color:#fff;font-weight:600;font-size:14px;
+  background:linear-gradient(135deg,var(--navy2),var(--navy));box-shadow:0 4px 12px rgba(11,36,71,.24)}
+.sect.o .no{background:linear-gradient(135deg,var(--org),#ff5f00);box-shadow:0 4px 12px rgba(255,122,24,.32)}
+.sect h2{font-size:17px;font-weight:600;letter-spacing:-.2px;line-height:1.2}
+.sect p{font-size:12px;color:var(--muted);font-weight:300}
+.sect .ln{flex:1;height:2px;border-radius:2px;
+  background:linear-gradient(90deg,var(--line),transparent)}
+
 .card{background:var(--card);border-radius:var(--r);padding:20px;box-shadow:var(--sh);margin-bottom:17px;
   border:1px solid var(--line);transition:.24s}
 .card:hover{box-shadow:var(--sh2)}
@@ -324,7 +336,7 @@ details summary{cursor:pointer;user-select:none}
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-04.3';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-04.4';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -777,10 +789,10 @@ function countUp(){
   });
 }
 
-function chart(id,type,labels,datasets,opts={}){
+function chart(id,type,labels,datasets,opts={},plugins=[]){
   const cv = el(id); if(!cv) return;
   if(CHARTS[id]) CHARTS[id].destroy();
-  CHARTS[id] = new Chart(cv,{ type, data:{labels,datasets},
+  CHARTS[id] = new Chart(cv,{ type, data:{labels,datasets}, plugins,
     options:Object.assign({
       responsive:true, maintainAspectRatio:false,
       animation:{duration:750,easing:'easeOutQuart'},
@@ -964,11 +976,10 @@ function errCard(m){ return `<div class="card anim"><div class="msg err">โห�
    แสดงข้อมูลทั้งหมด ไม่มีตัวกรองวันที่
    ========================================================================= */
 async function pageFG(){
-  /* รวมยอดที่ฐานข้อมูล ส่งกลับเฉพาะผลสรุป (~90 KB) แทนข้อมูลดิบหลายสิบ MB
+  /* รวมยอดที่ฐานข้อมูล ส่งกลับเฉพาะผลสรุป
      ทิศทาง Inbound/Outbound แยกจากคอลัมน์ Shipment type ของชีท FG
-       Z001 จัดส่งให้ลูกค้า / ลูกค้ามารับเอง = Outbound
-       Z005 รับสินค้าเข้า · Z006 รับสินค้าเข้า จาก PO = Inbound
-     น้ำหนักทั้งหมดคิดเป็น "ตัน" */
+     น้ำหนักคิดเป็น "ตัน" · จำนวนคัน = นับ Shipment ไม่ซ้ำ
+     เวลาเลิกงานรายวัน = เวลาช้าที่สุดของวันนั้น (รวมทุกโรง) · Target 20:30 */
   const slocs = FILTERS.factory
       ? Object.keys(SLOC_TO_FACTORY).filter(k=>SLOC_TO_FACTORY[k]===FILTERS.factory)
       : null;
@@ -981,7 +992,7 @@ async function pageFG(){
         p_shty : FILTERS.shty || null }); }
   catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
 
-  const K = R.kpi, rows = R.rows || [], tm = R.tm_list || [];
+  const K = R.kpi, tm = R.tm_list || [];
   const bar = filterBarAgg(R, 'pageFG');
   if(!(+K.rows) && !(+K.tm_rows)){
     body(bar + emptyBox(FILTERS.month||FILTERS.factory||FILTERS.shty
@@ -990,47 +1001,72 @@ async function pageFG(){
   }
 
   const ton=+K.ton, tonOut=+K.ton_out, tonIn=+K.ton_in;
-  const qtyOut=+K.qty_out, qtyIn=+K.qty_in;
   const nRows=+K.rows, rowsOut=+K.rows_out, rowsIn=+K.rows_in;
   const nShip=+K.shipments, shipOut=+K.ship_out, shipIn=+K.ship_in;
   const nDel=+K.deliveries, nSku=+K.skus, noCust=+K.no_cust;
-  const nTm=+K.tm_rows, nFac=+K.factories, avgOut=K.avg_out_hours;
-  const netTon = tonIn - tonOut;
+  const nTm=+K.tm_rows, nFac=+K.factories, workDays=+K.work_days;
   const tonPerShip = nShip ? ton/nShip : null;
+
+  const peakTon=K.peak_ton==null?null:+K.peak_ton, peakDate=K.peak_date, peakTrucks=+K.peak_trucks;
+  const lateH=K.latest_h==null?null:+K.latest_h, lateDate=K.latest_date, lateFac=K.latest_fac;
+  const avgMaxH=K.avg_max_h==null?null:+K.avg_max_h;
+  const daysOver=+K.days_over_target, daysTime=+K.days_with_time;
+  const TARGET_H = 20.5;                                   // Target เลิกงาน 20:30
+
+  /* แปลงชั่วโมงทศนิยมเป็น HH:MM */
+  const hhmm = h => { if(h==null||isNaN(h)) return '—';
+    const t=Math.round(h*60); return pad(Math.floor(t/60))+':'+pad(t%60); };
 
   const kv = a => (a||[]).map(x=>[x.k, +x.v]);
   const byDir=kv(R.by_direction), byShty=kv(R.by_shty), byGrp=kv(R.by_group),
         byCust=kv(R.by_customer), bySloc=kv(R.by_sloc), byName=kv(R.top_customer),
-        bySku=kv(R.top_sku), facHours=kv(R.fac_hours), facDays=kv(R.fac_days);
+        bySku=kv(R.top_sku), facHours=kv(R.fac_hours);
 
-  const TL = R.timeline || [];
+  const TL     = R.timeline || [];
   const dates  = TL.map(x=>x.d);
-  const outTon = TL.map(x=>+x.o);
-  const inTon  = TL.map(x=>+x.i);
-
-  const hhmm = h => h==null ? '—' : (Math.floor(h)+':'+pad(Math.round((h%1)*60)));
+  const tonArr = TL.map(x=>+x.t);
+  const truckArr = TL.map(x=>+x.c);
+  const outHArr  = TL.map(x=>x.h==null?null:+x.h);
+  const hasTime  = outHArr.some(v=>v!=null);
 
   body(bar + `
   <!-- ภาพรวม -->
   <div class="kpis">
     <div class="kpi o anim d1"><div class="k">น้ำหนักรวม</div><div class="v">${fmt(ton,1)}</div>
-      <div class="s">ตัน · เฉลี่ย ${tonPerShip==null?'—':fmt(tonPerShip,2)} ตัน/Shipment</div></div>
+      <div class="s">ตัน · เฉลี่ย ${tonPerShip==null?'—':fmt(tonPerShip,2)} ตัน/คัน</div></div>
     <div class="kpi anim d2"><div class="k">จ่ายออก Outbound</div><div class="v">${fmt(tonOut,1)}</div>
-      <div class="s">ตัน · ${fmt(shipOut)} Shipment · ${fmt(rowsOut)} รายการ</div></div>
+      <div class="s">ตัน · ${fmt(shipOut)} คัน · ${fmt(rowsOut)} รายการ</div></div>
     <div class="kpi g anim d3"><div class="k">รับเข้า Inbound</div><div class="v">${fmt(tonIn,1)}</div>
-      <div class="s">ตัน · ${fmt(shipIn)} Shipment · ${fmt(rowsIn)} รายการ</div></div>
-    <div class="kpi ${netTon>=0?'g':'o'} anim d4"><div class="k">สุทธิ รับเข้า − จ่ายออก</div>
-      <div class="v">${fmt(netTon,1)}</div><div class="s">ตัน</div></div>
-    <div class="kpi anim d5"><div class="k">Shipment / Delivery</div><div class="v">${fmt(nShip)}</div>
+      <div class="s">ตัน · ${fmt(shipIn)} คัน · ${fmt(rowsIn)} รายการ</div></div>
+    <div class="kpi anim d4"><div class="k">จำนวนคันรวม</div><div class="v">${fmt(nShip)}</div>
       <div class="s">${fmt(nDel)} Delivery · ${fmt(nSku)} รหัสสินค้า</div></div>
-    <div class="kpi ${noCust?'r':'g'} anim d6"><div class="k">ไม่พบในทะเบียนลูกค้า</div>
+    <div class="kpi ${noCust?'r':'g'} anim d5"><div class="k">ไม่พบในทะเบียนลูกค้า</div>
       <div class="v">${fmt(noCust)}</div>
       <div class="s">${(noCust/Math.max(nRows,1)*100).toFixed(1)}% ของ ${fmt(nRows)} รายการ</div></div>
   </div>
 
-  <!-- ไทม์ไลน์ -->
-  <div class="card anim d3"><h3>รับเข้า / จ่ายออก รายวัน (ตัน)</h3>
-    <div class="chartbox" style="height:290px"><canvas id="f0"></canvas></div></div>
+  <!-- Loading Analysis -->
+  <div class="card anim d3">
+    <h3>Loading Analysis</h3>
+    <div class="kpis" style="margin-bottom:16px">
+      <div class="kpi o"><div class="k">Peak Daily Weight</div>
+        <div class="v">${peakTon==null?'—':fmt(peakTon,1)}</div>
+        <div class="s">ตัน${peakDate?` · ${esc(peakDate)} · ${fmt(peakTrucks)} คัน`:''}</div></div>
+      <div class="kpi ${lateH!=null && lateH>TARGET_H ? 'r':'g'}"><div class="k">Latest Time Out</div>
+        <div class="v">${hhmm(lateH)}</div>
+        <div class="s">${lateDate?`${esc(lateDate)}${lateFac?' · '+esc(lateFac):''}`:'ยังไม่มีข้อมูล'}</div></div>
+      <div class="kpi ${avgMaxH!=null && avgMaxH>TARGET_H ? 'r':'g'}"><div class="k">Average Max Time</div>
+        <div class="v">${hhmm(avgMaxH)}</div>
+        <div class="s">เฉลี่ยเวลาช้าสุดของแต่ละวัน · ${fmt(daysTime)} วัน</div></div>
+      <div class="kpi ${daysOver?'r':'g'}"><div class="k">วันที่เกิน Target 20:30</div>
+        <div class="v">${fmt(daysOver)}</div>
+        <div class="s">จาก ${fmt(daysTime)} วันที่มีข้อมูลเวลา</div></div>
+    </div>
+    <div class="chartbox" style="height:360px"><canvas id="f0"></canvas></div>
+    <p class="sm" style="margin-top:10px">แท่ง = น้ำหนักรายวัน (ตัน, แกนซ้าย) ตัวเลขบนแท่งคือ ตัน / จำนวนคัน ·
+      เส้นทึบ = เวลาเลิกงานช้าสุดของวัน (แกนขวา) · เส้นประแดง = Target 20:30 ·
+      รวม ${fmt(workDays)} วันทำงาน</p>
+  </div>
 
   <div class="grid3">
     <div class="card anim d4"><h3>น้ำหนักตามประเภทการส่ง (ตัน)</h3>
@@ -1049,30 +1085,11 @@ async function pageFG(){
   </div>
   <div class="grid2">
     <div class="card anim d6"><h3>น้ำหนักตาม Storage Location (ตัน)</h3><div class="chartbox"><canvas id="f7"></canvas></div></div>
-    <div class="card anim d6"><h3>เวลาเลิกงานเฉลี่ยรายโรง (ชั่วโมง)</h3>
+    <div class="card anim d6"><h3>เวลาเลิกงานเฉลี่ยรายโรง</h3>
       <div class="chartbox"><canvas id="f8"></canvas></div>
-      <p class="sm" style="margin-top:10px">${nTm? `${fmt(nTm)} บันทึก · ${fmt(nFac)} โรง · เฉลี่ยรวม ${hhmm(avgOut)} น.`
+      <p class="sm" style="margin-top:10px">${nTm? `${fmt(nTm)} บันทึก · ${fmt(nFac)} โรง`
         : 'ยังไม่มีข้อมูลชีท Timeout'}</p></div>
   </div>
-
-  <div class="card anim d6"><h3>รายการ FG</h3>
-    <p class="sm" style="margin-bottom:11px">แสดง 200 รายการล่าสุดจากทั้งหมด ${fmt(nRows)} รายการ —
-      ตัวเลขสรุปและกราฟด้านบนคำนวณจากข้อมูลครบทุกแถว</p>` + tableHTML([
-    {h:'วันที่',k:'load_date'},
-    {h:'ทิศทาง',k:'direction',raw:1,
-     f:r=>`<span class="pill ${r.direction==='Inbound'?'g':'o'}">${esc(r.direction)}</span>`},
-    {h:'ประเภทการส่ง',k:'shipment_type'},
-    {h:'Shipment',k:'shipment'},{h:'Delivery',k:'delivery'},{h:'Item',k:'item'},
-    {h:'รหัสสินค้า',k:'material_code'},
-    {h:'รายละเอียด',k:'description',f:r=>(r.description||'').slice(0,38)},
-    {h:'กลุ่มสินค้า',k:'group_product'},
-    {h:'ปริมาณ',k:'delivery_qty',n:1,f:r=>fmt(r.delivery_qty)},
-    {h:'น้ำหนัก (ตัน)',k:'weight_ton',n:1,f:r=>fmt(r.weight_ton,3)},
-    {h:'ลูกค้า',k:'sold_to_name',f:r=>(r.sold_to_name||'').slice(0,26)},
-    {h:'กลุ่มลูกค้า',k:'customer_group',raw:1,
-     f:r=>`<span class="pill ${r.customer_group==='ไม่พบในทะเบียนลูกค้า'?'r':'b'}">${esc(r.customer_group)}</span>`},
-    {h:'Sloc',k:'storage_location'}
-  ],rows) + `</div>
 
   <div class="card anim d6"><h3>เวลาเลิกงานรายโรง (Timeout)</h3>` + tableHTML([
     {h:'วันที่',k:'work_date'},
@@ -1087,10 +1104,70 @@ async function pageFG(){
                        ticks:axisFont},
                     x:{grid:{display:false},ticks:axisFont}};
 
-  chart('f0','bar',dates,[
-    {label:'จ่ายออก Outbound',data:outTon,backgroundColor:'#ff7a18',borderRadius:6,maxBarThickness:34},
-    {label:'รับเข้า Inbound', data:inTon, backgroundColor:'#0b2447',borderRadius:6,maxBarThickness:34}
-  ], {scales:tonScale});
+  /* ปลั๊กอินเล็กๆ เขียนตัวเลข ตัน/คัน ไว้บนหัวแท่ง */
+  const barLabels = {
+    id:'barLabels',
+    afterDatasetsDraw(c){
+      const ds = c.data.datasets[0];
+      if(!ds || ds.type === 'line') return;
+      const meta = c.getDatasetMeta(0);
+      const ctx = c.ctx, n = meta.data.length;
+      const step = n > 34 ? 3 : n > 20 ? 2 : 1;      // ถ้าวันเยอะเกินไปให้เว้นบ้าง กันตัวเลขทับกัน
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#0b2447';
+      ctx.font = '500 9.5px Kanit';
+      meta.data.forEach((el,i)=>{
+        if(i % step) return;
+        const t = ds.data[i];
+        if(t==null) return;
+        ctx.fillText(Number(t).toLocaleString('th-TH',{maximumFractionDigits:0}), el.x, el.y - 14);
+        ctx.fillStyle = '#c85a00'; ctx.font = '300 9px Kanit';
+        ctx.fillText(fmt(truckArr[i])+' คัน', el.x, el.y - 4);
+        ctx.fillStyle = '#0b2447'; ctx.font = '500 9.5px Kanit';
+      });
+      ctx.restore();
+    }
+  };
+
+  const dsets = [
+    {type:'bar', label:'น้ำหนัก (ตัน)', yAxisID:'y', data:tonArr,
+     backgroundColor:'#ff7a18', borderRadius:6, maxBarThickness:34, order:3}
+  ];
+  if(hasTime){
+    dsets.push(
+      {type:'line', label:'เวลาเลิกงานช้าสุด', yAxisID:'y1', data:outHArr,
+       borderColor:'#0b2447', backgroundColor:'#0b2447', tension:.3, spanGaps:true,
+       pointRadius:4, pointBackgroundColor:'#fff', pointBorderWidth:2, borderWidth:2.5, order:1},
+      {type:'line', label:'Target 20:30', yAxisID:'y1', data:dates.map(()=>TARGET_H),
+       borderColor:'#e03131', borderDash:[7,5], borderWidth:2, pointRadius:0, fill:false, order:2}
+    );
+  }
+
+  chart('f0','bar',dates,dsets,{
+    layout:{padding:{top:26}},
+    scales:{
+      y :{position:'left', beginAtZero:true, grid:{color:'#eef2f8'}, border:{display:false},
+          title:{display:true,text:'น้ำหนัก (ตัน)',font:{family:'Kanit',size:11,weight:'400'},color:'#7086a3'},
+          ticks:axisFont},
+      y1:{position:'right', display:hasTime, grid:{display:false}, border:{display:false},
+          suggestedMin:17, suggestedMax:23,
+          title:{display:true,text:'เวลาเลิกงาน',font:{family:'Kanit',size:11,weight:'400'},color:'#7086a3'},
+          ticks:Object.assign({},axisFont,{callback:v=>hhmm(v)})},
+      x :{grid:{display:false}, ticks:axisFont}
+    },
+    plugins:{
+      tooltip:{ backgroundColor:'#0b2447', padding:11, cornerRadius:9,
+        borderColor:'#ff7a18', borderWidth:1.5,
+        titleFont:{family:'Kanit',size:12,weight:'500'},
+        bodyFont:{family:'Kanit',size:12,weight:'300'},
+        callbacks:{ label:(c)=>{
+          if(c.dataset.yAxisID==='y1') return c.dataset.label+': '+hhmm(c.parsed.y);
+          return [`น้ำหนัก: ${fmt(c.parsed.y,2)} ตัน`, `จำนวนคัน: ${fmt(truckArr[c.dataIndex])} คัน`];
+        }}},
+      legend:{position:'bottom',labels:{font:{family:'Kanit',size:11,weight:'300'},boxWidth:12,padding:14}}
+    }
+  }, [barLabels]);
 
   chart('f1','bar',byShty.map(x=>x[0]),[{label:'ตัน',data:byShty.map(x=>x[1]),
     backgroundColor:byShty.map((x,i)=>((R.by_shty[i]||{}).d==='Inbound')?'#0b2447':'#ff7a18'),
@@ -1117,8 +1194,12 @@ async function pageFG(){
   chart('f7','bar',bySloc.map(x=>x[0]),[{label:'ตัน',data:bySloc.map(x=>x[1]),
     backgroundColor:'#2d6ca8',borderRadius:7,maxBarThickness:46}], {scales:tonScale});
 
-  chart('f8','bar',facHours.map(x=>x[0]),[{label:'ชั่วโมง',data:facHours.map(x=>x[1]),
-    backgroundColor:'#ff9945',borderRadius:7,maxBarThickness:48}]);
+  chart('f8','bar',facHours.map(x=>x[0]),[{label:'เวลาเลิกงานเฉลี่ย',data:facHours.map(x=>x[1]),
+    backgroundColor:'#ff9945',borderRadius:7,maxBarThickness:48}],
+    {scales:{y:{beginAtZero:false,suggestedMin:17,grid:{color:'#eef2f8'},border:{display:false},
+                ticks:Object.assign({},axisFont,{callback:v=>hhmm(v)})},
+             x:{grid:{display:false},ticks:axisFont}},
+     plugins:{tooltip:{callbacks:{label:c=>'เฉลี่ย '+hhmm(c.parsed.y)}}}});
 }
 
 /* =========================================================================
