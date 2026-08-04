@@ -336,7 +336,7 @@ details summary{cursor:pointer;user-select:none}
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-04.5';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-04.8';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -789,9 +789,55 @@ function countUp(){
   });
 }
 
+/* ปลั๊กอินเขียนค่ากำกับบนกราฟ รองรับทั้งแท่งตั้ง แท่งนอน เส้น และโดนัท
+   vl = ฟังก์ชันจัดรูปแบบค่า  (value, index, dataset, datasetIndex) => string|null */
+function valueLabelPlugin(vl){
+  return {
+    id:'vlabel',
+    afterDatasetsDraw(c){
+      const ctx = c.ctx;
+      const isH = c.options.indexAxis === 'y';
+      c.data.datasets.forEach((ds,di)=>{
+        const meta = c.getDatasetMeta(di);
+        if(meta.hidden || ds.noLabel) return;
+        const kind = ds.type || c.config.type;
+        meta.data.forEach((elm,i)=>{
+          const raw = ds.data[i];
+          if(raw === null || raw === undefined) return;
+          const txt = vl(raw, i, ds, di);
+          if(txt === null || txt === undefined || txt === '') return;
+          const lines = String(txt).split('\n');
+          ctx.save();
+          if(kind === 'doughnut' || kind === 'pie'){
+            const ang = Math.abs((elm.endAngle||0) - (elm.startAngle||0));
+            if(ang < 0.30){ ctx.restore(); return; }        // ชิ้นเล็กเกินไป เขียนแล้วจะทับกัน
+            const p = elm.tooltipPosition();
+            ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.font='500 10px Kanit'; ctx.fillStyle='#fff';
+            ctx.shadowColor='rgba(0,0,0,.45)'; ctx.shadowBlur=4;
+            const y0 = p.y - (lines.length-1)*6;
+            lines.forEach((ln,k)=>ctx.fillText(ln, p.x, y0 + k*12));
+          }else if(isH){
+            ctx.textAlign='left'; ctx.textBaseline='middle';
+            ctx.font='500 9.5px Kanit'; ctx.fillStyle='#0b2447';
+            ctx.fillText(txt, elm.x + 6, elm.y);
+          }else{
+            ctx.textAlign='center'; ctx.textBaseline='bottom';
+            ctx.font='500 9.5px Kanit';
+            ctx.fillStyle = kind==='line' ? (ds.borderColor||'#0b2447') : '#0b2447';
+            ctx.fillText(txt, elm.x, elm.y - 5);
+          }
+          ctx.restore();
+        });
+      });
+    }
+  };
+}
+
 function chart(id,type,labels,datasets,opts={},plugins=[]){
   const cv = el(id); if(!cv) return;
   if(CHARTS[id]) CHARTS[id].destroy();
+  const vl = opts.vl; if(vl){ plugins = plugins.concat(valueLabelPlugin(vl)); delete opts.vl; }
   CHARTS[id] = new Chart(cv,{ type, data:{labels,datasets}, plugins,
     options:Object.assign({
       responsive:true, maintainAspectRatio:false,
@@ -1056,15 +1102,6 @@ async function pageFG(){
       <div class="s">ตัน · ${fmt(shipIn)} คัน · ${fmt(rowsIn)} รายการ</div></div>
     <div class="kpi anim d4"><div class="k">จำนวนคันรวม</div><div class="v">${fmt(nShip)}</div>
       <div class="s">เฉลี่ย ${fmt(avgDayTrucks,1)} คัน/วัน</div></div>
-    <div class="kpi anim d5"><div class="k">Delivery</div><div class="v">${fmt(nDel)}</div>
-      <div class="s">${fmt(nRows)} รายการสินค้า</div></div>
-    <div class="kpi anim d5"><div class="k">รหัสสินค้า</div><div class="v">${fmt(nSku)}</div>
-      <div class="s">SKU ที่มีการเคลื่อนไหว</div></div>
-    <div class="kpi anim d6"><div class="k">ลูกค้า</div><div class="v">${fmt(nCust)}</div>
-      <div class="s">รหัสลูกค้าไม่ซ้ำ</div></div>
-    <div class="kpi ${noCust?'r':'g'} anim d6"><div class="k">ไม่พบในทะเบียนลูกค้า</div>
-      <div class="v">${fmt(noCust)}</div>
-      <div class="s">${(noCust/Math.max(nRows,1)*100).toFixed(1)}% ของรายการ</div></div>
   </div>
 
   ${sect(2,'Loading Analysis','น้ำหนักและจำนวนคันรายวัน เทียบกับเวลาเลิกงาน Target 20:30')}
@@ -1074,21 +1111,18 @@ async function pageFG(){
       <div class="s">ตัน${peakDate?` · ${esc(peakDate)} · ${fmt(peakTrucks)} คัน`:''}</div></div>
     <div class="kpi anim d2"><div class="k">น้ำหนักเฉลี่ยต่อวัน</div>
       <div class="v">${fmt(avgDayTon,1)}</div><div class="s">ตัน/วัน</div></div>
-    <div class="kpi ${lateH!=null&&lateH>TARGET_H?'r':'g'} anim d3"><div class="k">Latest Time Out</div>
-      <div class="v">${hhmm(lateH)}</div>
-      <div class="s">${lateDate?`${esc(lateDate)}${lateFac?' · '+esc(lateFac):''}`:'ยังไม่มีข้อมูลเวลา'}</div></div>
-    <div class="kpi ${avgMaxH!=null&&avgMaxH>TARGET_H?'r':'g'} anim d4"><div class="k">Average Max Time</div>
+    <div class="kpi ${avgMaxH==null?'':(avgMaxH>TARGET_H?'r':'g')} anim d3"><div class="k">Average Time</div>
       <div class="v">${hhmm(avgMaxH)}</div>
-      <div class="s">เฉลี่ยเวลาช้าสุดของแต่ละวัน · ${fmt(daysTime)} วัน</div></div>
-    <div class="kpi ${daysOver?'r':'g'} anim d5"><div class="k">วันที่เกิน Target 20:30</div>
-      <div class="v">${fmt(daysOver)}</div>
-      <div class="s">จาก ${fmt(daysTime)} วันที่มีข้อมูลเวลา</div></div>
+      <div class="s">${avgMaxH==null ? 'ยังไม่ได้นำเข้าชีท Timeout'
+        : `เฉลี่ยเวลาเลิกงานของ ${fmt(daysTime)} วัน · เกิน Target ${fmt(daysOver)} วัน`}</div></div>
   </div>
   <div class="card anim d3">
     <h3>น้ำหนักและจำนวนคันรายวัน เทียบเวลาเลิกงาน</h3>
+    ${hasTime ? '' : `<div class="msg warn">ยังไม่ได้นำเข้าชีท <code>Timeout</code>
+      จึงยังไม่มีเส้นเวลาเลิกงานและเส้น Target 20:30 บนกราฟ — อัปโหลดชีทนี้แล้วเส้นจะขึ้นเอง</div>`}
     <div class="chartbox" style="height:360px"><canvas id="f0"></canvas></div>
-    <p class="sm" style="margin-top:10px">แท่ง = น้ำหนักรายวัน (แกนซ้าย) ตัวเลขบนแท่งคือ ตัน / จำนวนคัน ·
-      เส้นทึบ = เวลาเลิกงานช้าสุดของวัน (แกนขวา) · เส้นประแดง = Target 20:30</p>
+    <p class="sm" style="margin-top:10px">แท่ง = น้ำหนักรายวัน (แกนซ้าย) ตัวเลขบนแท่งคือ ตัน / จำนวนคัน${
+      hasTime ? ' · เส้นทึบ = เวลาเลิกงานช้าสุดของวัน (แกนขวา) · เส้นประแดง = Target 20:30' : ''}</p>
   </div>
   <div class="grid2">
     <div class="card anim d4"><h3>น้ำหนักเฉลี่ยต่อวัน แยกตามวันในสัปดาห์ (ตัน)</h3>
@@ -1169,29 +1203,8 @@ async function pageFG(){
   const cntScale = {y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
                     x:{grid:{display:false},ticks:axisFont}};
   const hBar = {indexAxis:'y',scales:{
-      x:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+      x:{beginAtZero:true,grace:'12%',grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
       y:{grid:{display:false},ticks:axisFont}}};
-
-  /* ปลั๊กอินเขียน ตัน/คัน บนหัวแท่ง */
-  const barLabels = {
-    id:'barLabels',
-    afterDatasetsDraw(c){
-      const ds = c.data.datasets[0];
-      if(!ds || ds.type === 'line') return;
-      const meta = c.getDatasetMeta(0), ctx = c.ctx, n = meta.data.length;
-      const step = n > 34 ? 3 : n > 20 ? 2 : 1;
-      ctx.save(); ctx.textAlign='center';
-      meta.data.forEach((el,i)=>{
-        if(i % step) return;
-        const t = ds.data[i]; if(t==null) return;
-        ctx.fillStyle='#0b2447'; ctx.font='500 9.5px Kanit';
-        ctx.fillText(Number(t).toLocaleString('th-TH',{maximumFractionDigits:0}), el.x, el.y-14);
-        ctx.fillStyle='#c85a00'; ctx.font='300 9px Kanit';
-        ctx.fillText(fmt(truckArr[i])+' คัน', el.x, el.y-4);
-      });
-      ctx.restore();
-    }
-  };
 
   const dsets = [
     {type:'bar', label:'น้ำหนัก (ตัน)', yAxisID:'y', data:tonArr,
@@ -1226,13 +1239,23 @@ async function pageFG(){
           ? c.dataset.label+': '+hhmm(c.parsed.y)
           : [`น้ำหนัก: ${fmt(c.parsed.y,2)} ตัน`,`จำนวนคัน: ${fmt(truckArr[c.dataIndex])} คัน`]}},
       legend:{position:'bottom',labels:{font:{family:'Kanit',size:11,weight:'300'},boxWidth:12,padding:14}}
+    },
+    /* ค่ากำกับ: แท่งเขียน ตัน + จำนวนคัน (2 บรรทัด) · เส้นเวลาเขียน HH:MM · เส้น Target ไม่ต้องเขียน */
+    vl:(v,i,ds)=>{
+      if(ds.label === 'Target 20:30') return null;
+      if(ds.yAxisID === 'y1') return hhmm(v);
+      const step = dates.length > 34 ? 3 : dates.length > 20 ? 2 : 1;
+      if(i % step) return null;
+      return `${fmt(v,0)}\n${fmt(truckArr[i])} คัน`;
     }
-  }, [barLabels]);
+  });
 
   chart('f9','bar',dow.map(x=>x.k),[{label:'ตัน/วัน',data:dow.map(x=>x.avg),
-    backgroundColor:'#ff7a18',borderRadius:7,maxBarThickness:52}],{scales:tonScale});
+    backgroundColor:'#ff7a18',borderRadius:7,maxBarThickness:52}],
+    {scales:tonScale, layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
   chart('f10','bar',dow.map(x=>x.k),[{label:'คัน',data:dow.map(x=>x.c),
-    backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:52}],{scales:cntScale});
+    backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:52}],
+    {scales:cntScale, layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
 
   chart('f11','bar',tdDates,[
     {type:'bar',label:'จำนวนคัน',yAxisID:'y',data:tdTrucks,
@@ -1247,37 +1270,48 @@ async function pageFG(){
       y1:{position:'right',beginAtZero:true,grid:{display:false},border:{display:false},
           title:{display:true,text:'ตัน/คัน',font:{family:'Kanit',size:11,weight:'400'},color:'#7086a3'},
           ticks:axisFont},
-      x :{grid:{display:false},ticks:axisFont}}});
+      x :{grid:{display:false},ticks:axisFont}},
+    layout:{padding:{top:20}},
+    vl:(v,i,ds)=> ds.type==='line' ? fmt(v,1) : fmt(v,0)});
 
   chart('f12','bar',truckDist.map(x=>x[0]),[{label:'จำนวนคัน',data:truckDist.map(x=>x[1]),
-    backgroundColor:'#2d6ca8',borderRadius:7,maxBarThickness:56}],{scales:cntScale});
+    backgroundColor:'#2d6ca8',borderRadius:7,maxBarThickness:56}],
+    {scales:cntScale, layout:{padding:{top:18}},
+     vl:(v,i)=>`${fmt(v)} (${(v/Math.max(nShip,1)*100).toFixed(0)}%)`});
+  const sumShipShty = shipByShty.reduce((s,x)=>s+x[1],0) || 1;
   chart('f13','doughnut',shipByShty.map(x=>x[0]),[{data:shipByShty.map(x=>x[1]),
-    backgroundColor:PAL,borderWidth:3,borderColor:'#fff'}],{cutout:'58%'});
+    backgroundColor:PAL,borderWidth:3,borderColor:'#fff'}],
+    {cutout:'58%', vl:v=>`${fmt(v)} คัน\n${(v/sumShipShty*100).toFixed(0)}%`});
 
   chart('f1','bar',byShty.map(x=>x[0]),[{label:'ตัน',data:byShty.map(x=>x[1]),
     backgroundColor:byShty.map((x,i)=>((R.by_shty[i]||{}).d==='Inbound')?'#0b2447':'#ff7a18'),
-    borderRadius:7,maxBarThickness:56}],{scales:tonScale});
+    borderRadius:7,maxBarThickness:56}],
+    {scales:tonScale, layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
   chart('f2','doughnut',byDir.map(x=>x[0]),[{data:byDir.map(x=>x[1]),
     backgroundColor:byDir.map(x=>x[0]==='Inbound'?'#0b2447':'#ff7a18'),
-    borderWidth:3,borderColor:'#fff'}],{cutout:'60%'});
+    borderWidth:3,borderColor:'#fff'}],
+    {cutout:'60%', vl:v=>`${fmt(v,0)} ต\n${(v/Math.max(ton,1)*100).toFixed(0)}%`});
 
   chart('f3','bar',byGrp.map(x=>x[0]),[{label:'ตัน',data:byGrp.map(x=>x[1]),
-    backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:52}],{scales:tonScale});
+    backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:52}],
+    {scales:tonScale, layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
   chart('f14','bar',byPtype.map(x=>x[0].slice(0,22)),[{label:'ตัน',data:byPtype.map(x=>x[1]),
-    backgroundColor:'#5b8fc4',borderRadius:6}],hBar);
+    backgroundColor:'#5b8fc4',borderRadius:6}], Object.assign({},hBar,{vl:v=>fmt(v,0)}));
   chart('f6','bar',bySku.map(x=>x[0].slice(0,24)),[{label:'ตัน',data:bySku.map(x=>x[1]),
-    backgroundColor:'#1d4f92',borderRadius:6}],hBar);
+    backgroundColor:'#1d4f92',borderRadius:6}], Object.assign({},hBar,{vl:v=>fmt(v,0)}));
   chart('f7','bar',bySloc.map(x=>x[0]),[{label:'ตัน',data:bySloc.map(x=>x[1]),
-    backgroundColor:'#2d6ca8',borderRadius:7,maxBarThickness:46}],{scales:tonScale});
+    backgroundColor:'#2d6ca8',borderRadius:7,maxBarThickness:46}],
+    {scales:tonScale, layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
 
   chart('f5','bar',byName.map(x=>x[0].slice(0,24)),[{label:'ตัน',data:byName.map(x=>x[1]),
-    backgroundColor:'#ff7a18',borderRadius:6}],hBar);
+    backgroundColor:'#ff7a18',borderRadius:6}], Object.assign({},hBar,{vl:v=>fmt(v,0)}));
   chart('f4','doughnut',byCustGrp.map(x=>x[0]),[{data:byCustGrp.map(x=>x[1]),
-    backgroundColor:PAL,borderWidth:3,borderColor:'#fff'}],{cutout:'58%'});
+    backgroundColor:PAL,borderWidth:3,borderColor:'#fff'}],
+    {cutout:'58%', vl:v=>`${fmt(v,0)} ต\n${(v/Math.max(ton,1)*100).toFixed(0)}%`});
   chart('f15','bar',custShip.map(x=>x[0].slice(0,24)),[{label:'คัน',data:custShip.map(x=>x[1]),
-    backgroundColor:'#0b2447',borderRadius:6}],hBar);
+    backgroundColor:'#0b2447',borderRadius:6}], Object.assign({},hBar,{vl:v=>fmt(v,0)}));
   chart('f16','bar',shipTo.map(x=>x[0].slice(0,24)),[{label:'ตัน',data:shipTo.map(x=>x[1]),
-    backgroundColor:'#ff9945',borderRadius:6}],hBar);
+    backgroundColor:'#ff9945',borderRadius:6}], Object.assign({},hBar,{vl:v=>fmt(v,0)}));
 }
 
 /* =========================================================================
@@ -1346,18 +1380,24 @@ async function pagePrepare(){
 
   chart('p1','line',byDate.map(x=>x[0]),[{label:'นาที',data:byDate.map(x=>x[1]),
     borderColor:'#0b2447',backgroundColor:'rgba(11,36,71,.1)',fill:true,tension:.35,
-    pointBackgroundColor:'#fff',pointBorderColor:'#0b2447',pointBorderWidth:2,pointRadius:4}]);
+    pointBackgroundColor:'#fff',pointBorderColor:'#0b2447',pointBorderWidth:2,pointRadius:4}],
+    {layout:{padding:{top:20}}, vl:v=>fmt(v,0)});
   chart('p2','doughnut',['เสร็จแล้ว','กำลังเตรียม','ยังไม่เริ่ม'],
     [{data:[done.length,prep.length,open.length],backgroundColor:['#0f9d58','#ff7a18','#c6d3e4'],
-      borderWidth:3,borderColor:'#fff'}],{cutout:'60%'});
+      borderWidth:3,borderColor:'#fff'}],
+    {cutout:'60%', vl:v=>`${fmt(v)}\n${(v/Math.max(rows.length,1)*100).toFixed(0)}%`});
   chart('p3','bar',byGate.map(x=>x[0]),[{label:'นาที',data:byGate.map(x=>x[1]),
-    backgroundColor:'#1d4f92',borderRadius:7,maxBarThickness:48}]);
+    backgroundColor:'#1d4f92',borderRadius:7,maxBarThickness:48}],
+    {layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
   chart('p4','bar',backGate.map(x=>x[0]),[{label:'รายการค้าง',data:backGate.map(x=>x[1]),
-    backgroundColor:'#ff7a18',borderRadius:7,maxBarThickness:48}]);
+    backgroundColor:'#ff7a18',borderRadius:7,maxBarThickness:48}],
+    {layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
   chart('p5','bar',byPG.map(x=>x[0]),[{label:'ปริมาณ',data:byPG.map(x=>x[1]),
-    backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:56}]);
+    backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:56}],
+    {layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
   chart('p6','doughnut',['มัดเต็ม','มัดเศษ'],[{data:[bFull,bPart],
-    backgroundColor:['#0b2447','#ff7a18'],borderWidth:3,borderColor:'#fff'}],{cutout:'60%'});
+    backgroundColor:['#0b2447','#ff7a18'],borderWidth:3,borderColor:'#fff'}],
+    {cutout:'60%', vl:v=>`${fmt(v)}\n${(v/Math.max(bFull+bPart,1)*100).toFixed(0)}%`});
 }
 
 /* =========================================================================
@@ -1441,7 +1481,8 @@ async function pageMilk(){
 
   {
     chart('m1','bar',byRoute.map(x=>x[0]),[{label:'รายการ',data:byRoute.map(x=>x[1]),
-      backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:46}]);
+      backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:46}],
+      {layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
     chart('m2','bar',routeSeg.map(x=>x.rt),[
       {label:'รอหยิบ',data:routeSeg.map(x=>x.w),backgroundColor:'#0b2447',borderRadius:4},
       {label:'เดินทาง',data:routeSeg.map(x=>x.t),backgroundColor:'#1d4f92',borderRadius:4},
@@ -1449,20 +1490,24 @@ async function pageMilk(){
       {label:'ลงสินค้า',data:routeSeg.map(x=>x.u),backgroundColor:'#ffc78a',borderRadius:4}
     ],{scales:{x:{stacked:true,grid:{display:false},ticks:{font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'}},
                y:{stacked:true,beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},
-                  ticks:{font:{family:'Kanit',size:11,weight:'300'},color:'#7086a3'}}}});
+                  ticks:{font:{family:'Kanit',size:11,weight:'300'},color:'#7086a3'}}},
+       vl:v=> v>=1 ? fmt(v,0) : null});
     chart('m3','bar',byHead.map(x=>x[0]),[{label:'ตัน',data:byHead.map(x=>x[1]/1000),
-      backgroundColor:'#ff7a18',borderRadius:7,maxBarThickness:56}]);
+      backgroundColor:'#ff7a18',borderRadius:7,maxBarThickness:56}],
+      {layout:{padding:{top:18}}, vl:v=>fmt(v,1)});
     chart('m4','bar',byDriver.map(x=>x[0]),[{label:'รายการ',data:byDriver.map(x=>x[1]),
-      backgroundColor:'#1d4f92',borderRadius:7,maxBarThickness:56}]);
+      backgroundColor:'#1d4f92',borderRadius:7,maxBarThickness:56}],
+      {layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
     chart('m5','line',byDate.map(x=>x[0]),[{label:'ตัน',data:byDate.map(x=>x[1]/1000),
       borderColor:'#ff7a18',backgroundColor:'rgba(255,122,24,.13)',fill:true,tension:.35,
-      pointBackgroundColor:'#fff',pointBorderColor:'#ff7a18',pointBorderWidth:2,pointRadius:4}]);
+      pointBackgroundColor:'#fff',pointBorderColor:'#ff7a18',pointBorderWidth:2,pointRadius:4}],
+      {layout:{padding:{top:20}}, vl:v=>fmt(v,1)});
     chart('m6','bar',facLbl,[
       {label:'ออกจากโรง (ต้นทาง)',data:facLbl.map(x=>(byOrigin.find(y=>y[0]===x)||[0,0])[1]/1000),
        backgroundColor:'#ff7a18',borderRadius:7},
       {label:'เข้าโรง (ปลายทาง)', data:facLbl.map(x=>(byDest.find(y=>y[0]===x)||[0,0])[1]/1000),
        backgroundColor:'#0b2447',borderRadius:7}
-    ]);
+    ],{layout:{padding:{top:18}}, vl:v=> v>0 ? fmt(v,1) : null});
   }
 }
 
@@ -1495,7 +1540,10 @@ function pageImport(){
     </tr>`).join('');
 
   body(`
-  <div class="card anim d1">
+  <div class="card anim d1"><h3>ข้อมูลที่มีอยู่ในระบบตอนนี้</h3>
+    <div id="dataSum"><div class="spin"></div></div></div>
+
+  <div class="card anim d2">
     <h3>ชื่อชีทที่ระบบอ่านได้</h3>
     <div class="msg warn" style="margin-bottom:14px">
       <b>ชื่อชีทต้องสะกดตรงตามนี้ทุกตัวอักษร</b> (ตัวพิมพ์เล็ก-ใหญ่ และช่องว่างมีผล)
@@ -1513,7 +1561,7 @@ function pageImport(){
       จึงอัปไฟล์เดิมซ้ำได้โดยข้อมูลไม่บานปลาย</p>
   </div>
 
-  <div class="card anim d2">
+  <div class="card anim d3">
     <h3>อัปโหลดไฟล์ Excel</h3>
     <p class="sm" style="margin-bottom:16px">
       ระบบจะอ่านทุกชีทที่รู้จัก ตรวจว่าเคยวางไปแล้วหรือยัง แล้วให้เลือกว่าจะวางชีทไหนบ้าง</p>
@@ -1532,7 +1580,82 @@ function pageImport(){
   d.ondragleave = ()=>d.classList.remove('over');
   d.ondrop      = e=>{e.preventDefault(); d.classList.remove('over');
                       if(e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0])};
+  loadDataSummary();
   loadImportLog();
+}
+
+/* สรุปว่าตอนนี้ในระบบมีข้อมูลอะไร กี่แถว กี่เดือน ช่วงไหน */
+async function loadDataSummary(){
+  let S;
+  try{ S = await rpc('app_data_summary'); }
+  catch(ex){ el('dataSum').innerHTML = `<div class="msg err">${esc(ex.message)}</div>`; return; }
+
+  const nice = ts => ts ? new Date(ts).toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'}) : '—';
+  const mRange = (list) => {
+    const a = (list||[]).slice().sort();
+    if(!a.length) return '—';
+    if(a.length === 1) return monthLabel(a[0]);
+    return `${monthLabel(a[0])} – ${monthLabel(a[a.length-1])}`;
+  };
+
+  const txRows = (S.tx||[]).map(x=>{
+    const has = +x.rows > 0;
+    return `<tr${has?'':' style="opacity:.55"'}>
+      <td><b>${esc(x.sheet)}</b><div class="sm">${esc(x.label)}</div></td>
+      <td><code>${esc(x.table)}</code></td>
+      <td class="num"><b style="font-size:14px">${fmt(x.rows)}</b></td>
+      <td class="num">${has?fmt(x.months):'—'}</td>
+      <td class="sm">${has?esc(mRange(x.month_list)):'—'}</td>
+      <td class="num">${has?fmt(x.days):'—'}</td>
+      <td class="sm">${has?`${esc(x.from)} ถึง ${esc(x.to)}`:'—'}</td>
+      <td class="sm">${nice(x.imported_at)}</td>
+      <td>${has?'<span class="pill g">มีข้อมูล</span>':'<span class="pill n">ยังไม่มี</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  const msRows = (S.master||[]).map(x=>{
+    const has = +x.rows > 0;
+    return `<tr${has?'':' style="opacity:.55"'}>
+      <td><b>${esc(x.sheet)}</b><div class="sm">${esc(x.label)}</div></td>
+      <td><code>${esc(x.table)}</code></td>
+      <td class="num"><b style="font-size:14px">${fmt(x.rows)}</b></td>
+      <td class="num">${has?fmt(x.uniq):'—'}</td>
+      <td class="sm">${esc(x.uniq_label)}${has && +x.rows>+x.uniq
+        ? ` <span class="pill o">ซ้ำ ${fmt(+x.rows - +x.uniq)}</span>` : ''}</td>
+      <td class="sm">${nice(x.imported_at)}</td>
+      <td>${has?'<span class="pill g">มีข้อมูล</span>':'<span class="pill n">ยังไม่มี</span>'}</td>
+    </tr>`;
+  }).join('');
+
+  const txHas = (S.tx||[]).filter(x=>+x.rows>0).length;
+  const msHas = (S.master||[]).filter(x=>+x.rows>0).length;
+
+  el('dataSum').innerHTML = `
+  <div class="kpis" style="margin-bottom:16px">
+    <div class="kpi o"><div class="k">แถวข้อมูลรวม</div><div class="v">${fmt(S.total_rows)}</div>
+      <div class="s">ทุกตารางรวมกัน</div></div>
+    <div class="kpi ${txHas===5?'g':'o'}"><div class="k">ชีท Transaction ที่มีข้อมูล</div>
+      <div class="v">${txHas} / 5</div><div class="s">FG · Prepare · Milk Run · Shipment · Timeout</div></div>
+    <div class="kpi ${msHas===3?'g':'o'}"><div class="k">ทะเบียนที่มีข้อมูล</div>
+      <div class="v">${msHas} / 3</div><div class="s">Master · Customer · User</div></div>
+    <div class="kpi"><div class="k">ขนาดฐานข้อมูล</div>
+      <div class="v" style="font-size:22px">${esc(S.db_size||'—')}</div>
+      <div class="s">นำเข้าล่าสุด ${nice(S.last_import)}</div></div>
+  </div>
+
+  <p class="sm" style="margin:0 0 8px"><b>ข้อมูลรายการ (สะสมต่อเนื่อง)</b></p>
+  <div class="tw" style="max-height:none"><table><thead><tr>
+    <th>ชีท</th><th>ตาราง</th><th class="num">จำนวนแถว</th><th class="num">กี่เดือน</th>
+    <th>ช่วงเดือน</th><th class="num">กี่วัน</th><th>ช่วงวันที่</th><th>นำเข้าล่าสุด</th><th>สถานะ</th>
+  </tr></thead><tbody>${txRows}</tbody></table></div>
+
+  <p class="sm" style="margin:16px 0 8px"><b>ข้อมูลทะเบียน (เขียนทับทั้งชุด)</b></p>
+  <div class="tw" style="max-height:none"><table><thead><tr>
+    <th>ชีท</th><th>ตาราง</th><th class="num">จำนวนแถว</th><th class="num">ไม่ซ้ำ</th>
+    <th>นับจาก</th><th>นำเข้าล่าสุด</th><th>สถานะ</th>
+  </tr></thead><tbody>${msRows}</tbody></table></div>
+
+  <button class="fbtn alt" style="margin-top:14px" onclick="loadDataSummary()">↻ อัปเดตตัวเลข</button>`;
 }
 
 async function loadImportLog(){
@@ -1815,7 +1938,8 @@ async function runImport(){
        สำเร็จทั้งหมด ใช้เวลา ${secs} วินาที — ไปดูผลได้ที่เมนู Dashboard</div>`
     : `<div class="msg err" style="margin-top:13px">มีบางชีทนำเข้าไม่สำเร็จ ดูรายละเอียดในบันทึกด้านล่าง</div>`;
   loadImportLog();
-  scanExisting();                     // อัปเดตคอลัมน์ "สถานะในระบบ" ให้ตรงกับของใหม่
+  loadDataSummary();                  // อัปเดตสรุปข้อมูลในระบบให้ตรงกับของใหม่
+  scanExisting();                     // อัปเดตคอลัมน์ "สถานะในระบบ"
 }
 
 /* =========================================================================
