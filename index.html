@@ -336,7 +336,7 @@ details summary{cursor:pointer;user-select:none}
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-04.4';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-04.5';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -976,10 +976,10 @@ function errCard(m){ return `<div class="card anim"><div class="msg err">โห�
    แสดงข้อมูลทั้งหมด ไม่มีตัวกรองวันที่
    ========================================================================= */
 async function pageFG(){
-  /* รวมยอดที่ฐานข้อมูล ส่งกลับเฉพาะผลสรุป
-     ทิศทาง Inbound/Outbound แยกจากคอลัมน์ Shipment type ของชีท FG
-     น้ำหนักคิดเป็น "ตัน" · จำนวนคัน = นับ Shipment ไม่ซ้ำ
-     เวลาเลิกงานรายวัน = เวลาช้าที่สุดของวันนั้น (รวมทุกโรง) · Target 20:30 */
+  /* หน้านี้แบ่งเป็น 5 Part: ภาพรวม / Loading / Shipment / Product / Customer
+     ทิศทาง Inbound-Outbound แยกจากคอลัมน์ Shipment type ของชีท FG
+     น้ำหนัก = ตัน · จำนวนคัน = นับ Shipment ไม่ซ้ำ
+     เวลาเลิกงานรายวัน = เวลาช้าที่สุดของวันนั้นรวมทุกโรง · Target 20:30 */
   const slocs = FILTERS.factory
       ? Object.keys(SLOC_TO_FACTORY).filter(k=>SLOC_TO_FACTORY[k]===FILTERS.factory)
       : null;
@@ -992,35 +992,38 @@ async function pageFG(){
         p_shty : FILTERS.shty || null }); }
   catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
 
-  const K = R.kpi, tm = R.tm_list || [];
+  const K = R.kpi;
   const bar = filterBarAgg(R, 'pageFG');
   if(!(+K.rows) && !(+K.tm_rows)){
     body(bar + emptyBox(FILTERS.month||FILTERS.factory||FILTERS.shty
-      ? 'ไม่พบข้อมูลตามตัวกรองที่เลือก' : 'ยังไม่มีข้อมูล FG และ Timeout ในระบบ'));
+      ? 'ไม่พบข้อมูลตามตัวกรองที่เลือก' : 'ยังไม่มีข้อมูล FG ในระบบ'));
     return;
   }
 
-  const ton=+K.ton, tonOut=+K.ton_out, tonIn=+K.ton_in;
-  const nRows=+K.rows, rowsOut=+K.rows_out, rowsIn=+K.rows_in;
-  const nShip=+K.shipments, shipOut=+K.ship_out, shipIn=+K.ship_in;
-  const nDel=+K.deliveries, nSku=+K.skus, noCust=+K.no_cust;
-  const nTm=+K.tm_rows, nFac=+K.factories, workDays=+K.work_days;
-  const tonPerShip = nShip ? ton/nShip : null;
+  const N = v => v==null ? null : +v;
+  const ton=N(K.ton), tonOut=N(K.ton_out), tonIn=N(K.ton_in);
+  const nRows=N(K.rows), rowsOut=N(K.rows_out), rowsIn=N(K.rows_in);
+  const nShip=N(K.shipments), shipOut=N(K.ship_out), shipIn=N(K.ship_in);
+  const nDel=N(K.deliveries), nSku=N(K.skus), nCust=N(K.customers), noCust=N(K.no_cust);
+  const workDays=N(K.work_days), nTm=N(K.tm_rows), nFac=N(K.factories);
 
-  const peakTon=K.peak_ton==null?null:+K.peak_ton, peakDate=K.peak_date, peakTrucks=+K.peak_trucks;
-  const lateH=K.latest_h==null?null:+K.latest_h, lateDate=K.latest_date, lateFac=K.latest_fac;
-  const avgMaxH=K.avg_max_h==null?null:+K.avg_max_h;
-  const daysOver=+K.days_over_target, daysTime=+K.days_with_time;
-  const TARGET_H = 20.5;                                   // Target เลิกงาน 20:30
+  const peakTon=N(K.peak_ton), peakDate=K.peak_date, peakTrucks=N(K.peak_trucks);
+  const avgDayTon=N(K.avg_day_ton), avgDayTrucks=N(K.avg_day_trucks);
+  const lateH=N(K.latest_h), lateDate=K.latest_date, lateFac=K.latest_fac;
+  const avgMaxH=N(K.avg_max_h), daysOver=N(K.days_over_target), daysTime=N(K.days_with_time);
+  const pkTruck=N(K.peak_truck_day), pkTruckDate=K.peak_truck_date;
+  const tonPerTruck=N(K.ton_per_truck), maxTonTruck=N(K.max_ton_truck), linesPerTruck=N(K.lines_per_truck);
+  const topShare=N(K.top_cust_share);
+  const TARGET_H = 20.5;
 
-  /* แปลงชั่วโมงทศนิยมเป็น HH:MM */
   const hhmm = h => { if(h==null||isNaN(h)) return '—';
     const t=Math.round(h*60); return pad(Math.floor(t/60))+':'+pad(t%60); };
-
   const kv = a => (a||[]).map(x=>[x.k, +x.v]);
+
   const byDir=kv(R.by_direction), byShty=kv(R.by_shty), byGrp=kv(R.by_group),
-        byCust=kv(R.by_customer), bySloc=kv(R.by_sloc), byName=kv(R.top_customer),
-        bySku=kv(R.top_sku), facHours=kv(R.fac_hours);
+        byPtype=kv(R.by_ptype), bySloc=kv(R.by_sloc), byName=kv(R.top_customer),
+        bySku=kv(R.top_sku), byCustGrp=kv(R.by_customer), custShip=kv(R.cust_by_ship),
+        shipTo=kv(R.shipto_top), truckDist=kv(R.truck_dist), shipByShty=kv(R.ship_by_shty);
 
   const TL     = R.timeline || [];
   const dates  = TL.map(x=>x.d);
@@ -1029,73 +1032,133 @@ async function pageFG(){
   const outHArr  = TL.map(x=>x.h==null?null:+x.h);
   const hasTime  = outHArr.some(v=>v!=null);
 
+  const TD = R.trucks_daily || [];
+  const tdDates = TD.map(x=>x.d), tdTrucks = TD.map(x=>+x.c),
+        tdTpt = TD.map(x=>x.tpt==null?null:+x.tpt);
+
+  const DOW = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+  const dow = (R.by_dow||[]).map(x=>({k:DOW[+x.k], ton:+x.ton, c:+x.c, days:+x.days,
+                                      avg:(+x.days? (+x.ton)/(+x.days) : 0)}));
+
+  const sect = (n,t,s,cls='') =>
+    `<div class="sect ${cls}"><div class="no">${n}</div>
+       <div><h2>${t}</h2><p>${s}</p></div><div class="ln"></div></div>`;
+
   body(bar + `
-  <!-- ภาพรวม -->
+
+  ${sect(1,'ภาพรวมทั้งหมด','สรุปตัวเลขหลักของข้อมูลที่กำลังแสดง','o')}
   <div class="kpis">
     <div class="kpi o anim d1"><div class="k">น้ำหนักรวม</div><div class="v">${fmt(ton,1)}</div>
-      <div class="s">ตัน · เฉลี่ย ${tonPerShip==null?'—':fmt(tonPerShip,2)} ตัน/คัน</div></div>
+      <div class="s">ตัน · ${fmt(workDays)} วันทำงาน</div></div>
     <div class="kpi anim d2"><div class="k">จ่ายออก Outbound</div><div class="v">${fmt(tonOut,1)}</div>
       <div class="s">ตัน · ${fmt(shipOut)} คัน · ${fmt(rowsOut)} รายการ</div></div>
     <div class="kpi g anim d3"><div class="k">รับเข้า Inbound</div><div class="v">${fmt(tonIn,1)}</div>
       <div class="s">ตัน · ${fmt(shipIn)} คัน · ${fmt(rowsIn)} รายการ</div></div>
     <div class="kpi anim d4"><div class="k">จำนวนคันรวม</div><div class="v">${fmt(nShip)}</div>
-      <div class="s">${fmt(nDel)} Delivery · ${fmt(nSku)} รหัสสินค้า</div></div>
-    <div class="kpi ${noCust?'r':'g'} anim d5"><div class="k">ไม่พบในทะเบียนลูกค้า</div>
+      <div class="s">เฉลี่ย ${fmt(avgDayTrucks,1)} คัน/วัน</div></div>
+    <div class="kpi anim d5"><div class="k">Delivery</div><div class="v">${fmt(nDel)}</div>
+      <div class="s">${fmt(nRows)} รายการสินค้า</div></div>
+    <div class="kpi anim d5"><div class="k">รหัสสินค้า</div><div class="v">${fmt(nSku)}</div>
+      <div class="s">SKU ที่มีการเคลื่อนไหว</div></div>
+    <div class="kpi anim d6"><div class="k">ลูกค้า</div><div class="v">${fmt(nCust)}</div>
+      <div class="s">รหัสลูกค้าไม่ซ้ำ</div></div>
+    <div class="kpi ${noCust?'r':'g'} anim d6"><div class="k">ไม่พบในทะเบียนลูกค้า</div>
       <div class="v">${fmt(noCust)}</div>
-      <div class="s">${(noCust/Math.max(nRows,1)*100).toFixed(1)}% ของ ${fmt(nRows)} รายการ</div></div>
+      <div class="s">${(noCust/Math.max(nRows,1)*100).toFixed(1)}% ของรายการ</div></div>
   </div>
 
-  <!-- Loading Analysis -->
+  ${sect(2,'Loading Analysis','น้ำหนักและจำนวนคันรายวัน เทียบกับเวลาเลิกงาน Target 20:30')}
+  <div class="kpis">
+    <div class="kpi o anim d1"><div class="k">Peak Daily Weight</div>
+      <div class="v">${peakTon==null?'—':fmt(peakTon,1)}</div>
+      <div class="s">ตัน${peakDate?` · ${esc(peakDate)} · ${fmt(peakTrucks)} คัน`:''}</div></div>
+    <div class="kpi anim d2"><div class="k">น้ำหนักเฉลี่ยต่อวัน</div>
+      <div class="v">${fmt(avgDayTon,1)}</div><div class="s">ตัน/วัน</div></div>
+    <div class="kpi ${lateH!=null&&lateH>TARGET_H?'r':'g'} anim d3"><div class="k">Latest Time Out</div>
+      <div class="v">${hhmm(lateH)}</div>
+      <div class="s">${lateDate?`${esc(lateDate)}${lateFac?' · '+esc(lateFac):''}`:'ยังไม่มีข้อมูลเวลา'}</div></div>
+    <div class="kpi ${avgMaxH!=null&&avgMaxH>TARGET_H?'r':'g'} anim d4"><div class="k">Average Max Time</div>
+      <div class="v">${hhmm(avgMaxH)}</div>
+      <div class="s">เฉลี่ยเวลาช้าสุดของแต่ละวัน · ${fmt(daysTime)} วัน</div></div>
+    <div class="kpi ${daysOver?'r':'g'} anim d5"><div class="k">วันที่เกิน Target 20:30</div>
+      <div class="v">${fmt(daysOver)}</div>
+      <div class="s">จาก ${fmt(daysTime)} วันที่มีข้อมูลเวลา</div></div>
+  </div>
   <div class="card anim d3">
-    <h3>Loading Analysis</h3>
-    <div class="kpis" style="margin-bottom:16px">
-      <div class="kpi o"><div class="k">Peak Daily Weight</div>
-        <div class="v">${peakTon==null?'—':fmt(peakTon,1)}</div>
-        <div class="s">ตัน${peakDate?` · ${esc(peakDate)} · ${fmt(peakTrucks)} คัน`:''}</div></div>
-      <div class="kpi ${lateH!=null && lateH>TARGET_H ? 'r':'g'}"><div class="k">Latest Time Out</div>
-        <div class="v">${hhmm(lateH)}</div>
-        <div class="s">${lateDate?`${esc(lateDate)}${lateFac?' · '+esc(lateFac):''}`:'ยังไม่มีข้อมูล'}</div></div>
-      <div class="kpi ${avgMaxH!=null && avgMaxH>TARGET_H ? 'r':'g'}"><div class="k">Average Max Time</div>
-        <div class="v">${hhmm(avgMaxH)}</div>
-        <div class="s">เฉลี่ยเวลาช้าสุดของแต่ละวัน · ${fmt(daysTime)} วัน</div></div>
-      <div class="kpi ${daysOver?'r':'g'}"><div class="k">วันที่เกิน Target 20:30</div>
-        <div class="v">${fmt(daysOver)}</div>
-        <div class="s">จาก ${fmt(daysTime)} วันที่มีข้อมูลเวลา</div></div>
-    </div>
+    <h3>น้ำหนักและจำนวนคันรายวัน เทียบเวลาเลิกงาน</h3>
     <div class="chartbox" style="height:360px"><canvas id="f0"></canvas></div>
-    <p class="sm" style="margin-top:10px">แท่ง = น้ำหนักรายวัน (ตัน, แกนซ้าย) ตัวเลขบนแท่งคือ ตัน / จำนวนคัน ·
-      เส้นทึบ = เวลาเลิกงานช้าสุดของวัน (แกนขวา) · เส้นประแดง = Target 20:30 ·
-      รวม ${fmt(workDays)} วันทำงาน</p>
+    <p class="sm" style="margin-top:10px">แท่ง = น้ำหนักรายวัน (แกนซ้าย) ตัวเลขบนแท่งคือ ตัน / จำนวนคัน ·
+      เส้นทึบ = เวลาเลิกงานช้าสุดของวัน (แกนขวา) · เส้นประแดง = Target 20:30</p>
+  </div>
+  <div class="grid2">
+    <div class="card anim d4"><h3>น้ำหนักเฉลี่ยต่อวัน แยกตามวันในสัปดาห์ (ตัน)</h3>
+      <div class="chartbox"><canvas id="f9"></canvas></div></div>
+    <div class="card anim d4"><h3>จำนวนคันรวม แยกตามวันในสัปดาห์</h3>
+      <div class="chartbox"><canvas id="f10"></canvas></div></div>
   </div>
 
+  ${sect(3,'Shipment Analysis','การใช้รถขนส่ง จำนวนคัน และประสิทธิภาพการบรรทุก')}
+  <div class="kpis">
+    <div class="kpi o anim d1"><div class="k">น้ำหนักเฉลี่ยต่อคัน</div>
+      <div class="v">${fmt(tonPerTruck,2)}</div><div class="s">ตัน/คัน</div></div>
+    <div class="kpi anim d2"><div class="k">บรรทุกมากสุดต่อคัน</div>
+      <div class="v">${fmt(maxTonTruck,2)}</div><div class="s">ตัน</div></div>
+    <div class="kpi anim d3"><div class="k">Peak คันต่อวัน</div>
+      <div class="v">${fmt(pkTruck)}</div>
+      <div class="s">คัน${pkTruckDate?` · ${esc(pkTruckDate)}`:''}</div></div>
+    <div class="kpi anim d4"><div class="k">รายการเฉลี่ยต่อคัน</div>
+      <div class="v">${fmt(linesPerTruck,1)}</div><div class="s">รายการสินค้า/คัน</div></div>
+  </div>
+  <div class="card anim d3"><h3>จำนวนคันรายวัน และน้ำหนักเฉลี่ยต่อคัน</h3>
+    <div class="chartbox" style="height:300px"><canvas id="f11"></canvas></div></div>
+  <div class="grid2">
+    <div class="card anim d4"><h3>การกระจายน้ำหนักต่อคัน (จำนวนคัน)</h3>
+      <div class="chartbox"><canvas id="f12"></canvas></div>
+      <p class="sm" style="margin-top:10px">ดูว่าบรรทุกเต็มคันแค่ไหน คันที่น้ำหนักน้อยคือโอกาสรวมเที่ยว</p></div>
+    <div class="card anim d4"><h3>จำนวนคันตามประเภทการส่ง</h3>
+      <div class="chartbox"><canvas id="f13"></canvas></div></div>
+  </div>
   <div class="grid3">
-    <div class="card anim d4"><h3>น้ำหนักตามประเภทการส่ง (ตัน)</h3>
+    <div class="card anim d5"><h3>น้ำหนักตามประเภทการส่ง (ตัน)</h3>
       <div class="chartbox"><canvas id="f1"></canvas></div></div>
-    <div class="card anim d4"><h3>สัดส่วน Inbound / Outbound</h3>
+    <div class="card anim d5"><h3>สัดส่วน Inbound / Outbound</h3>
       <div class="chartbox"><canvas id="f2"></canvas></div></div>
   </div>
 
+  ${sect(4,'Product Analysis','สินค้ากลุ่มไหนเคลื่อนไหวมากที่สุด และเก็บอยู่ที่ใด')}
   <div class="grid2">
-    <div class="card anim d5"><h3>น้ำหนักตามกลุ่มสินค้า (ตัน)</h3><div class="chartbox"><canvas id="f3"></canvas></div></div>
-    <div class="card anim d5"><h3>สัดส่วนตามกลุ่มลูกค้า (ตัน)</h3><div class="chartbox"><canvas id="f4"></canvas></div></div>
+    <div class="card anim d1"><h3>น้ำหนักตามกลุ่มสินค้า (ตัน)</h3>
+      <div class="chartbox"><canvas id="f3"></canvas></div>
+      <p class="sm" style="margin-top:10px">${byGrp.length? esc(byGrp[0][0])+' มากที่สุด '+fmt(byGrp[0][1],1)+
+        ' ตัน ('+(byGrp[0][1]/Math.max(ton,1)*100).toFixed(1)+'% ของทั้งหมด)' : ''}</p></div>
+    <div class="card anim d2"><h3>น้ำหนักตามประเภทสินค้า (ตัน)</h3>
+      <div class="chartbox"><canvas id="f14"></canvas></div></div>
   </div>
   <div class="grid2">
-    <div class="card anim d5"><h3>10 อันดับลูกค้า (ตัน)</h3><div class="chartbox"><canvas id="f5"></canvas></div></div>
-    <div class="card anim d5"><h3>10 อันดับรหัสสินค้า (ตัน)</h3><div class="chartbox"><canvas id="f6"></canvas></div></div>
-  </div>
-  <div class="grid2">
-    <div class="card anim d6"><h3>น้ำหนักตาม Storage Location (ตัน)</h3><div class="chartbox"><canvas id="f7"></canvas></div></div>
-    <div class="card anim d6"><h3>เวลาเลิกงานเฉลี่ยรายโรง</h3>
-      <div class="chartbox"><canvas id="f8"></canvas></div>
-      <p class="sm" style="margin-top:10px">${nTm? `${fmt(nTm)} บันทึก · ${fmt(nFac)} โรง`
-        : 'ยังไม่มีข้อมูลชีท Timeout'}</p></div>
+    <div class="card anim d3"><h3>10 อันดับรหัสสินค้า (ตัน)</h3><div class="chartbox"><canvas id="f6"></canvas></div></div>
+    <div class="card anim d4"><h3>น้ำหนักตาม Storage Location (ตัน)</h3><div class="chartbox"><canvas id="f7"></canvas></div></div>
   </div>
 
-  <div class="card anim d6"><h3>เวลาเลิกงานรายโรง (Timeout)</h3>` + tableHTML([
-    {h:'วันที่',k:'work_date'},
-    {h:'โรง',k:'factory',raw:1,f:r=>`<span class="pill b">${esc(r.factory)}</span>`},
-    {h:'เวลาเลิกงาน',k:'time_out'}
-  ],tm) + `</div>`);
+  ${sect(5,'Customer Analysis','ลูกค้ารายไหนคือปริมาณหลัก และกระจุกตัวแค่ไหน')}
+  <div class="kpis">
+    <div class="kpi o anim d1"><div class="k">ลูกค้าทั้งหมด</div><div class="v">${fmt(nCust)}</div>
+      <div class="s">รหัสลูกค้าไม่ซ้ำ</div></div>
+    <div class="kpi anim d2"><div class="k">ลูกค้าอันดับ 1</div>
+      <div class="v" style="font-size:18px;line-height:1.35">${byName.length?esc(byName[0][0].slice(0,22)):'—'}</div>
+      <div class="s">${byName.length?fmt(byName[0][1],1)+' ตัน':''}</div></div>
+    <div class="kpi ${topShare>50?'r':'g'} anim d3"><div class="k">สัดส่วน 10 อันดับแรก</div>
+      <div class="v">${fmt(topShare,1)}%</div><div class="s">ของน้ำหนักทั้งหมด</div></div>
+    <div class="kpi anim d4"><div class="k">น้ำหนักเฉลี่ยต่อลูกค้า</div>
+      <div class="v">${nCust?fmt(ton/nCust,2):'—'}</div><div class="s">ตัน/ราย</div></div>
+  </div>
+  <div class="grid3">
+    <div class="card anim d3"><h3>10 อันดับลูกค้าตามน้ำหนัก (ตัน)</h3><div class="chartbox"><canvas id="f5"></canvas></div></div>
+    <div class="card anim d3"><h3>สัดส่วนตามกลุ่มลูกค้า (ตัน)</h3><div class="chartbox"><canvas id="f4"></canvas></div></div>
+  </div>
+  <div class="grid2">
+    <div class="card anim d5"><h3>10 อันดับลูกค้าตามจำนวนคัน</h3><div class="chartbox"><canvas id="f15"></canvas></div></div>
+    <div class="card anim d5"><h3>10 อันดับปลายทาง Ship-to (ตัน)</h3><div class="chartbox"><canvas id="f16"></canvas></div></div>
+  </div>`);
 
   /* ---------- กราฟ ---------- */
   const axisFont = {font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'};
@@ -1103,28 +1166,28 @@ async function pageFG(){
                        title:{display:true,text:'ตัน',font:{family:'Kanit',size:11,weight:'400'},color:'#7086a3'},
                        ticks:axisFont},
                     x:{grid:{display:false},ticks:axisFont}};
+  const cntScale = {y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+                    x:{grid:{display:false},ticks:axisFont}};
+  const hBar = {indexAxis:'y',scales:{
+      x:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+      y:{grid:{display:false},ticks:axisFont}}};
 
-  /* ปลั๊กอินเล็กๆ เขียนตัวเลข ตัน/คัน ไว้บนหัวแท่ง */
+  /* ปลั๊กอินเขียน ตัน/คัน บนหัวแท่ง */
   const barLabels = {
     id:'barLabels',
     afterDatasetsDraw(c){
       const ds = c.data.datasets[0];
       if(!ds || ds.type === 'line') return;
-      const meta = c.getDatasetMeta(0);
-      const ctx = c.ctx, n = meta.data.length;
-      const step = n > 34 ? 3 : n > 20 ? 2 : 1;      // ถ้าวันเยอะเกินไปให้เว้นบ้าง กันตัวเลขทับกัน
-      ctx.save();
-      ctx.textAlign = 'center';
-      ctx.fillStyle = '#0b2447';
-      ctx.font = '500 9.5px Kanit';
+      const meta = c.getDatasetMeta(0), ctx = c.ctx, n = meta.data.length;
+      const step = n > 34 ? 3 : n > 20 ? 2 : 1;
+      ctx.save(); ctx.textAlign='center';
       meta.data.forEach((el,i)=>{
         if(i % step) return;
-        const t = ds.data[i];
-        if(t==null) return;
-        ctx.fillText(Number(t).toLocaleString('th-TH',{maximumFractionDigits:0}), el.x, el.y - 14);
-        ctx.fillStyle = '#c85a00'; ctx.font = '300 9px Kanit';
-        ctx.fillText(fmt(truckArr[i])+' คัน', el.x, el.y - 4);
-        ctx.fillStyle = '#0b2447'; ctx.font = '500 9.5px Kanit';
+        const t = ds.data[i]; if(t==null) return;
+        ctx.fillStyle='#0b2447'; ctx.font='500 9.5px Kanit';
+        ctx.fillText(Number(t).toLocaleString('th-TH',{maximumFractionDigits:0}), el.x, el.y-14);
+        ctx.fillStyle='#c85a00'; ctx.font='300 9px Kanit';
+        ctx.fillText(fmt(truckArr[i])+' คัน', el.x, el.y-4);
       });
       ctx.restore();
     }
@@ -1147,59 +1210,74 @@ async function pageFG(){
   chart('f0','bar',dates,dsets,{
     layout:{padding:{top:26}},
     scales:{
-      y :{position:'left', beginAtZero:true, grid:{color:'#eef2f8'}, border:{display:false},
+      y :{position:'left',beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},
           title:{display:true,text:'น้ำหนัก (ตัน)',font:{family:'Kanit',size:11,weight:'400'},color:'#7086a3'},
           ticks:axisFont},
-      y1:{position:'right', display:hasTime, grid:{display:false}, border:{display:false},
-          suggestedMin:17, suggestedMax:23,
+      y1:{position:'right',display:hasTime,grid:{display:false},border:{display:false},
+          suggestedMin:17,suggestedMax:23,
           title:{display:true,text:'เวลาเลิกงาน',font:{family:'Kanit',size:11,weight:'400'},color:'#7086a3'},
           ticks:Object.assign({},axisFont,{callback:v=>hhmm(v)})},
-      x :{grid:{display:false}, ticks:axisFont}
+      x :{grid:{display:false},ticks:axisFont}
     },
     plugins:{
-      tooltip:{ backgroundColor:'#0b2447', padding:11, cornerRadius:9,
-        borderColor:'#ff7a18', borderWidth:1.5,
-        titleFont:{family:'Kanit',size:12,weight:'500'},
-        bodyFont:{family:'Kanit',size:12,weight:'300'},
-        callbacks:{ label:(c)=>{
-          if(c.dataset.yAxisID==='y1') return c.dataset.label+': '+hhmm(c.parsed.y);
-          return [`น้ำหนัก: ${fmt(c.parsed.y,2)} ตัน`, `จำนวนคัน: ${fmt(truckArr[c.dataIndex])} คัน`];
-        }}},
+      tooltip:{backgroundColor:'#0b2447',padding:11,cornerRadius:9,borderColor:'#ff7a18',borderWidth:1.5,
+        titleFont:{family:'Kanit',size:12,weight:'500'},bodyFont:{family:'Kanit',size:12,weight:'300'},
+        callbacks:{label:c=> c.dataset.yAxisID==='y1'
+          ? c.dataset.label+': '+hhmm(c.parsed.y)
+          : [`น้ำหนัก: ${fmt(c.parsed.y,2)} ตัน`,`จำนวนคัน: ${fmt(truckArr[c.dataIndex])} คัน`]}},
       legend:{position:'bottom',labels:{font:{family:'Kanit',size:11,weight:'300'},boxWidth:12,padding:14}}
     }
   }, [barLabels]);
 
+  chart('f9','bar',dow.map(x=>x.k),[{label:'ตัน/วัน',data:dow.map(x=>x.avg),
+    backgroundColor:'#ff7a18',borderRadius:7,maxBarThickness:52}],{scales:tonScale});
+  chart('f10','bar',dow.map(x=>x.k),[{label:'คัน',data:dow.map(x=>x.c),
+    backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:52}],{scales:cntScale});
+
+  chart('f11','bar',tdDates,[
+    {type:'bar',label:'จำนวนคัน',yAxisID:'y',data:tdTrucks,
+     backgroundColor:'#1d4f92',borderRadius:6,maxBarThickness:30},
+    {type:'line',label:'ตัน/คัน',yAxisID:'y1',data:tdTpt,
+     borderColor:'#ff7a18',backgroundColor:'#ff7a18',tension:.3,spanGaps:true,
+     pointRadius:3,borderWidth:2.5}
+  ],{scales:{
+      y :{position:'left',beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},
+          title:{display:true,text:'จำนวนคัน',font:{family:'Kanit',size:11,weight:'400'},color:'#7086a3'},
+          ticks:axisFont},
+      y1:{position:'right',beginAtZero:true,grid:{display:false},border:{display:false},
+          title:{display:true,text:'ตัน/คัน',font:{family:'Kanit',size:11,weight:'400'},color:'#7086a3'},
+          ticks:axisFont},
+      x :{grid:{display:false},ticks:axisFont}}});
+
+  chart('f12','bar',truckDist.map(x=>x[0]),[{label:'จำนวนคัน',data:truckDist.map(x=>x[1]),
+    backgroundColor:'#2d6ca8',borderRadius:7,maxBarThickness:56}],{scales:cntScale});
+  chart('f13','doughnut',shipByShty.map(x=>x[0]),[{data:shipByShty.map(x=>x[1]),
+    backgroundColor:PAL,borderWidth:3,borderColor:'#fff'}],{cutout:'58%'});
+
   chart('f1','bar',byShty.map(x=>x[0]),[{label:'ตัน',data:byShty.map(x=>x[1]),
     backgroundColor:byShty.map((x,i)=>((R.by_shty[i]||{}).d==='Inbound')?'#0b2447':'#ff7a18'),
-    borderRadius:7,maxBarThickness:56}], {scales:tonScale});
-
+    borderRadius:7,maxBarThickness:56}],{scales:tonScale});
   chart('f2','doughnut',byDir.map(x=>x[0]),[{data:byDir.map(x=>x[1]),
     backgroundColor:byDir.map(x=>x[0]==='Inbound'?'#0b2447':'#ff7a18'),
     borderWidth:3,borderColor:'#fff'}],{cutout:'60%'});
 
   chart('f3','bar',byGrp.map(x=>x[0]),[{label:'ตัน',data:byGrp.map(x=>x[1]),
-    backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:52}], {scales:tonScale});
-
-  chart('f4','doughnut',byCust.map(x=>x[0]),[{data:byCust.map(x=>x[1]),
-    backgroundColor:PAL,borderWidth:3,borderColor:'#fff'}],{cutout:'58%'});
-
-  const hBar = {indexAxis:'y',scales:{
-      x:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
-      y:{grid:{display:false},ticks:axisFont}}};
-  chart('f5','bar',byName.map(x=>x[0].slice(0,24)),[{label:'ตัน',
-    data:byName.map(x=>x[1]),backgroundColor:'#ff7a18',borderRadius:6}],hBar);
-  chart('f6','bar',bySku.map(x=>x[0].slice(0,24)),[{label:'ตัน',
-    data:bySku.map(x=>x[1]),backgroundColor:'#1d4f92',borderRadius:6}],hBar);
-
+    backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:52}],{scales:tonScale});
+  chart('f14','bar',byPtype.map(x=>x[0].slice(0,22)),[{label:'ตัน',data:byPtype.map(x=>x[1]),
+    backgroundColor:'#5b8fc4',borderRadius:6}],hBar);
+  chart('f6','bar',bySku.map(x=>x[0].slice(0,24)),[{label:'ตัน',data:bySku.map(x=>x[1]),
+    backgroundColor:'#1d4f92',borderRadius:6}],hBar);
   chart('f7','bar',bySloc.map(x=>x[0]),[{label:'ตัน',data:bySloc.map(x=>x[1]),
-    backgroundColor:'#2d6ca8',borderRadius:7,maxBarThickness:46}], {scales:tonScale});
+    backgroundColor:'#2d6ca8',borderRadius:7,maxBarThickness:46}],{scales:tonScale});
 
-  chart('f8','bar',facHours.map(x=>x[0]),[{label:'เวลาเลิกงานเฉลี่ย',data:facHours.map(x=>x[1]),
-    backgroundColor:'#ff9945',borderRadius:7,maxBarThickness:48}],
-    {scales:{y:{beginAtZero:false,suggestedMin:17,grid:{color:'#eef2f8'},border:{display:false},
-                ticks:Object.assign({},axisFont,{callback:v=>hhmm(v)})},
-             x:{grid:{display:false},ticks:axisFont}},
-     plugins:{tooltip:{callbacks:{label:c=>'เฉลี่ย '+hhmm(c.parsed.y)}}}});
+  chart('f5','bar',byName.map(x=>x[0].slice(0,24)),[{label:'ตัน',data:byName.map(x=>x[1]),
+    backgroundColor:'#ff7a18',borderRadius:6}],hBar);
+  chart('f4','doughnut',byCustGrp.map(x=>x[0]),[{data:byCustGrp.map(x=>x[1]),
+    backgroundColor:PAL,borderWidth:3,borderColor:'#fff'}],{cutout:'58%'});
+  chart('f15','bar',custShip.map(x=>x[0].slice(0,24)),[{label:'คัน',data:custShip.map(x=>x[1]),
+    backgroundColor:'#0b2447',borderRadius:6}],hBar);
+  chart('f16','bar',shipTo.map(x=>x[0].slice(0,24)),[{label:'ตัน',data:shipTo.map(x=>x[1]),
+    backgroundColor:'#ff9945',borderRadius:6}],hBar);
 }
 
 /* =========================================================================
