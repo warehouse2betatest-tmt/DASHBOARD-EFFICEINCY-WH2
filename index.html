@@ -128,12 +128,33 @@ nav a.on::before{content:'';position:absolute;left:0;top:9px;bottom:9px;width:3.
   font-size:12.5px;margin-top:11px;clear:both;transition:.2s;font-family:inherit;font-weight:300}
 .me button:hover{background:var(--org);color:#fff}
 
-main{flex:1;margin-left:256px;padding:24px 26px;max-width:100%;overflow-x:hidden}
-.topbar{display:flex;align-items:center;gap:14px;margin-bottom:20px;animation:fadeIn .3s both}
+main{flex:1;margin-left:256px;padding:0 26px 26px;max-width:100%;min-width:0}
+/* หัวข้อใหญ่ล็อกไว้ด้านบนตอนเลื่อนหน้า */
+.topbar{display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:45;
+  padding:18px 0 14px;background:rgba(246,248,252,.93);backdrop-filter:blur(10px);
+  border-bottom:1px solid transparent;transition:border-color .2s,box-shadow .2s}
+.topbar.stuck{border-bottom-color:var(--line);box-shadow:0 6px 18px -12px rgba(11,36,71,.5)}
 #burger{display:none;padding:10px 13px;background:#fff;border-radius:11px;box-shadow:var(--sh);font-size:17px;color:var(--navy)}
-.topbar h1{font-size:22px;font-weight:600}
+.topbar h1{font-size:22px;font-weight:600;line-height:1.2}
 .topbar h1 .ac{color:var(--org)}
 .topbar p{color:var(--muted);font-size:12.5px;font-weight:300}
+#pgActions{margin-left:auto;display:flex;gap:9px;align-items:center}
+#preview,.sect,.card{scroll-margin-top:92px}
+#pgActions .btn{width:auto;padding:11px 20px;font-size:14px;white-space:nowrap}
+
+/* ป๊อปอัป */
+.modal{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:rgba(11,36,71,.55);backdrop-filter:blur(4px);animation:fadeIn .18s both}
+.modalBox{background:#fff;border-radius:18px;width:100%;max-width:640px;max-height:88vh;
+  display:flex;flex-direction:column;box-shadow:0 30px 70px rgba(0,0,0,.4);
+  animation:pop .28s cubic-bezier(.2,.8,.3,1) both;border-top:5px solid var(--org)}
+.modalHead{display:flex;align-items:center;gap:12px;padding:18px 22px 14px;border-bottom:1px solid var(--line)}
+.modalHead h3{flex:1;margin:0;font-size:16px;font-weight:600}
+.modalHead h3::before{display:none}
+.modalHead button{width:32px;height:32px;border-radius:9px;background:var(--navy-soft);
+  color:var(--navy2);font-size:16px;line-height:1;transition:.18s}
+.modalHead button:hover{background:var(--bad);color:#fff}
+.modalBody{padding:20px 22px 22px;overflow-y:auto}
 
 /* หัวข้อ Part ใหญ่ของหน้า */
 .sect{display:flex;align-items:center;gap:13px;margin:26px 0 15px;animation:fadeUp .4s both}
@@ -173,8 +194,10 @@ main{flex:1;margin-left:256px;padding:24px 26px;max-width:100%;overflow-x:hidden
 .grid3{display:grid;grid-template-columns:2fr 1fr;gap:17px}
 .chartbox{position:relative;height:296px}
 
+/* ตัวกรองล็อกไว้ใต้หัวข้อตอนเลื่อนหน้า */
 .filters{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;margin-bottom:17px;
-  background:#fff;padding:16px;border-radius:var(--r);box-shadow:var(--sh);border:1px solid var(--line)}
+  background:#fff;padding:16px;border-radius:var(--r);box-shadow:var(--sh);border:1px solid var(--line);
+  position:sticky;top:76px;z-index:44}
 .filters .fld{margin:0}
 .filters .fld input{padding:9px 12px}
 .fbtn{padding:10px 20px;border-radius:10px;font-weight:400;font-size:13.5px;font-family:inherit;transition:.22s;
@@ -234,7 +257,10 @@ details summary{cursor:pointer;user-select:none}
   .grid2,.grid3{grid-template-columns:1fr}
   aside{transform:translateX(-100%);box-shadow:0 0 44px rgba(0,0,0,.42)}
   aside.open{transform:translateX(0)}
-  main{margin-left:0;padding:15px} #burger{display:block}
+  main{margin-left:0;padding:0 15px 15px} #burger{display:block}
+  .topbar{padding:14px 0 12px} .filters{top:66px}
+  #pgActions .btn{padding:10px 14px;font-size:13px}
+  .modalBox{max-width:100%}
   .topbar h1{font-size:18px} .kpi .v{font-size:23px}
 }
 </style>
@@ -325,19 +351,29 @@ details summary{cursor:pointer;user-select:none}
     </div>
   </aside>
   <main>
-    <div class="topbar">
+    <div class="topbar" id="topbar">
       <button id="burger" onclick="document.getElementById('side').classList.toggle('open')">☰</button>
       <div><h1 id="pgTitle">—</h1><p id="pgSub">—</p></div>
+      <div id="pgActions"></div>
     </div>
     <div id="pageBody"></div>
   </main>
+</div>
+
+<!-- ==================== POPUP ==================== -->
+<div id="modal" class="modal hide" onclick="closeModal(event)">
+  <div class="modalBox" onclick="event.stopPropagation()">
+    <div class="modalHead"><h3 id="modalTitle">—</h3>
+      <button onclick="closeModal()" title="ปิด">✕</button></div>
+    <div class="modalBody" id="modalBody"></div>
+  </div>
 </div>
 
 <script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-04.13';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-04.14';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -741,6 +777,30 @@ async function boot(){
 function show(id){ ['authView','pendView','appView'].forEach(v=>el(v).classList.toggle('hide', v!==id)); }
 
 /* =========================================================================
+   POPUP + หัวข้อล็อกด้านบน
+   ========================================================================= */
+function openModal(title, html){
+  el('modalTitle').textContent = title;
+  el('modalBody').innerHTML = html;
+  el('modal').classList.remove('hide');
+  document.body.style.overflow = 'hidden';
+}
+function closeModal(e){
+  // คลิกพื้นหลัง (target = #modal) หรือกดปุ่ม ✕ (ไม่ส่ง event) เท่านั้นจึงปิด
+  if(e && e.target && e.target.id !== 'modal') return;
+  el('modal').classList.add('hide');
+  el('modalBody').innerHTML = '';
+  document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e=>{ if(e.key === 'Escape') closeModal(); });
+
+/* ใส่เงาใต้หัวข้อเมื่อเลื่อนลง ให้รู้ว่ากำลังลอยทับเนื้อหา */
+window.addEventListener('scroll', ()=>{
+  const t = el('topbar');
+  if(t) t.classList.toggle('stuck', window.scrollY > 6);
+}, {passive:true});
+
+/* =========================================================================
    ROUTER
    ========================================================================= */
 const PAGES = {
@@ -758,6 +818,9 @@ function go(p,e){
   document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.p===p));
   el('pgTitle').innerHTML = PAGES[p].t;
   el('pgSub').textContent = PAGES[p].s;
+  el('pgActions').innerHTML = '';        // ปุ่มมุมขวาบน แต่ละหน้าเติมเอง
+  closeModal();
+  window.scrollTo({top:0});
   el('side').classList.remove('open');
   Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(_){}}); CHARTS={};
   el('pageBody').innerHTML = '<div class="skel"></div><div class="skel" style="height:250px"></div>';
@@ -1603,27 +1666,36 @@ function pageImport(){
       จึงอัปไฟล์เดิมซ้ำได้โดยข้อมูลไม่บานปลาย</p>
   </div>
 
-  <div class="card anim d3">
-    <h3>อัปโหลดไฟล์ Excel</h3>
-    <p class="sm" style="margin-bottom:16px">
-      ระบบจะอ่านทุกชีทที่รู้จัก ตรวจว่าเคยวางไปแล้วหรือยัง แล้วให้เลือกว่าจะวางชีทไหนบ้าง</p>
+  <div id="preview"></div>
+  <div class="card anim d3"><h3>ประวัติการนำเข้าล่าสุด</h3><div id="impLog"><div class="spin"></div></div></div>`);
+
+  el('pgActions').innerHTML =
+    `<button class="btn" onclick="openUpload()">📥 อัปโหลดไฟล์ Excel</button>`;
+  loadDataSummary();
+  loadImportLog();
+}
+
+/* ป๊อปอัปอัปโหลดไฟล์ */
+function openUpload(){
+  openModal('อัปโหลดไฟล์ Excel', `
+    <p class="sm" style="margin-bottom:15px;line-height:1.8">
+      ระบบจะอ่านทุกชีทที่รู้จักในไฟล์ ตรวจว่าเคยวางไปแล้วหรือยัง
+      แล้วให้เลือกว่าจะวางชีทไหนบ้างก่อนบันทึกจริง</p>
     <div class="drop" id="drop" onclick="el('file').click()">
       <div class="ic">📁</div>
       <div class="t">ลากไฟล์มาวาง หรือคลิกเพื่อเลือก</div>
       <div class="h">รองรับ .xlsx และ .xls · รองรับข้อมูลระดับ 40,000 แถว</div>
     </div>
     <input type="file" id="file" class="hide" accept=".xlsx,.xls" onchange="readFile(this.files[0])">
-  </div>
-  <div id="preview"></div>
-  <div class="card anim d3"><h3>ประวัติการนำเข้าล่าสุด</h3><div id="impLog"><div class="spin"></div></div></div>`);
+    <p class="sm" style="margin-top:14px">
+      จับคู่คอลัมน์ตามชื่อหัวตาราง ไม่ใช่ตำแหน่ง — ไฟล์ที่คอลัมน์ไม่ครบก็อัปได้
+      ช่องที่ไม่มีจะเว้นว่างไว้</p>`);
 
   const d = el('drop');
   d.ondragover  = e=>{e.preventDefault(); d.classList.add('over')};
   d.ondragleave = ()=>d.classList.remove('over');
   d.ondrop      = e=>{e.preventDefault(); d.classList.remove('over');
                       if(e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0])};
-  loadDataSummary();
-  loadImportLog();
 }
 
 /* สรุปว่าตอนนี้ในระบบมีข้อมูลอะไร กี่แถว กี่เดือน ช่วงไหน */
@@ -1802,7 +1874,9 @@ function mapColumns(hdr, cfg){
 
 function readFile(file){
   if(!file) return;
+  closeModal();                     // ปิดป๊อปอัป แล้วไปแสดงผลตรวจสอบในหน้าหลัก
   el('preview').innerHTML = '<div class="card"><div class="spin"></div><p class="sm" style="text-align:center">กำลังอ่านไฟล์…</p></div>';
+  el('preview').scrollIntoView({behavior:'smooth', block:'start'});
   const fr = new FileReader();
   fr.onload = e=>{
     try{ parseWB(XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true}), file.name); }
