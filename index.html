@@ -379,7 +379,7 @@ details summary{cursor:pointer;user-select:none}
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-04.19';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-04.20';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -1716,22 +1716,43 @@ function openUpload(){
                       if(e.dataTransfer.files.length) readFiles(e.dataTransfer.files)};
 }
 
-/* อ่านหลายไฟล์เรียงกัน แล้วต่อท้ายรายการเดิม */
+/* อ่านหลายไฟล์เรียงกัน แล้วต่อท้ายรายการเดิม
+   หมายเหตุ: SheetJS แกะไฟล์แบบ synchronous จะบล็อกหน้าจอระหว่างทำงาน
+   จึงต้องคืนคิวให้เบราว์เซอร์วาดข้อความก่อนเริ่มแต่ละไฟล์ ไม่งั้นจะดูเหมือนค้าง */
+const yieldUI = () => new Promise(r=>setTimeout(r,16));
+const MB = b => (b/1048576).toFixed(1)+' MB';
+
 async function readFiles(fileList){
   const files = [...fileList].filter(f=>/\.xlsx?$/i.test(f.name));
-  if(!files.length){ return; }
-  el('mPreview').innerHTML =
-    `<div class="spin"></div><p class="sm" style="text-align:center">กำลังอ่าน ${files.length} ไฟล์…</p>`;
+  if(!files.length) return;
 
-  for(const f of files){
+  const big = files.filter(f=>f.size > 30*1048576);
+  if(big.length && !confirm(
+      `ไฟล์ ${big.map(f=>f.name+' ('+MB(f.size)+')').join(', ')} มีขนาดใหญ่มาก\n`+
+      `การแกะไฟล์อาจใช้เวลาหลายสิบวินาที และหน้าจอจะไม่ตอบสนองระหว่างนั้น\n\nดำเนินการต่อ?`)) return;
+
+  const box = el('mPreview');
+  for(let i=0;i<files.length;i++){
+    const f = files[i];
     if(PARSED.files.some(x=>x.fname === f.name)) continue;   // ไฟล์ชื่อซ้ำ ไม่อ่านซ้ำ
+    box.innerHTML = `<div class="spin"></div>
+      <p class="sm" style="text-align:center">กำลังแกะไฟล์ ${i+1}/${files.length}<br>
+        <b>${esc(f.name)}</b> · ${MB(f.size)}<br>
+        <span style="color:var(--muted)">ไฟล์ใหญ่อาจใช้เวลาสักครู่ หน้าจอจะนิ่งชั่วคราว</span></p>`;
+    await yieldUI();
+    const t0 = performance.now();
     try{
       const buf = await f.arrayBuffer();
       const wb  = XLSX.read(new Uint8Array(buf),{type:'array',cellDates:true});
-      PARSED.files.push(parseWB(wb, f.name));
+      const ent = parseWB(wb, f.name);
+      ent.readMs = Math.round(performance.now()-t0);
+      ent.size   = f.size;
+      PARSED.files.push(ent);
     }catch(err){
-      PARSED.files.push({fname:f.name, out:[], warn:[`อ่านไฟล์ไม่สำเร็จ: ${esc(err.message)}`], failed:true});
+      PARSED.files.push({fname:f.name, out:[], size:f.size,
+        warn:[`อ่านไฟล์ไม่สำเร็จ: ${esc(err.message)}`], failed:true});
     }
+    await yieldUI();
   }
   renderPreview();
   scanExisting();
@@ -2102,7 +2123,8 @@ function renderPreview(){
     return `<div class="card" style="margin-bottom:12px;box-shadow:none;background:#fbfcfe">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         <b style="font-size:14px;flex:1">📄 ${esc(f.fname)}</b>
-        <span class="sm">${f.out.length} ชีท · ${fmt(f.out.reduce((a,x)=>a+x.rows.length,0))} แถว</span>
+        <span class="sm">${f.out.length} ชีท · ${fmt(f.out.reduce((a,x)=>a+x.rows.length,0))} แถว${
+          f.size?` · ${MB(f.size)}`:''}${f.readMs?` · แกะไฟล์ ${(f.readMs/1000).toFixed(1)} วิ`:''}</span>
         <button class="fbtn alt" style="padding:4px 10px;font-size:12px" onclick="removeFile(${fi})">เอาออก</button>
       </div>
       ${warn}
@@ -2201,7 +2223,26 @@ async function runImport(){
   el('impLogBox').innerHTML = '';
 
   /* ส่งข้อมูลแบบ "ตาราง" — ชื่อคอลัมน์ส่งครั้งเดียว ค่าเป็นอาเรย์ต่อแถว ลดขนาดอัปโหลดราวครึ่งหนึ่ง */
-  const CHUNK = 4000, PARALLEL = 5;
+  let CHUNK = 4000; const PARALLEL = 5, MIN_CHUNK = 250;
+
+  /* ส่ง 1 ก้อน ถ้าเจอ payload ใหญ่เกิน/หมดเวลา จะแบ่งครึ่งแล้วลองใหม่เอง
+     กันกรณีเน็ตช้าหรือไฟล์มีคอลัมน์ข้อความยาวผิดปกติ */
+  async function sendChunk(table, mode, cols, rows, depth = 0){
+    try{
+      return await rpc('app_import_rows',{p_table:table, p_mode:mode, p_cols:cols, p_rows:rows});
+    }catch(ex){
+      const m = String(ex.message||'');
+      const retryable = /timeout|too large|payload|entity|network|fetch|503|504|522|525/i.test(m);
+      if(!retryable || rows.length <= MIN_CHUNK || depth >= 4 || mode === 'replace') throw ex;
+      const half = Math.ceil(rows.length/2);
+      logLine(`  ⟳ ก้อน ${fmt(rows.length)} แถวไม่ผ่าน (${esc(m.slice(0,60))}) — แบ่งเป็น ${fmt(half)} แล้วลองใหม่`,'y');
+      if(depth === 0 && CHUNK > MIN_CHUNK) CHUNK = Math.max(MIN_CHUNK, Math.floor(CHUNK/2));
+      let sum = 0;
+      for(let i=0;i<rows.length;i+=half)
+        sum += await sendChunk(table, mode, cols, rows.slice(i,i+half), depth+1);
+      return sum;
+    }
+  }
   const totalRows = sel.reduce((a,x)=>a+x.s.rows.length,0);
   let sentRows = 0, okAll = true, grandTotal = 0;
   const t0 = performance.now();
@@ -2233,8 +2274,7 @@ async function runImport(){
     let saved = 0, err = null;
     try{
       if(s.cfg.mode==='replace'){
-        saved = await rpc('app_import_rows',
-          {p_table:s.cfg.table, p_mode:'replace', p_cols:cols, p_rows:s.rows.map(toArr)});
+        saved = await sendChunk(s.cfg.table, 'replace', cols, s.rows.map(toArr));
         sentRows += s.rows.length; paint();
       }else{
         const chunks = [];
@@ -2242,8 +2282,7 @@ async function runImport(){
         for(let i=0;i<chunks.length;i+=PARALLEL){
           const batch = chunks.slice(i,i+PARALLEL);
           const res = await Promise.all(batch.map(ch=>
-            rpc('app_import_rows',
-              {p_table:s.cfg.table, p_mode:'upsert', p_cols:cols, p_rows:ch.map(toArr)})));
+            sendChunk(s.cfg.table, 'upsert', cols, ch.map(toArr))));
           res.forEach((n,bi)=>{ saved += (n||0); sentRows += batch[bi].length; });
           paint();
         }
