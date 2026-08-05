@@ -6,7 +6,7 @@
 <title>EFFICIENCY DASHBOARD WH2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@200;300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Kanit:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -621,26 +621,28 @@ details summary{cursor:pointer;user-select:none}
   /* เดิมประกาศที่ :root ทำให้ทับตัวแปรสีของระบบเดิม 5 ตัว (--navy, --navy2, --bg,
    --card, --muted) แล้วสีเพี้ยนไปทุกหน้า — ย้ายมาประกาศบน #doRoot
    ตัวแปร CSS ถ่ายทอดลงลูกอยู่แล้ว หน้านี้จึงยังใช้สีเดิมของมันครบ */
+/* ผูกสีของหน้านี้เข้ากับชุดสีกลางของระบบ ให้ทุกหน้าหน้าตาเป็นชุดเดียวกัน
+   (ยังประกาศบน #doRoot เพื่อไม่ให้ไปทับตัวแปรของหน้าอื่น) */
 #doRoot{
-    --navy:#12213a;
-    --navy2:#1c3157;
-    --steel:#2d4059;
-    --steel-light:#4a6285;
-    --accent:#ea7317;
-    --accent-light:#f7a24a;
-    --green:#2a9d8f;
-    --amber:#e9a53a;
-    --red:#d64550;
-    --bg:#f2f4f7;
+    --navy:var(--txt);            /* #0b2447 */
+    --navy2:#12376b;
+    --steel:#1d4f92;
+    --steel-light:#3672a4;
+    --accent:#ff7a18;
+    --accent-light:#ff9945;
+    --green:#0f9d58;
+    --amber:#ff9945;
+    --red:#e03131;
+    --bg:#f6f8fc;
     --card:#ffffff;
-    --text:#1a2332;
-    --muted:#6b7686;
-    --border:#e3e7ee;
+    --text:#0b2447;
+    --muted:#7086a3;
+    --border:#e3e9f2;
   }
 #doRoot *{box-sizing:border-box;margin:0;padding:0;}
 #doRoot{scroll-behavior:smooth;}
 #doRoot{
-    font-family:'Sarabun',sans-serif;
+    font-family:'Kanit',sans-serif;
     background:var(--bg);
     color:var(--text);
     line-height:1.7;
@@ -689,7 +691,7 @@ details summary{cursor:pointer;user-select:none}
 #doRoot .nav{
     /* เดิมติดที่ขอบบนสุด z-index 50 ทำให้ทับหัวข้อหน้าของ Efficiency (z-index 45)
        ปรับให้ไปติดใต้หัวข้อหน้า และอยู่ชั้นต่ำกว่า */
-    position:sticky;top:var(--wh-head-h,72px);z-index:42;
+    position:sticky;top:var(--wh-head-h,72px);z-index:44;   /* ต้องสูงกว่าแถบตัวกรอง (43) ไม่งั้นเมนูดรอปดาวน์โดนบัง */
     background:rgba(18,33,58,0.97);
     backdrop-filter:blur(6px);
     border-bottom:1px solid rgba(255,255,255,0.08);
@@ -784,7 +786,7 @@ details summary{cursor:pointer;user-select:none}
 #doRoot section{margin-bottom:14px;scroll-margin-top:52px;}
 #doRoot .section-head{display:flex;align-items:baseline;gap:12px;margin-bottom:18px;padding-top:28px;}
 #doRoot .section-num{
-    font-size:13px;font-weight:700;color:#fff;background:var(--accent);
+    font-size:13px;font-weight:700;color:#fff;background:var(--org-deep);
     width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;
     flex-shrink:0;
   }
@@ -983,7 +985,7 @@ details summary{cursor:pointer;user-select:none}
     display:flex;align-items:center;justify-content:center;gap:10px;margin-top:16px;flex-wrap:wrap;
   }
 #doRoot .page-btn{
-    font-family:'Sarabun',sans-serif;font-size:12.5px;font-weight:600;color:var(--steel);
+    font-family:'Kanit',sans-serif;font-size:12.5px;font-weight:600;color:var(--steel);
     background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer;transition:.15s;
   }
 #doRoot .page-btn:hover:not(:disabled){background:var(--navy);color:#fff;border-color:var(--navy);}
@@ -998,7 +1000,7 @@ details summary{cursor:pointer;user-select:none}
 #doRoot .modal-body{padding:20px 22px 26px;}
   }
 #doRoot .filterbar{
-    position:sticky; top:calc(var(--wh-head-h,72px) + 46px); z-index:45; background:#fff; border-bottom:1px solid var(--border);
+    position:sticky; top:calc(var(--wh-head-h,72px) + 46px); z-index:43; background:#fff; border-bottom:1px solid var(--border);
     box-shadow:0 2px 8px rgba(18,33,58,0.06);
   }
 #doRoot .filterbar-inner{
@@ -1013,7 +1015,7 @@ details summary{cursor:pointer;user-select:none}
     margin-right:2px;padding:0 4px;white-space:nowrap;
   }
 #doRoot .filter-pill{
-    font-family:'Sarabun',sans-serif; font-size:12.5px;font-weight:600;color:var(--steel);
+    font-family:'Kanit',sans-serif; font-size:12.5px;font-weight:600;color:var(--steel);
     background:#fff;border:1px solid var(--border);border-radius:20px;padding:5px 13px;
     cursor:pointer;transition:.15s;
   }
@@ -1021,7 +1023,7 @@ details summary{cursor:pointer;user-select:none}
 #doRoot .filter-pill.active{background:var(--navy);color:#fff;border-color:var(--navy);}
 #doRoot .filter-pill[title]{cursor:help;}
 #doRoot .filter-reset{
-    font-family:'Sarabun',sans-serif;font-size:12.5px;font-weight:600;color:var(--muted);
+    font-family:'Kanit',sans-serif;font-size:12.5px;font-weight:600;color:var(--muted);
     background:#fff;border:1px solid var(--border);border-radius:20px;padding:6px 14px;cursor:pointer;
     margin-left:auto;transition:.15s;display:flex;align-items:center;gap:5px;
   }
@@ -1041,7 +1043,7 @@ details summary{cursor:pointer;user-select:none}
 #doRoot .fs-details[open] summary::after{transform:rotate(180deg);}
 #doRoot .fs-details-body{padding-top:8px;line-height:1.7;}
 #doRoot .fr-section-tag{
-    display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:var(--accent);
+    display:inline-block;font-size:10.5px;font-weight:700;color:#fff;background:var(--org-deep);
     padding:1px 7px;border-radius:10px;margin-right:6px;vertical-align:middle;
   }
 
@@ -1051,7 +1053,7 @@ details summary{cursor:pointer;user-select:none}
   }
 /* เดิม z-index 99999 คลุมทั้งจอรวมถึงแถบเมนูซ้าย ทำให้ระหว่างโหลดกดไปหน้าอื่นไม่ได้
    ลดลงมาต่ำกว่าแถบเมนู (z 60) และหัวข้อหน้า (z 45) ให้ยังนำทางได้ */
-#doRoot #liveLoadingOverlay{position:fixed;inset:0;z-index:30;background:#12213a;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;font-family:'Sarabun',sans-serif;transition:opacity .4s ease;}
+#doRoot #liveLoadingOverlay{position:fixed;inset:0;z-index:30;background:#12213a;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;font-family:'Kanit',sans-serif;transition:opacity .4s ease;}
 #doRoot #liveLoadingOverlay.live-loading-fade{opacity:0;pointer-events:none;}
 #doRoot #liveLoadingOverlay.live-loading-hidden{display:none;}
 #doRoot .live-spinner{width:52px;height:52px;border:4px solid rgba(255,255,255,0.25);border-top-color:#ea7317;border-radius:50%;animation:liveSpin 0.9s linear infinite;margin-bottom:22px;}
@@ -1061,7 +1063,7 @@ details summary{cursor:pointer;user-select:none}
 #doRoot #liveLoadingError{display:none;max-width:480px;text-align:center;padding:0 24px;}
 #doRoot .live-err-title{font-size:18px;font-weight:700;color:#f0a3a3;margin-bottom:10px;}
 #doRoot .live-err-detail{font-size:13.5px;color:#c7cedb;line-height:1.6;margin-bottom:20px;}
-#doRoot #liveRetryBtn{background:#ea7317;color:#fff;border:none;padding:10px 22px;border-radius:8px;font-size:14px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:700;}
+#doRoot #liveRetryBtn{background:#ea7317;color:#fff;border:none;padding:10px 22px;border-radius:8px;font-size:14px;font-family:'Kanit',sans-serif;cursor:pointer;font-weight:700;}
 #doRoot #liveRetryBtn:hover{background:#f7a24a;}
 
 /* ---------- หน้าจอเตรียมข้อมูลหลังเข้าสู่ระบบ ---------- */
@@ -2483,7 +2485,7 @@ details summary{cursor:pointer;user-select:none}
 </div>
 </template>
 
-<script type="text/plain" id="tplLogic">var FONT = "'Sarabun', sans-serif";
+<script type="text/plain" id="tplLogic">var FONT = "'Kanit', sans-serif";
 // ค่าเริ่มต้นของ Chart.js ถูกสลับให้ที่ go() แล้ว (กันไปกระทบกราฟหน้าอื่น)
 if (typeof chartDefaultsFor === 'function') chartDefaultsFor('do');
 else { Chart.defaults.font.family = FONT; Chart.defaults.color = '#6b7686'; }
@@ -4131,7 +4133,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-07.3';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-07.5';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -4654,19 +4656,12 @@ const PAGES = {
   profile: {t:'โปรไฟล์<span class="ac">ของฉัน</span>',       s:'แก้ไขข้อมูลส่วนตัวและรหัสผ่าน', f:pageProfile},
   users:   {t:'จัดการ<span class="ac">ผู้ใช้</span>',        s:'อนุมัติผู้สมัครและกำหนดสิทธิ์', f:pageUsers}
 };
-/* หน้า DO ตั้งฟอนต์/สีเริ่มต้นของ Chart.js ระดับโลก (Sarabun) ซึ่งจะติดไปกับกราฟ
-   หน้าอื่นหลังจากเคยเข้าหน้า DO — จำค่าเดิมไว้แล้วสลับกลับเมื่อออกจากหน้านั้น */
-let CHART_DEF = null;
-function chartDefaultsFor(page){
+/* ตั้งฟอนต์/สีเริ่มต้นของกราฟให้เป็นชุดเดียวกันทุกหน้า
+   (เดิมหน้า DO ตั้ง Sarabun ระดับโลก ทำให้กราฟหน้าอื่นเปลี่ยนตามหลังเข้าหน้านั้น) */
+function chartDefaultsFor(){
   if(typeof Chart === 'undefined' || !Chart.defaults) return;
-  if(!CHART_DEF) CHART_DEF = { font: Chart.defaults.font.family, color: Chart.defaults.color };
-  if(page === 'do'){
-    Chart.defaults.font.family = "'Sarabun', sans-serif";
-    Chart.defaults.color = '#6b7686';
-  }else{
-    Chart.defaults.font.family = CHART_DEF.font;
-    Chart.defaults.color = CHART_DEF.color;
-  }
+  Chart.defaults.font.family = "'Kanit', sans-serif";
+  Chart.defaults.color = '#7086a3';
 }
 
 function go(p,e){
