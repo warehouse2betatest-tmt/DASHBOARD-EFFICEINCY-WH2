@@ -4133,7 +4133,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-07.5';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-08.1';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -9469,13 +9469,20 @@ async function pageFG(){
       ? Object.keys(SLOC_TO_FACTORY).filter(k=>FILTERS.factories.includes(SLOC_TO_FACTORY[k]))
       : null;
 
-  let R;
+  let R, GS;
   try{ R = await rpcCached('app_dash_fg_agg',{
         p_months: orNull('months'),
         p_slocs : hasF('factories') ? (slocs.length ? slocs : ['__NO_MATCH__']) : null,
         p_facs  : orNull('factories'),
         p_shtys : orNull('shtys') }); }
   catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
+  /* ข้อมูลจากทะเบียนสินค้า: กลุ่มขาย / กลุ่มผลิตภัณฑ์ / ชนิดสินค้า
+     ใช้ทั้งวาดหมวดใหม่ และทำ tooltip บอกสัดส่วนกลุ่มขายในทุกกราฟ */
+  try{ GS = await rpcCached('app_dash_fg_gsale',{
+        p_months: orNull('months'),
+        p_slocs : hasF('factories') ? (slocs.length ? slocs : ['__NO_MATCH__']) : null,
+        p_shtys : orNull('shtys') }); }
+  catch(_){ GS = null; }
 
   const K = R.kpi;
   const bar = filterBarAgg(R, 'pageFG');
@@ -9524,6 +9531,30 @@ async function pageFG(){
   const sect = (n,t,s,cls='') =>
     `<div class="sect ${cls}"><div class="no">${n}</div>
        <div><h2>${t}</h2><p>${s}</p></div><div class="ln"></div></div>`;
+
+  /* ---- tooltip: บอกว่าค่าที่ชี้อยู่มาจากกลุ่มขายไหนบ้าง (ตัน + ร้อยละ) ----
+     ข้อมูลมาจากก้อนไขว้ gs_cross ที่ฝั่งฐานข้อมูลสรุปไว้แล้ว (5 อันดับแรกของแต่ละค่า) */
+  const GX = (GS && GS.gs_cross) || {};
+  function gsLines(dim, key){
+    const arr = (GX[dim] || {})[key];
+    if(!arr || !arr.length) return null;
+    return ['<b>' + esc(String(key)) + '</b>',
+            '<span style="opacity:.75">สัดส่วนตามกลุ่มขาย</span>']
+      .concat(arr.map(x=>'• ' + esc(x.k) + '  ' + fmt(x.v,1) + ' ตัน (' + fmt(x.p,1) + '%)'))
+      .join('<br>');
+  }
+  /* คืนฟังก์ชัน tip ให้ chart() — แถวบนคือค่าของกราฟ ตามด้วยรายละเอียดกลุ่มขาย */
+  const gsTip = (dim, keyOf, unit) => (pts)=>{
+    const p0 = pts[0], k = keyOf(p0.dataIndex);
+    // กราฟโดนัทไม่มีชื่อชุดข้อมูล ให้ใช้ชื่อของชิ้นนั้นแทน
+    const head = pts.map(p=>{
+      const nm = p.dataset.label || p.label || '';
+      const val = (p.parsed && typeof p.parsed === 'object') ? (p.parsed.y ?? p.parsed.x) : p.parsed;
+      return (nm ? '<b>'+esc(nm)+'</b> ' : '') + fmt(val,1) + ' ' + (unit||'');
+    }).join('<br>');
+    const body = gsLines(dim, k);
+    return (body ? body + '<br><span style="opacity:.55">— — —</span><br>' : '<b>'+esc(String(k))+'</b><br>') + head;
+  };
 
   body(bar + `
 
@@ -9606,7 +9637,51 @@ async function pageFG(){
     <div class="card anim d4"><h3>น้ำหนักตาม Storage Location (ตัน)</h3><div class="chartbox"><canvas id="f7"></canvas></div></div>
   </div>
 
-  ${sect(5,'Customer Analysis','ลูกค้ารายไหนคือปริมาณหลัก และกระจุกตัวแค่ไหน')}
+  ${sect(5,'Sales Group Analysis','เจาะตามทะเบียนสินค้า — กลุ่มขาย กลุ่มผลิตภัณฑ์ และชนิดสินค้า','o')}
+  ${GS ? `
+  <div class="kpis">
+    <div class="kpi o anim d1"><div class="k">กลุ่มขายทั้งหมด</div><div class="v">${fmt((GS.by_gsale||[]).length)}</div>
+      <div class="s">กลุ่ม · ครอบคลุม ${fmt(GS.gs_total,1)} ตัน</div></div>
+    <div class="kpi anim d2"><div class="k">กลุ่มขายอันดับ 1</div>
+      <div class="v" style="font-size:19px">${esc(((GS.by_gsale||[])[0]||{}).k || '—')}</div>
+      <div class="s">${fmt(((GS.by_gsale||[])[0]||{}).v,1)} ตัน · ${fmt(((GS.by_gsale||[])[0]||{}).pct,1)}%</div></div>
+    <div class="kpi anim d3"><div class="k">กลุ่มขายที่ทำ 80% ของน้ำหนัก</div>
+      <div class="v">${fmt((GS.by_gsale||[]).filter(x=>+x.cum<=80).length + 1)}</div>
+      <div class="s">จาก ${fmt((GS.by_gsale||[]).length)} กลุ่ม</div></div>
+    <div class="kpi g anim d4"><div class="k">ชนิดสินค้า</div><div class="v">${fmt((GS.by_ptype2||[]).length)}</div>
+      <div class="s">${fmt((GS.by_group2||[]).length)} กลุ่มผลิตภัณฑ์</div></div>
+  </div>
+
+  <div class="card anim d1"><h3>น้ำหนักตามกลุ่มขาย (Pareto)</h3>
+    <div class="chartbox" style="height:330px"><canvas id="g1"></canvas></div>
+    <p class="sm" style="margin-top:10px">แท่ง = ตัน · เส้น = สัดส่วนสะสม —
+      ${(()=>{const a=(GS.by_gsale||[]).filter(x=>+x.cum<=80).length+1;
+        return `${fmt(a)} กลุ่มแรกรวมกันได้ 80% ของน้ำหนักทั้งหมด`;})()}</p></div>
+
+  <div class="grid2">
+    <div class="card anim d2"><h3>สัดส่วนตามชนิดสินค้า (Product Type)</h3>
+      <div class="chartbox" style="height:300px"><canvas id="g2"></canvas></div></div>
+    <div class="card anim d3"><h3>สัดส่วนตามกลุ่มผลิตภัณฑ์ (Product Group)</h3>
+      <div class="chartbox" style="height:300px"><canvas id="g3"></canvas></div></div>
+  </div>
+
+  <div class="card anim d4"><h3>กลุ่มขายรายเดือน (8 อันดับแรกของแต่ละเดือน)</h3>
+    <div class="chartbox" style="height:320px"><canvas id="g4"></canvas></div>
+    <p class="sm" style="margin-top:10px">ดูว่ากลุ่มไหนโตขึ้นหรือหดลงระหว่างเดือน</p></div>
+
+  <div class="card anim d5"><h3>รายละเอียดกลุ่มขาย</h3>` + tableHTML([
+      {h:'กลุ่มขาย',k:'k'},
+      {h:'น้ำหนัก (ตัน)',k:'v',n:1,f:r=>fmt(r.v,1)},
+      {h:'สัดส่วน',k:'pct',n:1,f:r=>fmt(r.pct,1)+'%'},
+      {h:'สะสม',k:'cum',n:1,raw:1,f:r=>`<b style="color:${+r.cum<=80?'var(--org-deep)':'inherit'}">${fmt(r.cum,1)}%</b>`},
+      {h:'รายการ',k:'rows',n:1,f:r=>fmt(r.rows)},
+      {h:'รหัสสินค้า',k:'skus',n:1,f:r=>fmt(r.skus)},
+      {h:'ชนิดสินค้า',k:'ptypes',n:1,f:r=>fmt(r.ptypes)}
+    ], GS.by_gsale||[], 50) + `</div>
+  ` : `<div class="card anim"><div class="msg warn" style="margin:0">
+        ยังไม่มีข้อมูลจากทะเบียนสินค้า — ตรวจว่านำเข้าชีท Master Material แล้วหรือยัง</div></div>`}
+
+  ${sect(6,'Customer Analysis','ลูกค้ารายไหนคือปริมาณหลัก และกระจุกตัวแค่ไหน')}
   <div class="kpis">
     <div class="kpi o anim d1"><div class="k">ลูกค้าทั้งหมด</div><div class="v">${fmt(nCust)}</div>
       <div class="s">รหัสลูกค้าไม่ซ้ำ</div></div>
@@ -9710,32 +9785,102 @@ async function pageFG(){
   chart('f1','bar',byShty.map(x=>x[0]),[{label:'ตัน',data:byShty.map(x=>x[1]),
     backgroundColor:byShty.map((x,i)=>((R.by_shty[i]||{}).d==='Inbound')?'#0b2447':'#ff7a18'),
     borderRadius:7,maxBarThickness:56}],
-    {scales:tonScale, layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
+    {scales:tonScale, layout:{padding:{top:18}}, vl:v=>fmt(v,0),
+     tip:gsTip('shty', i=>byShty[i][0], 'ตัน')});
   chart('f2','doughnut',byDir.map(x=>x[0]),[{data:byDir.map(x=>x[1]),
     backgroundColor:byDir.map(x=>x[0]==='Inbound'?'#0b2447':'#ff7a18'),
     borderWidth:3,borderColor:'#fff'}],
-    {cutout:'60%', vl:v=>`${fmt(v,0)} ต\n${(v/Math.max(ton,1)*100).toFixed(0)}%`});
+    {cutout:'60%', vl:v=>`${fmt(v,0)} ต\n${(v/Math.max(ton,1)*100).toFixed(0)}%`,
+     tip:gsTip('dir', i=>byDir[i][0], 'ตัน')});
 
   chart('f3','bar',byGrp.map(x=>x[0]),[{label:'ตัน',data:byGrp.map(x=>x[1]),
     backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:52}],
-    {scales:tonScale, layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
+    {scales:tonScale, layout:{padding:{top:18}}, vl:v=>fmt(v,0),
+     tip:gsTip('group', i=>byGrp[i][0], 'ตัน')});
   chart('f14','bar',byPtype.map(x=>x[0].slice(0,22)),[{label:'ตัน',data:byPtype.map(x=>x[1]),
-    backgroundColor:'#5b8fc4',borderRadius:6}], Object.assign({},hBar,{vl:v=>fmt(v,0)}));
+    backgroundColor:'#5b8fc4',borderRadius:6}],
+    Object.assign({},hBar,{vl:v=>fmt(v,0), tip:gsTip('ptype', i=>byPtype[i][0], 'ตัน')}));
   chart('f6','bar',bySku.map(x=>x[0].slice(0,24)),[{label:'ตัน',data:bySku.map(x=>x[1]),
     backgroundColor:'#1d4f92',borderRadius:6}], Object.assign({},hBar,{vl:v=>fmt(v,0)}));
   chart('f7','bar',bySloc.map(x=>x[0]),[{label:'ตัน',data:bySloc.map(x=>x[1]),
     backgroundColor:'#2d6ca8',borderRadius:7,maxBarThickness:46}],
-    {scales:tonScale, layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
+    {scales:tonScale, layout:{padding:{top:18}}, vl:v=>fmt(v,0),
+     tip:gsTip('sloc', i=>bySloc[i][0], 'ตัน')});
 
   chart('f5','bar',byName.map(x=>x[0].slice(0,24)),[{label:'ตัน',data:byName.map(x=>x[1]),
     backgroundColor:'#ff7a18',borderRadius:6}], Object.assign({},hBar,{vl:v=>fmt(v,0)}));
   chart('f4','doughnut',byCustGrp.map(x=>x[0]),[{data:byCustGrp.map(x=>x[1]),
     backgroundColor:PAL,borderWidth:3,borderColor:'#fff'}],
-    {cutout:'58%', vl:v=>`${fmt(v,0)} ต\n${(v/Math.max(ton,1)*100).toFixed(0)}%`});
+    {cutout:'58%', vl:v=>`${fmt(v,0)} ต\n${(v/Math.max(ton,1)*100).toFixed(0)}%`,
+     tip:gsTip('cust', i=>byCustGrp[i][0], 'ตัน')});
   chart('f15','bar',custShip.map(x=>x[0].slice(0,24)),[{label:'คัน',data:custShip.map(x=>x[1]),
     backgroundColor:'#0b2447',borderRadius:6}], Object.assign({},hBar,{vl:v=>fmt(v,0)}));
   chart('f16','bar',shipTo.map(x=>x[0].slice(0,24)),[{label:'ตัน',data:shipTo.map(x=>x[1]),
     backgroundColor:'#ff9945',borderRadius:6}], Object.assign({},hBar,{vl:v=>fmt(v,0)}));
+
+  /* ---------- หมวดกลุ่มขาย (จากทะเบียนสินค้า) ---------- */
+  if(GS){
+    const G = (GS.by_gsale||[]).slice(0,18);
+    chart('g1','bar',G.map(x=>String(x.k).slice(0,18)),[
+      {label:'ตัน',data:G.map(x=>+x.v),backgroundColor:'#ff7a18',borderRadius:6,order:2},
+      {type:'line',label:'สะสม %',data:G.map(x=>+x.cum),borderColor:'#0b2447',backgroundColor:'#0b2447',
+       borderWidth:2.5,tension:.3,pointRadius:3,yAxisID:'y2',order:1}
+    ],{layout:{padding:{top:22}},
+       scales:{y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+               y2:{position:'right',beginAtZero:true,max:100,grid:{display:false},border:{display:false},ticks:axisFont},
+               x:{grid:{display:false},ticks:Object.assign({},axisFont,{maxRotation:60,minRotation:40})}},
+       vl:(v,i,ds)=> ds.type==='line' ? fmt(v,0)+'%' : fmt(v,0),
+       tip:(pts)=>{
+         const i=pts[0].dataIndex, g=G[i];
+         return `<b>${esc(g.k)}</b><br>น้ำหนัก ${fmt(g.v,1)} ตัน (${fmt(g.pct,1)}%)<br>`+
+                `สะสมถึงกลุ่มนี้ ${fmt(g.cum,1)}%<br>`+
+                `<span style="opacity:.75">${fmt(g.rows)} รายการ · ${fmt(g.skus)} รหัสสินค้า · ${fmt(g.ptypes)} ชนิด</span>`;
+       }});
+
+    const PT = (GS.by_ptype2||[]).slice(0,12);
+    chart('g2','doughnut',PT.map(x=>String(x.k).slice(0,20)),
+      [{data:PT.map(x=>+x.v),backgroundColor:PAL,borderWidth:3,borderColor:'#fff'}],
+      {cutout:'56%', vl:(v,i)=>`${fmt(v,0)} ต\n${fmt(PT[i].pct,0)}%`,
+       tip:(pts)=>{ const i=pts[0].dataIndex, x=PT[i];
+         const gsl = gsLines('ptype', x.k);
+         return `<b>${esc(x.k)}</b><br>${fmt(x.v,1)} ตัน (${fmt(x.pct,1)}%)<br>`+
+                `<span style="opacity:.75">${fmt(x.gs)} กลุ่มขาย · ${fmt(x.skus)} รหัสสินค้า</span>`+
+                (gsl? '<br><span style="opacity:.55">— — —</span><br>'+gsl : '');
+       }});
+
+    const PG = (GS.by_group2||[]).slice(0,12);
+    chart('g3','doughnut',PG.map(x=>String(x.k).slice(0,20)),
+      [{data:PG.map(x=>+x.v),backgroundColor:PAL.slice().reverse(),borderWidth:3,borderColor:'#fff'}],
+      {cutout:'56%', vl:(v,i)=>`${fmt(v,0)} ต\n${fmt(PG[i].pct,0)}%`,
+       tip:(pts)=>{ const i=pts[0].dataIndex, x=PG[i];
+         const gsl = gsLines('group', x.k);
+         return `<b>${esc(x.k)}</b><br>${fmt(x.v,1)} ตัน (${fmt(x.pct,1)}%)<br>`+
+                `<span style="opacity:.75">${fmt(x.gs)} กลุ่มขาย · ${fmt(x.skus)} รหัสสินค้า</span>`+
+                (gsl? '<br><span style="opacity:.55">— — —</span><br>'+gsl : '');
+       }});
+
+    // กลุ่มขายรายเดือน — แท่งซ้อน เรียงตามน้ำหนักรวม
+    const GM = GS.gsale_month||[];
+    const mList = [...new Set(GM.map(x=>x.m))].sort();
+    const gTot = {}; GM.forEach(x=>{ gTot[x.k] = (gTot[x.k]||0) + (+x.v); });
+    const gKeys = Object.keys(gTot).sort((a,b)=>gTot[b]-gTot[a]).slice(0,8);
+    chart('g4','bar',mList.map(monthLabel),
+      gKeys.map((k,i)=>({label:String(k).slice(0,16),
+        data:mList.map(m=>{const f=GM.find(x=>x.m===m&&x.k===k); return f? +f.v : 0;}),
+        backgroundColor:PAL[i%PAL.length],borderRadius:4})),
+      {layout:{padding:{top:18}},
+       scales:{y:{stacked:true,beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+               x:{stacked:true,grid:{display:false},ticks:axisFont}},
+       plugins:{legend:{position:'bottom',labels:{font:{family:'Kanit',size:11,weight:'300'},boxWidth:12,padding:12}}},
+       vl:v=> v>0 ? fmt(v,0) : null,
+       tip:(pts)=>{
+         const rows = pts.slice().sort((a,b)=>b.parsed.y-a.parsed.y);
+         const sum = rows.reduce((s,p)=>s+(+p.parsed.y||0),0) || 1;
+         return `<b>${esc(rows[0].label)}</b><br><span style="opacity:.75">รวม ${fmt(sum,1)} ตัน</span><br>`+
+           rows.filter(p=>+p.parsed.y>0).map(p=>
+             `• ${esc(p.dataset.label)}  ${fmt(p.parsed.y,1)} ตัน (${fmt(p.parsed.y/sum*100,1)}%)`).join('<br>');
+       }});
+  }
 }
 
 /* =========================================================================
