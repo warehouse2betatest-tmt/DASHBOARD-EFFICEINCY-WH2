@@ -14,6 +14,8 @@
 <style>
 :root{
   --navy:#0b2447; --navy2:#12376b; --navy3:#1d4f92; --navy-soft:#eef3fa;
+  --org-deep:#c94f00;    /* ส้มเข้ม ใช้เป็นพื้นหลังเมื่อมีตัวอักษรสีขาว ให้อ่านชัด */
+  --wh-head-h:72px;      /* ความสูงหัวข้อหน้า ใช้ตั้งจุดติดหนึบของหน้าที่ยกมา */
   --org:#ff7a18;  --org2:#ff9945;  --org-soft:#fff3e8;
   --bg:#f6f8fc;   --card:#ffffff;  --line:#e3e9f2;
   --txt:#0b2447;  --muted:#7086a3;
@@ -30,7 +32,7 @@ input,select{font-family:inherit;font-size:14px;font-weight:300}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#c6d3e4;border-radius:99px}
 ::-webkit-scrollbar-thumb:hover{background:var(--navy3)}
-::selection{background:var(--org);color:#fff}
+::selection{background:var(--org-deep);color:#fff}
 
 @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
@@ -127,7 +129,7 @@ nav a.on::before{content:'';position:absolute;left:0;top:9px;bottom:9px;width:3.
 .me .rl{font-size:11px;color:#6b86a8;font-weight:300}
 .me button{width:100%;padding:9px;background:rgba(255,255,255,.09);color:#b9cbe2;border-radius:9px;
   font-size:12.5px;margin-top:11px;clear:both;transition:.2s;font-family:inherit;font-weight:300}
-.me button:hover{background:var(--org);color:#fff}
+.me button:hover{background:var(--org-deep);color:#fff}
 
 main{flex:1;margin-left:256px;padding:0 26px 26px;max-width:100%;min-width:0}
 /* หัวข้อใหญ่ล็อกไว้ด้านบนตอนเลื่อนหน้า */
@@ -148,7 +150,7 @@ main{flex:1;margin-left:256px;padding:0 26px 26px;max-width:100%;min-width:0}
   color:var(--txt);transition:.18s;min-width:150px;text-align:left}
 .msBtn:hover{border-color:var(--org)}
 .msBtn.on{border-color:var(--org);background:var(--org-soft)}
-.msBtn .cnt{margin-left:auto;background:var(--org);color:#fff;border-radius:99px;
+.msBtn .cnt{margin-left:auto;background:var(--org-deep);color:#fff;border-radius:99px;
   padding:1px 8px;font-size:11px;font-weight:500}
 .msBtn .arw{color:var(--muted);font-size:10px}
 .msPanel{position:absolute;top:calc(100% + 6px);left:0;z-index:70;background:#fff;
@@ -158,7 +160,7 @@ main{flex:1;margin-left:256px;padding:0 26px 26px;max-width:100%;min-width:0}
 .msPanel .hd{display:flex;gap:7px;padding:10px;border-bottom:1px solid var(--line)}
 .msPanel .hd button{flex:1;padding:6px;border-radius:7px;background:var(--navy-soft);
   color:var(--navy2);font-size:12px;font-family:inherit;transition:.15s}
-.msPanel .hd button:hover{background:var(--org);color:#fff}
+.msPanel .hd button:hover{background:var(--org-deep);color:#fff}
 .msPanel .bd{overflow-y:auto;padding:6px}
 .msPanel label{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;
   cursor:pointer;font-size:13px;font-weight:300;transition:.12s}
@@ -316,7 +318,7 @@ details summary{cursor:pointer;user-select:none}
                 radial-gradient(1000px 500px at -10% 10%, rgba(10,38,71,.06), transparent 60%), var(--grey-50);
     color:var(--grey-800); min-height:100vh;
   }
-#shipRoot ::selection{background:var(--orange-400); color:#fff;}
+#shipRoot ::selection{background:#c94f00; color:#fff;}
 #shipRoot .reveal{opacity:1; transform:none; transition:opacity .5s ease, transform .5s cubic-bezier(.2,.8,.2,1);}
 #shipRoot .reveal.pre{opacity:0; transform:translateY(16px);}
 #shipRoot .topbar{background:linear-gradient(120deg,var(--navy-950) 0%, var(--navy-900) 45%, var(--navy-800) 100%); color:#fff; position:sticky; top:0; z-index:50; box-shadow:0 8px 24px rgba(6,26,51,.35);}
@@ -333,8 +335,8 @@ details summary{cursor:pointer;user-select:none}
 #shipRoot .live-dot{width:8px;height:8px;border-radius:50%; background:#4ade80; display:inline-block; margin-right:6px; box-shadow:0 0 0 0 rgba(74,222,128,.6); animation:pulse2 2s infinite;}
 
   @keyframes pulse2{0%{box-shadow:0 0 0 0 rgba(74,222,128,.55)}70%{box-shadow:0 0 0 8px rgba(74,222,128,0)}100%{box-shadow:0 0 0 0 rgba(74,222,128,0)}}
-#shipRoot .refresh-btn{display:inline-flex; align-items:center; gap:6px; background:var(--orange-500,#f97316); color:#fff; border:none; padding:8px 16px; border-radius:100px; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; transition:background .15s, transform .1s; white-space:nowrap;}
-#shipRoot .refresh-btn:hover{background:var(--orange-600,#ea580c);}
+#shipRoot .refresh-btn{display:inline-flex; align-items:center; gap:6px; background:#c94f00; color:#fff; border:none; padding:8px 16px; border-radius:100px; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; transition:background .15s, transform .1s; white-space:nowrap;}
+#shipRoot .refresh-btn:hover{background:#a33b00;}
 #shipRoot .refresh-btn:active{transform:scale(.96);}
 #shipRoot .refresh-btn:disabled{opacity:.6; cursor:not-allowed;}
 #shipRoot .refresh-icon{display:inline-block; font-size:14px; line-height:1;}
@@ -615,7 +617,6 @@ details summary{cursor:pointer;user-select:none}
    สไตล์ยกมาจากไฟล์ "Analysis DO" ของผู้ใช้ จำกัดขอบเขตด้วย #doRoot ทุกกฎ
    ================================================================= */
 
-#doRoot <style>
   :root{
     --navy:#12213a;
     --navy2:#1c3157;
@@ -682,7 +683,9 @@ details summary{cursor:pointer;user-select:none}
 #doRoot .hero::after{animation:none;}
   }
 #doRoot .nav{
-    position:sticky;top:0;z-index:50;
+    /* เดิมติดที่ขอบบนสุด z-index 50 ทำให้ทับหัวข้อหน้าของ Efficiency (z-index 45)
+       ปรับให้ไปติดใต้หัวข้อหน้า และอยู่ชั้นต่ำกว่า */
+    position:sticky;top:var(--wh-head-h,72px);z-index:42;
     background:rgba(18,33,58,0.97);
     backdrop-filter:blur(6px);
     border-bottom:1px solid rgba(255,255,255,0.08);
@@ -968,7 +971,7 @@ details summary{cursor:pointer;user-select:none}
 #doRoot .modal-body tr:nth-child(even) td{background:#fafbfc;}
 #doRoot .modal-note{font-size:11.5px;color:var(--muted);margin-top:12px;text-align:center;}
 #doRoot .modal-body th.sortable{cursor:pointer;user-select:none;transition:.12s;white-space:nowrap;}
-#doRoot .modal-body th.sortable:hover{color:var(--accent);background:#eef1f5;}
+#doRoot .modal-body th.sortable:hover{color:#a84800;background:#eef1f5;}
 #doRoot .sort-ic{display:inline-block;width:9px;margin-left:3px;font-size:9px;color:var(--accent);}
 #doRoot .sort-ic.asc::after{content:"\25B2";}
 #doRoot .sort-ic.desc::after{content:"\25BC";}
@@ -991,7 +994,7 @@ details summary{cursor:pointer;user-select:none}
 #doRoot .modal-body{padding:20px 22px 26px;}
   }
 #doRoot .filterbar{
-    position:sticky; top:46px; z-index:45; background:#fff; border-bottom:1px solid var(--border);
+    position:sticky; top:calc(var(--wh-head-h,72px) + 46px); z-index:45; background:#fff; border-bottom:1px solid var(--border);
     box-shadow:0 2px 8px rgba(18,33,58,0.06);
   }
 #doRoot .filterbar-inner{
@@ -1042,8 +1045,9 @@ details summary{cursor:pointer;user-select:none}
 #doRoot .filterbar{position:static;}
 #doRoot .filter-reset{margin-left:0;}
   }
-#doRoot <style>
-#doRoot #liveLoadingOverlay{position:fixed;inset:0;z-index:99999;background:#12213a;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;font-family:'Sarabun',sans-serif;transition:opacity .4s ease;}
+/* เดิม z-index 99999 คลุมทั้งจอรวมถึงแถบเมนูซ้าย ทำให้ระหว่างโหลดกดไปหน้าอื่นไม่ได้
+   ลดลงมาต่ำกว่าแถบเมนู (z 60) และหัวข้อหน้า (z 45) ให้ยังนำทางได้ */
+#doRoot #liveLoadingOverlay{position:fixed;inset:0;z-index:30;background:#12213a;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;font-family:'Sarabun',sans-serif;transition:opacity .4s ease;}
 #doRoot #liveLoadingOverlay.live-loading-fade{opacity:0;pointer-events:none;}
 #doRoot #liveLoadingOverlay.live-loading-hidden{display:none;}
 #doRoot .live-spinner{width:52px;height:52px;border:4px solid rgba(255,255,255,0.25);border-top-color:#ea7317;border-radius:50%;animation:liveSpin 0.9s linear infinite;margin-bottom:22px;}
@@ -1130,8 +1134,6 @@ details summary{cursor:pointer;user-select:none}
       <a href="#" data-p="fg"      onclick="go('fg',event)"><span class="ic">📦</span> FG [Outbound &amp; Inbound]</a>
       <a href="#" data-p="shipment" onclick="go('shipment',event)"><span class="ic">🚛</span> Shipment Analysis</a>
       <a href="#" data-p="do" onclick="go('do',event)"><span class="ic">⏱️</span> DO Preparing &amp; Milk Run</a>
-      <a href="#" data-p="prepare" onclick="go('prepare',event)"><span class="ic">📋</span> DO Preparing (ตาราง)</a>
-      <a href="#" data-p="milkrun" onclick="go('milkrun',event)"><span class="ic">🚚</span> Milk Run (ตาราง)</a>
       <div class="navlbl">ระบบ</div>
       <a href="#" data-p="import" id="navImport" onclick="go('import',event)"><span class="ic">📥</span> นำเข้าข้อมูล</a>
       <a href="#" data-p="profile" onclick="go('profile',event)"><span class="ic">👤</span> โปรไฟล์ของฉัน</a>
@@ -4092,7 +4094,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-07.1';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-07.2';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -4611,8 +4613,6 @@ const PAGES = {
   fg:      {t:'FG <span class="ac">[Outbound &amp; Inbound]</span>', s:'ภาพรวมการรับเข้าและจ่ายออกสินค้าสำเร็จรูป — ข้อมูลทั้งหมด', f:pageFG},
   shipment:{t:'Shipment <span class="ac">Analysis</span>', s:'เจาะลึกเที่ยวรถ เวลาแต่ละขั้น และจุดที่เสียเวลา', f:pageShipment},
   do:      {t:'DO Preparing &amp; <span class="ac">Milk Run</span>', s:'วิเคราะห์เวลาจัดเตรียมสินค้าและการขนส่งระหว่างโรงแบบเจาะลึก', f:pageDO},
-  prepare: {t:'DO <span class="ac">Preparing</span>',       s:'เวลาที่ใช้จัดเตรียมสินค้าตาม Delivery Order — ข้อมูลทั้งหมด', f:pagePrepare},
-  milkrun: {t:'Milk <span class="ac">Run</span>',           s:'การเคลื่อนย้ายสินค้าระหว่างโรง — ข้อมูลทั้งหมด', f:pageMilk},
   import:  {t:'นำเข้า<span class="ac">ข้อมูล</span>',        s:'อัปโหลดไฟล์ Excel 8 ชีทเข้าฐานข้อมูล', f:pageImport},
   profile: {t:'โปรไฟล์<span class="ac">ของฉัน</span>',       s:'แก้ไขข้อมูลส่วนตัวและรหัสผ่าน', f:pageProfile},
   users:   {t:'จัดการ<span class="ac">ผู้ใช้</span>',        s:'อนุมัติผู้สมัครและกำหนดสิทธิ์', f:pageUsers}
@@ -9675,203 +9675,6 @@ async function pageFG(){
     backgroundColor:'#0b2447',borderRadius:6}], Object.assign({},hBar,{vl:v=>fmt(v,0)}));
   chart('f16','bar',shipTo.map(x=>x[0].slice(0,24)),[{label:'ตัน',data:shipTo.map(x=>x[1]),
     backgroundColor:'#ff9945',borderRadius:6}], Object.assign({},hBar,{vl:v=>fmt(v,0)}));
-}
-
-/* =========================================================================
-   PAGE 2 — DO PREPARING
-   ========================================================================= */
-async function pagePrepare(){
-  let all;
-  try{ all = await getData('app_dash_prepare'); }
-  catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
-  if(!all.length){ body(emptyBox('ยังไม่มีข้อมูล Prepare ในระบบ')); return; }
-
-  const rows = applyFilters(all,'prepare');
-  const head = filterBar([{rows:all,kind:'prepare'}], rows.length, all.length, 'pagePrepare');
-  if(!rows.length){ body(head + emptyBox('ไม่พบข้อมูลตามตัวกรองที่เลือก')); return; }
-
-  const done = rows.filter(r=>r.stage==='Completed');
-  const prep = rows.filter(r=>r.stage==='Preparing');
-  const open = rows.filter(r=>r.stage==='Open');
-  const pctDone = done.length/rows.length*100;
-  const avgLead = avg(rows.map(r=>r.mins_total_lead));
-  const bFull = rows.reduce((s,r)=>s+(+r.bundle_full||0),0);
-  const bPart = rows.reduce((s,r)=>s+(+r.bundle_partial||0),0);
-
-  const byGate  = groupAvg(rows,r=>r.user_gate,r=>r.mins_total_lead);
-  const byPG    = groupSum(rows,r=>r.product_group,r=>r.actual_qty);
-  const byDate  = groupAvg(rows,r=>r.loading_date,r=>r.mins_total_lead).sort((a,b)=>a[0]<b[0]?-1:1);
-  const backGate= countBy(rows.filter(r=>r.stage!=='Completed'),r=>r.user_gate);
-
-  body(head + `
-  <div class="kpis">
-    <div class="kpi anim d1"><div class="k">รายการ DO ทั้งหมด</div><div class="v">${fmt(rows.length)}</div>
-      <div class="s">${fmt(new Set(rows.map(r=>r.delivery_order)).size)} ใบ DO</div></div>
-    <div class="kpi ${pctDone>=80?'g':pctDone>=50?'o':'r'} anim d2"><div class="k">เสร็จแล้ว</div>
-      <div class="v">${pctDone.toFixed(1)}%</div><div class="s">${fmt(done.length)} จาก ${fmt(rows.length)} รายการ</div></div>
-    <div class="kpi ${(prep.length+open.length)?'r':'g'} anim d3"><div class="k">งานค้าง</div>
-      <div class="v">${fmt(prep.length+open.length)}</div>
-      <div class="s">กำลังเตรียม ${fmt(prep.length)} · ยังไม่เริ่ม ${fmt(open.length)}</div></div>
-    <div class="kpi o anim d4"><div class="k">Lead time เฉลี่ย</div>
-      <div class="v">${avgLead==null?'—':fmt(avgLead,0)}</div><div class="s">นาที (เปิด DO → เสร็จ)</div></div>
-  </div>
-  <div class="grid3">
-    <div class="card anim d3"><h3>Lead time เฉลี่ยรายวัน (นาที)</h3><div class="chartbox"><canvas id="p1"></canvas></div></div>
-    <div class="card anim d3"><h3>สถานะงาน</h3><div class="chartbox"><canvas id="p2"></canvas></div></div>
-  </div>
-  <div class="grid2">
-    <div class="card anim d4"><h3>Lead time เฉลี่ยตาม Gate (นาที)</h3><div class="chartbox"><canvas id="p3"></canvas></div></div>
-    <div class="card anim d4"><h3>งานค้างแยกตาม Gate</h3><div class="chartbox"><canvas id="p4"></canvas></div></div>
-  </div>
-  <div class="grid2">
-    <div class="card anim d5"><h3>ปริมาณตามกลุ่มสินค้า</h3><div class="chartbox"><canvas id="p5"></canvas></div></div>
-    <div class="card anim d5"><h3>สัดส่วนมัดเต็ม / มัดเศษ</h3><div class="chartbox"><canvas id="p6"></canvas></div>
-      <p class="sm" style="margin-top:11px">มัดเต็ม ${fmt(bFull)} · มัดเศษ ${fmt(bPart)} ·
-      สัดส่วนมัดเต็ม <b>${(bFull+bPart)?((bFull/(bFull+bPart))*100).toFixed(1):'0'}%</b></p></div>
-  </div>
-  <div class="card anim d6"><h3>รายการจัดเตรียม</h3>` + tableHTML([
-    {h:'วันที่',k:'loading_date',f:r=>dmy(r.loading_date)},{h:'DO',k:'delivery_order'},{h:'Item',k:'delivery_item'},
-    {h:'ลูกค้า',k:'sold_to_name',f:r=>(r.sold_to_name||'').slice(0,26)},
-    {h:'รหัสสินค้า',k:'material_code'},
-    {h:'ปริมาณ',k:'actual_qty',n:1,f:r=>fmt(r.actual_qty)},{h:'Gate',k:'user_gate'},
-    {h:'สถานะ',k:'stage',raw:1,
-     f:r=>`<span class="pill ${r.stage==='Completed'?'g':r.stage==='Preparing'?'o':'n'}">${r.stage}</span>`},
-    {h:'DO→เตรียม (น.)',k:'mins_do_to_preparing',n:1,f:r=>r.mins_do_to_preparing==null?'—':fmt(r.mins_do_to_preparing,0)},
-    {h:'เตรียม→เสร็จ (น.)',k:'mins_preparing_to_done',n:1,f:r=>r.mins_preparing_to_done==null?'—':fmt(r.mins_preparing_to_done,0)},
-    {h:'รวม (น.)',k:'mins_total_lead',n:1,f:r=>r.mins_total_lead==null?'—':fmt(r.mins_total_lead,0)}
-  ],rows) + `</div>`);
-
-  chart('p1','line',byDate.map(x=>dmy(x[0])),[{label:'นาที',data:byDate.map(x=>x[1]),
-    borderColor:'#0b2447',backgroundColor:'rgba(11,36,71,.1)',fill:true,tension:.35,
-    pointBackgroundColor:'#fff',pointBorderColor:'#0b2447',pointBorderWidth:2,pointRadius:4}],
-    {layout:{padding:{top:20}}, vl:v=>fmt(v,0)});
-  chart('p2','doughnut',['เสร็จแล้ว','กำลังเตรียม','ยังไม่เริ่ม'],
-    [{data:[done.length,prep.length,open.length],backgroundColor:['#0f9d58','#ff7a18','#c6d3e4'],
-      borderWidth:3,borderColor:'#fff'}],
-    {cutout:'60%', vl:v=>`${fmt(v)}\n${(v/Math.max(rows.length,1)*100).toFixed(0)}%`});
-  chart('p3','bar',byGate.map(x=>x[0]),[{label:'นาที',data:byGate.map(x=>x[1]),
-    backgroundColor:'#1d4f92',borderRadius:7,maxBarThickness:48}],
-    {layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
-  chart('p4','bar',backGate.map(x=>x[0]),[{label:'รายการค้าง',data:backGate.map(x=>x[1]),
-    backgroundColor:'#ff7a18',borderRadius:7,maxBarThickness:48}],
-    {layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
-  chart('p5','bar',byPG.map(x=>x[0]),[{label:'ปริมาณ',data:byPG.map(x=>x[1]),
-    backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:56}],
-    {layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
-  chart('p6','doughnut',['มัดเต็ม','มัดเศษ'],[{data:[bFull,bPart],
-    backgroundColor:['#0b2447','#ff7a18'],borderWidth:3,borderColor:'#fff'}],
-    {cutout:'60%', vl:v=>`${fmt(v)}\n${(v/Math.max(bFull+bPart,1)*100).toFixed(0)}%`});
-}
-
-/* =========================================================================
-   PAGE 3 — MILK RUN  (ข้อมูล Timeout ย้ายไปรวมที่หน้า FG แล้ว)
-   ========================================================================= */
-async function pageMilk(){
-  let all;
-  try{ all = await getData('app_dash_milkrun'); }
-  catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
-  if(!all.length){ body(emptyBox('ยังไม่มีข้อมูล Milk Run ในระบบ')); return; }
-
-  const R    = applyFilters(all,'milkrun');
-  const head = filterBar([{rows:all,kind:'milkrun'}], R.length, all.length, 'pageMilk');
-  if(!R.length){ body(head + emptyBox('ไม่พบข้อมูลตามตัวกรองที่เลือก')); return; }
-
-  const trips  = new Set(R.map(r=>r.milk_run_no)).size;
-  const totTon = R.reduce((s,r)=>s+(+r.weight||0),0)/1000;   // ข้อมูลเก็บเป็น กก. แสดงผลเป็นตัน
-  const avgTrip= avg(R.map(r=>r.trip_mins));
-  const routes = new Set(R.map(r=>r.route)).size;
-  const seg = { wait:avg(R.map(r=>r.mins_wait_pick)), trav:avg(R.map(r=>r.mins_travel)),
-                chk:avg(R.map(r=>r.mins_wait_checkin)), unl:avg(R.map(r=>r.mins_unload)) };
-
-  const byRoute = countBy(R,r=>r.route).slice(0,12);
-  const byHead  = groupSum(R,r=>r.truck_head,r=>r.weight);
-  const byDriver= countBy(R,r=>r.driver_name);
-  const routeSeg= [...new Set(R.map(r=>r.route))].slice(0,8).map(rt=>{
-    const g = R.filter(r=>r.route===rt);
-    return {rt, w:avg(g.map(r=>r.mins_wait_pick))||0, t:avg(g.map(r=>r.mins_travel))||0,
-            c:avg(g.map(r=>r.mins_wait_checkin))||0, u:avg(g.map(r=>r.mins_unload))||0};
-  });
-
-  const byOrigin = groupSum(R,r=>r.origin,r=>r.weight);
-  const byDest   = groupSum(R,r=>r.destination,r=>r.weight);
-  const byDate   = groupSum(R,r=>r.run_date,r=>r.weight).sort((a,b)=>a[0]<b[0]?-1:1);
-  const facLbl   = [...new Set([...byOrigin,...byDest].map(x=>x[0]))].sort();
-
-  body(head + `
-  <div class="kpis">
-    <div class="kpi anim d1"><div class="k">จำนวนเที่ยว Milk Run</div><div class="v">${fmt(trips)}</div>
-      <div class="s">${fmt(R.length)} รายการสินค้า</div></div>
-    <div class="kpi o anim d2"><div class="k">น้ำหนักขนย้ายรวม</div><div class="v">${fmt(totTon,1)}</div><div class="s">ตัน</div></div>
-    <div class="kpi g anim d3"><div class="k">เวลาต่อเที่ยวเฉลี่ย</div>
-      <div class="v">${avgTrip==null?'—':fmt(avgTrip,0)}</div><div class="s">นาที · ${fmt(routes)} เส้นทาง</div></div>
-    <div class="kpi anim d4"><div class="k">น้ำหนักเฉลี่ยต่อเที่ยว</div>
-      <div class="v">${trips?fmt(totTon/trips,2):'—'}</div>
-      <div class="s">ตัน · ${fmt(new Set(R.map(r=>r.truck_head)).size)} หัวลาก</div></div>
-  </div>
-  <div class="card anim d3"><h3>เวลาที่ใช้แต่ละช่วงของ Milk Run (นาทีเฉลี่ย)</h3>
-    <div class="kpis" style="margin-bottom:0">
-      <div class="kpi"><div class="k">รอหยิบสินค้า</div><div class="v">${seg.wait==null?'—':fmt(seg.wait,1)}</div><div class="s">นาที</div></div>
-      <div class="kpi"><div class="k">เดินทาง</div><div class="v">${seg.trav==null?'—':fmt(seg.trav,1)}</div><div class="s">นาที</div></div>
-      <div class="kpi o"><div class="k">รอ Check-in</div><div class="v">${seg.chk==null?'—':fmt(seg.chk,1)}</div><div class="s">นาที</div></div>
-      <div class="kpi g"><div class="k">ลงสินค้า</div><div class="v">${seg.unl==null?'—':fmt(seg.unl,1)}</div><div class="s">นาที</div></div>
-    </div></div>
-  <div class="grid2">
-    <div class="card anim d4"><h3>จำนวนรายการตามเส้นทาง</h3><div class="chartbox"><canvas id="m1"></canvas></div></div>
-    <div class="card anim d4"><h3>เวลาแต่ละช่วงแยกตามเส้นทาง (นาที)</h3><div class="chartbox"><canvas id="m2"></canvas></div></div>
-  </div>
-  <div class="grid2">
-    <div class="card anim d5"><h3>น้ำหนักตามหัวลาก (ตัน)</h3><div class="chartbox"><canvas id="m3"></canvas></div></div>
-    <div class="card anim d5"><h3>จำนวนรายการตามพนักงานขับ</h3><div class="chartbox"><canvas id="m4"></canvas></div></div>
-  </div>
-  <div class="grid2">
-    <div class="card anim d5"><h3>แนวโน้มน้ำหนักขนย้ายรายวัน (ตัน)</h3><div class="chartbox"><canvas id="m5"></canvas></div></div>
-    <div class="card anim d5"><h3>น้ำหนักออกจากโรง เทียบ เข้าโรง (ตัน)</h3>
-      <div class="chartbox"><canvas id="m6"></canvas></div></div>
-  </div>
-  <div class="card anim d6"><h3>รายการ Milk Run</h3>` + tableHTML([
-    {h:'วันที่',k:'run_date',f:r=>dmy(r.run_date)},{h:'Milk Run',k:'milk_run_no'},
-    {h:'เส้นทาง',k:'route',raw:1,f:r=>`<span class="pill b">${esc(r.route)}</span>`},
-    {h:'หัวลาก',k:'truck_head'},{h:'Delivery',k:'delivery'},{h:'Item',k:'do_item'},
-    {h:'สินค้า',k:'material_desc',f:r=>(r.material_desc||'').slice(0,28)},
-    {h:'น้ำหนัก (ตัน)',k:'weight',n:1,f:r=>fmt((+r.weight||0)/1000,3)},
-    {h:'รอหยิบ',k:'mins_wait_pick',n:1,f:r=>r.mins_wait_pick==null?'—':fmt(r.mins_wait_pick,0)},
-    {h:'เดินทาง',k:'mins_travel',n:1,f:r=>r.mins_travel==null?'—':fmt(r.mins_travel,0)},
-    {h:'รอ Check-in',k:'mins_wait_checkin',n:1,f:r=>r.mins_wait_checkin==null?'—':fmt(r.mins_wait_checkin,0)},
-    {h:'ลงสินค้า',k:'mins_unload',n:1,f:r=>r.mins_unload==null?'—':fmt(r.mins_unload,0)},
-    {h:'รวมเที่ยว',k:'trip_mins',n:1,f:r=>r.trip_mins==null?'—':fmt(r.trip_mins,0)},
-    {h:'พนักงานขับ',k:'driver_name'}
-  ],R) + `</div>`);
-
-  {
-    chart('m1','bar',byRoute.map(x=>x[0]),[{label:'รายการ',data:byRoute.map(x=>x[1]),
-      backgroundColor:'#0b2447',borderRadius:7,maxBarThickness:46}],
-      {layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
-    chart('m2','bar',routeSeg.map(x=>x.rt),[
-      {label:'รอหยิบ',data:routeSeg.map(x=>x.w),backgroundColor:'#0b2447',borderRadius:4},
-      {label:'เดินทาง',data:routeSeg.map(x=>x.t),backgroundColor:'#1d4f92',borderRadius:4},
-      {label:'รอ Check-in',data:routeSeg.map(x=>x.c),backgroundColor:'#ff7a18',borderRadius:4},
-      {label:'ลงสินค้า',data:routeSeg.map(x=>x.u),backgroundColor:'#ffc78a',borderRadius:4}
-    ],{scales:{x:{stacked:true,grid:{display:false},ticks:{font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'}},
-               y:{stacked:true,beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},
-                  ticks:{font:{family:'Kanit',size:11,weight:'300'},color:'#7086a3'}}},
-       vl:v=> v>=1 ? fmt(v,0) : null});
-    chart('m3','bar',byHead.map(x=>x[0]),[{label:'ตัน',data:byHead.map(x=>x[1]/1000),
-      backgroundColor:'#ff7a18',borderRadius:7,maxBarThickness:56}],
-      {layout:{padding:{top:18}}, vl:v=>fmt(v,1)});
-    chart('m4','bar',byDriver.map(x=>x[0]),[{label:'รายการ',data:byDriver.map(x=>x[1]),
-      backgroundColor:'#1d4f92',borderRadius:7,maxBarThickness:56}],
-      {layout:{padding:{top:18}}, vl:v=>fmt(v,0)});
-    chart('m5','line',byDate.map(x=>dmy(x[0])),[{label:'ตัน',data:byDate.map(x=>x[1]/1000),
-      borderColor:'#ff7a18',backgroundColor:'rgba(255,122,24,.13)',fill:true,tension:.35,
-      pointBackgroundColor:'#fff',pointBorderColor:'#ff7a18',pointBorderWidth:2,pointRadius:4}],
-      {layout:{padding:{top:20}}, vl:v=>fmt(v,1)});
-    chart('m6','bar',facLbl,[
-      {label:'ออกจากโรง (ต้นทาง)',data:facLbl.map(x=>(byOrigin.find(y=>y[0]===x)||[0,0])[1]/1000),
-       backgroundColor:'#ff7a18',borderRadius:7},
-      {label:'เข้าโรง (ปลายทาง)', data:facLbl.map(x=>(byDest.find(y=>y[0]===x)||[0,0])[1]/1000),
-       backgroundColor:'#0b2447',borderRadius:7}
-    ],{layout:{padding:{top:18}}, vl:v=> v>0 ? fmt(v,1) : null});
-  }
 }
 
 /* =========================================================================
