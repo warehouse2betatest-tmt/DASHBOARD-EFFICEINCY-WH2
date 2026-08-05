@@ -941,7 +941,7 @@ details summary{cursor:pointer;user-select:none}
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-06.2';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-06.3';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -984,7 +984,19 @@ async function getData(fn){
   if(!CACHE[fn]) CACHE[fn] = await rpc(fn);
   return CACHE[fn];
 }
-function clearCache(){ Object.keys(CACHE).forEach(k=>delete CACHE[k]); }
+function clearCache(){ Object.keys(CACHE).forEach(k=>delete CACHE[k]);
+  Object.keys(ARG_CACHE).forEach(k=>delete ARG_CACHE[k]); }
+
+/* จำผลลัพธ์ตาม "ชุดตัวกรอง" ที่เคยเลือก — ติ๊กกลับไปแบบเดิมจะขึ้นทันทีไม่ต้องรอเซิร์ฟเวอร์
+   (ฝั่งเซิร์ฟเวอร์ยังต้องไล่ข้อมูล 219,114 แถวอยู่ จึงช้าเฉพาะครั้งแรกของแต่ละชุด) */
+const ARG_CACHE = {};
+async function rpcCached(fn, args){
+  const key = fn + '|' + JSON.stringify(args || {});
+  if(ARG_CACHE[key] !== undefined) return ARG_CACHE[key];
+  const r = await rpc(fn, args);
+  ARG_CACHE[key] = r;
+  return r;
+}
 
 /* เก็บ token แบบไม่พังถ้าเบราว์เซอร์บล็อก localStorage (โหมดส่วนตัว / ปิดคุกกี้) */
 let MEM_TOKEN = null;
@@ -4026,7 +4038,7 @@ async function pageFG(){
       : null;
 
   let R;
-  try{ R = await rpc('app_dash_fg_agg',{
+  try{ R = await rpcCached('app_dash_fg_agg',{
         p_months: orNull('months'),
         p_slocs : hasF('factories') ? (slocs.length ? slocs : ['__NO_MATCH__']) : null,
         p_facs  : orNull('factories'),
