@@ -14,7 +14,8 @@
 <style>
 :root{
   --navy:#0b2447; --navy2:#12376b; --navy3:#1d4f92; --navy-soft:#eef3fa;
-  --org-deep:#c94f00;    /* ส้มเข้ม ใช้เป็นพื้นหลังเมื่อมีตัวอักษรสีขาว ให้อ่านชัด */
+  --org-deep:#c94f00;
+    /* ส้มเข้ม ใช้เป็นพื้นหลังเมื่อมีตัวอักษรสีขาว ให้อ่านชัด */
   --wh-head-h:72px;      /* ความสูงหัวข้อหน้า ใช้ตั้งจุดติดหนึบของหน้าที่ยกมา */
   --org:#ff7a18;  --org2:#ff9945;  --org-soft:#fff3e8;
   --bg:#f6f8fc;   --card:#ffffff;  --line:#e3e9f2;
@@ -617,7 +618,10 @@ details summary{cursor:pointer;user-select:none}
    สไตล์ยกมาจากไฟล์ "Analysis DO" ของผู้ใช้ จำกัดขอบเขตด้วย #doRoot ทุกกฎ
    ================================================================= */
 
-  :root{
+  /* เดิมประกาศที่ :root ทำให้ทับตัวแปรสีของระบบเดิม 5 ตัว (--navy, --navy2, --bg,
+   --card, --muted) แล้วสีเพี้ยนไปทุกหน้า — ย้ายมาประกาศบน #doRoot
+   ตัวแปร CSS ถ่ายทอดลงลูกอยู่แล้ว หน้านี้จึงยังใช้สีเดิมของมันครบ */
+#doRoot{
     --navy:#12213a;
     --navy2:#1c3157;
     --steel:#2d4059;
@@ -1059,6 +1063,38 @@ details summary{cursor:pointer;user-select:none}
 #doRoot .live-err-detail{font-size:13.5px;color:#c7cedb;line-height:1.6;margin-bottom:20px;}
 #doRoot #liveRetryBtn{background:#ea7317;color:#fff;border:none;padding:10px 22px;border-radius:8px;font-size:14px;font-family:'Sarabun',sans-serif;cursor:pointer;font-weight:700;}
 #doRoot #liveRetryBtn:hover{background:#f7a24a;}
+
+/* ---------- หน้าจอเตรียมข้อมูลหลังเข้าสู่ระบบ ---------- */
+#preloadView{position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(135deg,#061a33 0%,#0f3460 55%,#164a7a 100%);padding:24px}
+#preloadView.hide{display:none}
+#preloadView .box{width:100%;max-width:420px;background:#fff;border-radius:20px;padding:30px 28px;
+  box-shadow:0 24px 60px rgba(0,0,0,.35)}
+#preloadView h3{font-size:17px;font-weight:600;color:var(--navy);margin:0 0 4px;text-align:center}
+#preloadView .sub{font-size:12.5px;font-weight:300;color:var(--muted);margin:0 0 20px;text-align:center}
+#preloadView .track{height:10px;border-radius:99px;background:var(--line);overflow:hidden;margin:0 0 8px}
+#preloadView .fill{height:100%;border-radius:99px;width:0%;transition:width .3s ease;
+  background:linear-gradient(90deg,var(--org),var(--org-deep))}
+#preloadView .fill.done{background:linear-gradient(90deg,#22c55e,#16a34a)}
+#preloadView .pctrow{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:16px}
+#preloadView .pct{font-weight:600;color:var(--org-deep);font-variant-numeric:tabular-nums}
+#preloadView ul{list-style:none;margin:0;padding:0}
+#preloadView li{display:flex;align-items:center;gap:9px;padding:7px 0;font-size:13px;
+  color:var(--muted);border-top:1px solid var(--line)}
+#preloadView li:first-child{border-top:none}
+#preloadView li .ic{width:18px;height:18px;border-radius:50%;flex:none;display:flex;
+  align-items:center;justify-content:center;font-size:10px;background:var(--line);color:var(--muted)}
+#preloadView li.run{color:var(--navy);font-weight:500}
+#preloadView li.run .ic{background:var(--org-soft);color:var(--org-deep);animation:spin 1s linear infinite}
+#preloadView li.ok{color:var(--navy)}
+#preloadView li.ok .ic{background:#e8f7ee;color:var(--ok)}
+#preloadView li.err{color:var(--bad)}
+#preloadView li.err .ic{background:#fdeeee;color:var(--bad)}
+#preloadView li .note{margin-left:auto;font-size:11.5px;font-weight:300;color:var(--muted)}
+#preloadView .skip{margin-top:18px;text-align:center}
+#preloadView .skip button{background:none;border:none;color:var(--muted);font-family:inherit;
+  font-size:12.5px;cursor:pointer;text-decoration:underline}
+#preloadView .skip button:hover{color:var(--org-deep)}
 </style>
 </head>
 <body>
@@ -2448,8 +2484,9 @@ details summary{cursor:pointer;user-select:none}
 </template>
 
 <script type="text/plain" id="tplLogic">var FONT = "'Sarabun', sans-serif";
-Chart.defaults.font.family = FONT;
-Chart.defaults.color = '#6b7686';
+// ค่าเริ่มต้นของ Chart.js ถูกสลับให้ที่ go() แล้ว (กันไปกระทบกราฟหน้าอื่น)
+if (typeof chartDefaultsFor === 'function') chartDefaultsFor('do');
+else { Chart.defaults.font.family = FONT; Chart.defaults.color = '#6b7686'; }
 Chart.register(ChartDataLabels);
 // จำกัดป้ายค่าให้ขึ้นเฉพาะกราฟที่อยู่ในหน้านี้ ไม่ให้ไปโผล่บนกราฟหน้าอื่นของ Efficiency
 // (Chart.register เป็นการลงทะเบียนระดับโลก จึงต้องกันด้วยค่าเริ่มต้นแบบมีเงื่อนไข)
@@ -2464,26 +2501,26 @@ var COLORS = {
 var PALETTE = [COLORS.steel, COLORS.accent, COLORS.green, COLORS.amber, COLORS.red, COLORS.steelLight, COLORS.navy, COLORS.accentLight, COLORS.gray];
 var STROKE = {textStrokeColor:'rgba(18,33,58,0.45)', textStrokeWidth:3};
 var PG_ORDER = ['Long Pipe','Flat Bar','Beam','Long C'];
-var PG_TH = {'Long Pipe':'ท่อเหล็ก','Flat Bar':'เหล็กแบน','Beam':'โครงสร้าง','Long C':'ตัวซี'};
-var PG_COLOR = {'Long Pipe':COLORS.steel,'Flat Bar':COLORS.accent,'Beam':COLORS.green,'Long C':COLORS.red};
-var SPECIAL_FB = new Set(['สแตนเลส (Stainless)','เศษคืนลูกค้า (Customer Return Scrap)','เลเซอร์/ขึ้นรูปตามแบบ (Laser/Custom Form)','แบรนด์ Hanwa']);
+var do_PG_TH = {'Long Pipe':'ท่อเหล็ก','Flat Bar':'เหล็กแบน','Beam':'โครงสร้าง','Long C':'ตัวซี'};
+var do_PG_COLOR = {'Long Pipe':COLORS.steel,'Flat Bar':COLORS.accent,'Beam':COLORS.green,'Long C':COLORS.red};
+var do_SPECIAL_FB = new Set(['สแตนเลส (Stainless)','เศษคืนลูกค้า (Customer Return Scrap)','เลเซอร์/ขึ้นรูปตามแบบ (Laser/Custom Form)','แบรนด์ Hanwa']);
 
-function fmtNum(v){ return Math.round(v).toLocaleString('en-US'); }
+function do_fmtNum(v){ return Math.round(v).toLocaleString('en-US'); }
 function pctOfTotal(v, arr){ const t = arr.reduce((a,b)=>a+b,0); return t? v/t*100 : 0; }
-function completionColor(p){ return p>=80?COLORS.green:(p>=50?COLORS.amber:COLORS.red); }
+function do_completionColor(p){ return p>=80?COLORS.green:(p>=50?COLORS.amber:COLORS.red); }
 function completionBadgeStyle(p){ return p>=80?'green':(p>=50?'orange':'red'); }
 
 // ===== 1. Product Group volume (always global — comparison view) =====
 new Chart(document.getElementById('chartPGVolume'), {
   type:'bar',
-  data:{labels:PGCOMPARE.map(p=>PG_TH[p['Product Group']]), datasets:[{label:'จำนวนรายการ', data:PGCOMPARE.map(p=>p.line_items), backgroundColor:PGCOMPARE.map(p=>PG_COLOR[p['Product Group']]), borderRadius:5, maxBarThickness:56}]},
-  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:12,weight:'700'},formatter:v=>fmtNum(v)}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:Math.max(...PGCOMPARE.map(p=>p.line_items))*1.18},x:{grid:{display:false}}}}
+  data:{labels:PGCOMPARE.map(p=>do_PG_TH[p['Product Group']]), datasets:[{label:'จำนวนรายการ', data:PGCOMPARE.map(p=>p.line_items), backgroundColor:PGCOMPARE.map(p=>do_PG_COLOR[p['Product Group']]), borderRadius:5, maxBarThickness:56}]},
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:12,weight:'700'},formatter:v=>do_fmtNum(v)}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:Math.max(...PGCOMPARE.map(p=>p.line_items))*1.18},x:{grid:{display:false}}}}
 });
 
 // ===== 2. Product Group completion % (always global) =====
 new Chart(document.getElementById('chartPGCompletion'), {
   type:'bar',
-  data:{labels:PGCOMPARE.map(p=>PG_TH[p['Product Group']]), datasets:[{label:'% ปิดงานสำเร็จ', data:PGCOMPARE.map(p=>p.pct_completed), backgroundColor:PGCOMPARE.map(p=>completionColor(p.pct_completed)), borderRadius:5, maxBarThickness:56}]},
+  data:{labels:PGCOMPARE.map(p=>do_PG_TH[p['Product Group']]), datasets:[{label:'% ปิดงานสำเร็จ', data:PGCOMPARE.map(p=>p.pct_completed), backgroundColor:PGCOMPARE.map(p=>do_completionColor(p.pct_completed)), borderRadius:5, maxBarThickness:56}]},
   options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:12,weight:'700'},formatter:v=>v+'%'}},scales:{y:{beginAtZero:true,max:100,grid:{color:'#eef1f5'}},x:{grid:{display:false}}}}
 });
 
@@ -2491,13 +2528,13 @@ new Chart(document.getElementById('chartPGCompletion'), {
 new Chart(document.getElementById('chartFactoryVolume'), {
   type:'bar',
   data:{labels:FACCOMPARE.map(f=>f.Factory), datasets:[{label:'จำนวนรายการ', data:FACCOMPARE.map(f=>f.line_items), backgroundColor:COLORS.steelLight, borderRadius:5, maxBarThickness:44}]},
-  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:11,weight:'700'},formatter:v=>fmtNum(v)}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:Math.max(...FACCOMPARE.map(f=>f.line_items))*1.2},x:{grid:{display:false},ticks:{font:{size:11}}}}}
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:11,weight:'700'},formatter:v=>do_fmtNum(v)}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:Math.max(...FACCOMPARE.map(f=>f.line_items))*1.2},x:{grid:{display:false},ticks:{font:{size:11}}}}}
 });
 
 // ===== 4. Factory completion % (always global) =====
 new Chart(document.getElementById('chartFactoryCompletion'), {
   type:'bar',
-  data:{labels:FACCOMPARE.map(f=>f.Factory), datasets:[{label:'% ปิดงานสำเร็จ', data:FACCOMPARE.map(f=>f.pct_completed), backgroundColor:FACCOMPARE.map(f=>completionColor(f.pct_completed)), borderRadius:5, maxBarThickness:44}]},
+  data:{labels:FACCOMPARE.map(f=>f.Factory), datasets:[{label:'% ปิดงานสำเร็จ', data:FACCOMPARE.map(f=>f.pct_completed), backgroundColor:FACCOMPARE.map(f=>do_completionColor(f.pct_completed)), borderRadius:5, maxBarThickness:44}]},
   options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:11,weight:'700'},formatter:v=>v+'%'}},scales:{y:{beginAtZero:true,max:100,grid:{color:'#eef1f5'}},x:{grid:{display:false},ticks:{font:{size:11}}}}}
 });
 
@@ -2506,7 +2543,7 @@ new Chart(document.getElementById('chartDailyByPG'), {
   type:'bar',
   data:{
     labels: DAILY.map(d=>d.LoadDate.slice(8,10)+'/'+d.LoadDate.slice(5,7)),
-    datasets: PG_ORDER.map(pg=>({label:PG_TH[pg], data:DAILY.map(d=>d[pg]||0), backgroundColor:PG_COLOR[pg], maxBarThickness:26}))
+    datasets: PG_ORDER.map(pg=>({label:do_PG_TH[pg], data:DAILY.map(d=>d[pg]||0), backgroundColor:do_PG_COLOR[pg], maxBarThickness:26}))
   },
   options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,usePointStyle:true}},datalabels:{
     color:'#fff', font:{size:8,weight:'700'}, anchor:'center', align:'center',
@@ -2527,13 +2564,13 @@ function makeMatChart(canvasId, pgKey, hasSpecial){
   new Chart(document.getElementById(canvasId), {
     type:'bar',
     data:{labels:rows.map(m=>m.SubFamily), datasets:[{label:'% ปิดงานสำเร็จ', data:rows.map(m=>m.pct_completed),
-      backgroundColor:rows.map(m=> (hasSpecial && SPECIAL_FB.has(m.SubFamily)) ? COLORS.gray : completionColor(m.pct_completed)),
+      backgroundColor:rows.map(m=> (hasSpecial && do_SPECIAL_FB.has(m.SubFamily)) ? COLORS.gray : do_completionColor(m.pct_completed)),
       borderRadius:4, maxBarThickness:24}]},
     options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:50}},
       plugins:{legend:{display:false},
-        tooltip:{callbacks:{label:(c)=> (hasSpecial && SPECIAL_FB.has(rows[c.dataIndex].SubFamily)) ? 'งานพิเศษ (ไม่ผ่านระบบสแกนนี้)' : c.parsed.x+'%'}},
+        tooltip:{callbacks:{label:(c)=> (hasSpecial && do_SPECIAL_FB.has(rows[c.dataIndex].SubFamily)) ? 'งานพิเศษ (ไม่ผ่านระบบสแกนนี้)' : c.parsed.x+'%'}},
         datalabels:{anchor:'end',align:'end',offset:4,clip:false,color:COLORS.navy,font:{size:10,weight:'700'},
-          formatter:(v,ctx)=> (hasSpecial && SPECIAL_FB.has(rows[ctx.dataIndex].SubFamily)) ? 'งานพิเศษ' : v+'%'}},
+          formatter:(v,ctx)=> (hasSpecial && do_SPECIAL_FB.has(rows[ctx.dataIndex].SubFamily)) ? 'งานพิเศษ' : v+'%'}},
       scales:{x:{beginAtZero:true,max:100,grid:{color:'#eef1f5'}},y:{grid:{display:false},ticks:{font:{size:10.5}}}}}
   });
 }
@@ -2545,22 +2582,22 @@ makeMatChart('chartMatLongC','Long C',false);
 // ===== 19. Bundle full% by Product Group (always global) =====
 new Chart(document.getElementById('chartBundlePG'), {
   type:'bar',
-  data:{labels:BUNDLE_PG.map(b=>PG_TH[b['Product Group']]), datasets:[{label:'% มัดเต็ม', data:BUNDLE_PG.map(b=>b.full_pct), backgroundColor:BUNDLE_PG.map(b=>PG_COLOR[b['Product Group']]), borderRadius:5, maxBarThickness:50}]},
+  data:{labels:BUNDLE_PG.map(b=>do_PG_TH[b['Product Group']]), datasets:[{label:'% มัดเต็ม', data:BUNDLE_PG.map(b=>b.full_pct), backgroundColor:BUNDLE_PG.map(b=>do_PG_COLOR[b['Product Group']]), borderRadius:5, maxBarThickness:50}]},
   options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:11,weight:'700'},formatter:v=>v+'%'}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:Math.max(...BUNDLE_PG.map(b=>b.full_pct))*1.3},x:{grid:{display:false}}}}
 });
 
 // ===== 20. Coverage by Product Group -- Data matched to Milk Run (always global) =====
 new Chart(document.getElementById('chartCovByPG'), {
   type:'bar',
-  data:{labels:COV_BY_PG.map(c=>PG_TH[c.pg]), datasets:[{label:'% จับคู่ Milk Run ได้', data:COV_BY_PG.map(c=>c.pct), backgroundColor:COV_BY_PG.map(c=>PG_COLOR[c.pg]), borderRadius:5, maxBarThickness:50}]},
-  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>c.parsed.y+'% ('+fmtNum(COV_BY_PG[c.dataIndex].matched)+' จาก '+fmtNum(COV_BY_PG[c.dataIndex].total)+' รายการ)'}},datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:11,weight:'700'},formatter:v=>v+'%'}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:Math.max(...COV_BY_PG.map(c=>c.pct))*1.3},x:{grid:{display:false}}}}
+  data:{labels:COV_BY_PG.map(c=>do_PG_TH[c.pg]), datasets:[{label:'% จับคู่ Milk Run ได้', data:COV_BY_PG.map(c=>c.pct), backgroundColor:COV_BY_PG.map(c=>do_PG_COLOR[c.pg]), borderRadius:5, maxBarThickness:50}]},
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>c.parsed.y+'% ('+do_fmtNum(COV_BY_PG[c.dataIndex].matched)+' จาก '+do_fmtNum(COV_BY_PG[c.dataIndex].total)+' รายการ)'}},datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:11,weight:'700'},formatter:v=>v+'%'}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:Math.max(...COV_BY_PG.map(c=>c.pct))*1.3},x:{grid:{display:false}}}}
 });
 
 // ===== 21. Coverage by Factory -- Data matched to Milk Run (always global) =====
 new Chart(document.getElementById('chartCovByFac'), {
   type:'bar',
   data:{labels:COV_BY_FAC.map(c=>c.fac), datasets:[{label:'% จับคู่ Milk Run ได้', data:COV_BY_FAC.map(c=>c.pct), backgroundColor:COLORS.steelLight, borderRadius:5, maxBarThickness:44}]},
-  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>c.parsed.y+'% ('+fmtNum(COV_BY_FAC[c.dataIndex].matched)+' จาก '+fmtNum(COV_BY_FAC[c.dataIndex].total)+' รายการ)'}},datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:11,weight:'700'},formatter:v=>v+'%'}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:Math.max(...COV_BY_FAC.map(c=>c.pct))*1.3},x:{grid:{display:false},ticks:{font:{size:11}}}}}
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},plugins:{legend:{display:false},tooltip:{callbacks:{label:(c)=>c.parsed.y+'% ('+do_fmtNum(COV_BY_FAC[c.dataIndex].matched)+' จาก '+do_fmtNum(COV_BY_FAC[c.dataIndex].total)+' รายการ)'}},datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:11,weight:'700'},formatter:v=>v+'%'}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:Math.max(...COV_BY_FAC.map(c=>c.pct))*1.3},x:{grid:{display:false},ticks:{font:{size:11}}}}}
 });
 
 
@@ -2576,7 +2613,7 @@ var monthLtRow = (m) => MONTHCMP_LT.find(r=>r.Month===m);
 new Chart(document.getElementById('chartMonthVolume'), {
   type:'bar',
   data:{labels:MONTH_ORDER, datasets:[{label:'จำนวนรายการ', data:MONTH_ORDER.map(m=>monthRow(m).line_items), backgroundColor:MONTH_ORDER.map(m=>MONTH_COLOR[m]), borderRadius:5, maxBarThickness:70}]},
-  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:12,weight:'700'},formatter:v=>fmtNum(v)}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:Math.max(...MONTH_ORDER.map(m=>monthRow(m).line_items))*1.18},x:{grid:{display:false}}}}
+  options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:12,weight:'700'},formatter:v=>do_fmtNum(v)}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:Math.max(...MONTH_ORDER.map(m=>monthRow(m).line_items))*1.18},x:{grid:{display:false}}}}
 });
 
 // 2. Completion / Stuck / Not-started % per month (grouped bar)
@@ -2590,7 +2627,7 @@ new Chart(document.getElementById('chartMonthStatus'), {
   options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,usePointStyle:true}},datalabels:{anchor:'end',align:'top',offset:2,clip:false,color:COLORS.navy,font:{size:10,weight:'700'},formatter:v=>v+'%'}},scales:{y:{beginAtZero:true,max:100,grid:{color:'#eef1f5'}},x:{grid:{display:false}}}}
 });
 
-// 3. Lead time (median minutes) per month, 3 stages
+// 3. Lead time (do_median minutes) per month, 3 stages
 new Chart(document.getElementById('chartMonthLeadTime'), {
   type:'bar',
   data:{labels:MONTH_ORDER, datasets:[
@@ -2618,8 +2655,8 @@ new Chart(document.getElementById('chartMonthFactory'), {
 // aggregates for the currently selected Product Group / Factory / Status filter.
 
 var N_ROWS = ROWS.pg.length;
-var BUCKET_ORDER = ['<15 นาที','15-30 นาที','30-60 นาที','1-3 ชม.','3-8 ชม.','8-24 ชม.','>24 ชม.'];
-function bucketOf(m){
+var do_BUCKET_ORDER = ['<15 นาที','15-30 นาที','30-60 นาที','1-3 ชม.','3-8 ชม.','8-24 ชม.','>24 ชม.'];
+function do_bucketOf(m){
   if(m<15) return 0;
   if(m<30) return 1;
   if(m<60) return 2;
@@ -2629,7 +2666,7 @@ function bucketOf(m){
   return 6;
 }
 // Precompute day-of-week + n_days-per-weekday from the global calendar (independent of filter)
-var DOW_TH = ['จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์','อาทิตย์'];
+var do_DOW_TH = ['จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์','อาทิตย์'];
 var DATE_DOW = DATE_LIST.map(d=>{ const dt=new Date(d+'T00:00:00'); return (dt.getDay()+6)%7; }); // 0=Mon..6=Sun
 var DOW_NDAYS = [0,0,0,0,0,0,0];
 DATE_DOW.forEach(d=>DOW_NDAYS[d]++);
@@ -2651,13 +2688,13 @@ function getFilteredIndices(){
   return idxs;
 }
 
-function median(arr){
+function do_median(arr){
   if(arr.length===0) return 0;
   const s = arr.slice().sort((a,b)=>a-b);
   const mid = Math.floor(s.length/2);
   return s.length%2 ? s[mid] : (s[mid-1]+s[mid])/2;
 }
-function mean(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
+function do_mean(arr){ return arr.length ? arr.reduce((a,b)=>a+b,0)/arr.length : 0; }
 
 function computeKPIs(idxs){
   let completed=0, notstarted=0, stuck=0;
@@ -2688,9 +2725,9 @@ function computeLeadStats(idxs){
   const lc = c.map(i=>ROWS.lc[i]).filter(v=>v!=null);
   return {
     n_completed: c.length,
-    open_prep: {mean:mean(lo), median:median(lo)},
-    prep_comp: {mean:mean(lp), median:median(lp)},
-    open_comp: {mean:mean(lc), median:median(lc)},
+    open_prep: {mean:do_mean(lo), median:do_median(lo)},
+    prep_comp: {mean:do_mean(lp), median:do_median(lp)},
+    open_comp: {mean:do_mean(lc), median:do_median(lc)},
   };
 }
 
@@ -2699,9 +2736,9 @@ function computeStageBuckets(idxs){
   const cellRows = {};
   completedRows(idxs).forEach(i=>{
     const lo=ROWS.lo[i], lp=ROWS.lp[i], lc=ROWS.lc[i];
-    if(lo!=null){ const b=bucketOf(lo); buckets.open_to_prep[b]++; (cellRows['open_to_prep__'+b]=cellRows['open_to_prep__'+b]||[]).push(i); }
-    if(lp!=null){ const b=bucketOf(lp); buckets.prep_to_comp[b]++; (cellRows['prep_to_comp__'+b]=cellRows['prep_to_comp__'+b]||[]).push(i); }
-    if(lc!=null){ const b=bucketOf(lc); buckets.open_to_comp[b]++; (cellRows['open_to_comp__'+b]=cellRows['open_to_comp__'+b]||[]).push(i); }
+    if(lo!=null){ const b=do_bucketOf(lo); buckets.open_to_prep[b]++; (cellRows['open_to_prep__'+b]=cellRows['open_to_prep__'+b]||[]).push(i); }
+    if(lp!=null){ const b=do_bucketOf(lp); buckets.prep_to_comp[b]++; (cellRows['prep_to_comp__'+b]=cellRows['prep_to_comp__'+b]||[]).push(i); }
+    if(lc!=null){ const b=do_bucketOf(lc); buckets.open_to_comp[b]++; (cellRows['open_to_comp__'+b]=cellRows['open_to_comp__'+b]||[]).push(i); }
   });
   return {buckets, cellRows};
 }
@@ -2734,7 +2771,7 @@ function topN(map, n, keyFn){
   return Object.entries(map).map(([k,v])=>({key:k, ...v})).sort((a,b)=>b[keyFn]-a[keyFn]).slice(0,n);
 }
 
-function computeCustomerStats(idxs){
+function do_computeCustomerStats(idxs){
   const agg = {};
   idxs.forEach(i=>{
     const ci = ROWS.ci[i];
@@ -2750,10 +2787,10 @@ function computeCustomerStats(idxs){
 }
 
 // Repeat customers (2+ distinct DOs in the current filter/period) vs one-time customers (exactly
-// 1 DO) -- and how much of the volume each group represents. Reuses computeCustomerStats' per-
+// 1 DO) -- and how much of the volume each group represents. Reuses do_computeCustomerStats' per-
 // customer unique_DOs count.
 function computeCustomerFrequency(idxs){
-  const stats = computeCustomerStats(idxs);
+  const stats = do_computeCustomerStats(idxs);
   const r1 = (v)=>Math.round(v*10)/10;
   let repeatCust=0, onceCust=0, repeatQty=0, onceQty=0, repeatLines=0, onceLines=0;
   stats.forEach(c=>{
@@ -2770,7 +2807,7 @@ function computeCustomerFrequency(idxs){
   };
 }
 
-function computeGateStats(idxs){
+function do_computeGateStats(idxs){
   const agg = {};
   idxs.forEach(i=>{
     const gi = ROWS.gi[i], fi = ROWS.fac[i];
@@ -2784,7 +2821,7 @@ function computeGateStats(idxs){
   }));
 }
 
-function computeLargestDO(idxs, n){
+function do_computeLargestDO(idxs, n){
   const agg = {};
   idxs.forEach(i=>{
     const oi = ROWS.oi[i];
@@ -2797,7 +2834,7 @@ function computeLargestDO(idxs, n){
 
 // Does a bigger order (more line items per DO) take proportionally more time, or is there an
 // economy of scale? Groups completed rows by DO, buckets by item-count-per-DO, and reports the
-// median lead time (open->completed, using each DO's own median across its lines) per bucket.
+// do_median lead time (open->completed, using each DO's own do_median across its lines) per bucket.
 function computeOrderSizeVsLeadTime(idxs){
   const byDO = {};
   idxs.forEach(i=>{
@@ -2811,12 +2848,12 @@ function computeOrderSizeVsLeadTime(idxs){
   Object.values(byDO).forEach(v=>{
     const key = v.n===1?'1':(v.n<=3?'2-3':(v.n<=6?'4-6':'7+'));
     bucketN[key]++;
-    if(v.ltArr.length) buckets[key].push(median(v.ltArr));
+    if(v.ltArr.length) buckets[key].push(do_median(v.ltArr));
   });
   const order = ['1','2-3','4-6','7+'];
   return order.map(k=>({
     bucket: k+' รายการ/DO', n_do: bucketN[k], n_do_completed: buckets[k].length,
-    median_lt: median(buckets[k]),
+    median_lt: do_median(buckets[k]),
   }));
 }
 
@@ -2831,10 +2868,10 @@ function computeWorstLeadTime(idxs, n){
 // Statistically-flagged Lead Time outliers, relative to their own peer group (same product group
 // + factory), instead of a flat "10 slowest overall" ranking (which the existing Worst Lead Time
 // table already covers, but that mixes fast-moving and slow-moving groups together unfairly).
-// Uses a robust z-score: median + MAD (median absolute deviation), scaled by 1.4826 so MAD
+// Uses a robust z-score: do_median + MAD (do_median absolute deviation), scaled by 1.4826 so MAD
 // approximates a standard deviation under normality -- avoids one huge outlier distorting the
-// threshold the way mean+stdev would. Peer groups need >=8 completed rows before flagging anything
-// (too few samples makes "peer median" meaningless).
+// threshold the way do_mean+stdev would. Peer groups need >=8 completed rows before flagging anything
+// (too few samples makes "peer do_median" meaningless).
 function computeLeadTimeOutliers(idxs, topN){
   topN = topN || 10;
   const groups = {};
@@ -2849,8 +2886,8 @@ function computeLeadTimeOutliers(idxs, topN){
     if(rows.length < 8) return;
     groupsChecked++;
     const lts = rows.map(i=>ROWS.lc[i]);
-    const med = median(lts);
-    const mad = median(lts.map(v=>Math.abs(v-med))) || 1;
+    const med = do_median(lts);
+    const mad = do_median(lts.map(v=>Math.abs(v-med))) || 1;
     rows.forEach(i=>{
       const lc = ROWS.lc[i];
       const robustZ = (lc-med)/(1.4826*mad);
@@ -2880,7 +2917,7 @@ function computeDaily(idxs){
 function computeDow(idxs){
   const counts = [0,0,0,0,0,0,0];
   idxs.forEach(i=>{ const di=ROWS.di[i]; if(di<0) return; counts[DATE_DOW[di]]++; });
-  return DOW_TH.map((label,i)=>({ label, avg: DOW_NDAYS[i]? counts[i]/DOW_NDAYS[i] : 0 }));
+  return do_DOW_TH.map((label,i)=>({ label, avg: DOW_NDAYS[i]? counts[i]/DOW_NDAYS[i] : 0 }));
 }
 
 // Which day of the week actually runs SLOW/gets stuck, not just which day is busiest (computeDow
@@ -2896,9 +2933,9 @@ function computeDowLeadTime(idxs){
     if(ROWS.st[i]===2) stuckByDow[dow]++;
     if(ROWS.st[i]===0 && ROWS.lc[i]!=null) ltArr[dow].push(ROWS.lc[i]);
   });
-  return DOW_TH.map((label,i)=>({
+  return do_DOW_TH.map((label,i)=>({
     label, n: totalByDow[i],
-    median_lt: median(ltArr[i]),
+    median_lt: do_median(ltArr[i]),
     pct_stuck: totalByDow[i] ? Math.round(stuckByDow[i]/totalByDow[i]*1000)/10 : 0,
   }));
 }
@@ -2931,9 +2968,9 @@ function buildCMDetails(rowIdxs, durField){
     const openDisp = (di>=0) ? (DATE_LIST[di].slice(8,10)+'/'+DATE_LIST[di].slice(5,7)+' '+fmtHM(mo)) : '-';
     return {
       do: DOS[ROWS.oi[i]], cust: CUSTOMERS[ROWS.ci[i]], mat: MATERIALS[ROWS.mi[i]],
-      pgDisp: PG_TH[PG_LIST[ROWS.pg[i]]],
+      pgDisp: do_PG_TH[PG_LIST[ROWS.pg[i]]],
       openSortKey, openDisp,
-      dur: durVal==null ? -1 : durVal, durDisp: durVal==null ? '-' : (fmtNum(durVal)+' นาที'),
+      dur: durVal==null ? -1 : durVal, durDisp: durVal==null ? '-' : (do_fmtNum(durVal)+' นาที'),
       gate: gateDisp,
     };
   });
@@ -2967,7 +3004,7 @@ function renderCMTable(){
     '<tr><td class="left">'+r.do+'</td><td class="left">'+r.cust.slice(0,34)+'</td><td class="left">'+r.mat+'</td><td class="left">'+r.pgDisp+'</td><td>'+r.openDisp+'</td><td>'+r.durDisp+'</td><td class="left">'+r.gate+'</td></tr>'
   ).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--muted);">ไม่มีรายการ</td></tr>';
 
-  document.getElementById('cmPageInfo').textContent = 'หน้า '+CM_PAGE+' จาก '+totalPages+' (ทั้งหมด '+fmtNum(total)+' รายการ)';
+  document.getElementById('cmPageInfo').textContent = 'หน้า '+CM_PAGE+' จาก '+totalPages+' (ทั้งหมด '+do_fmtNum(total)+' รายการ)';
   document.getElementById('cmPrevBtn').disabled = CM_PAGE<=1;
   document.getElementById('cmFirstBtn').disabled = CM_PAGE<=1;
   document.getElementById('cmNextBtn').disabled = CM_PAGE>=totalPages;
@@ -3189,13 +3226,13 @@ function computeMRTop(idxs, field, lookupArr, n){
 function computeMRTiming(idxs){
   function med(field){
     const vals = idxs.map(i=>MRROWS[field][i]).filter(v=>v!=null && v>=0);
-    return median(vals);
+    return do_median(vals);
   }
   return { wts: med('t_wts'), std: med('t_std'), dtc: med('t_dtc'), cte: med('t_cte'), tot: med('t_tot') };
 }
 
 // Median Wait Pick Time (รอรับ->เริ่มขน) per week, so trend direction is visible instead of just
-// one overall median. Grouped by (month index, week-of-month) using MRROWS.mn/wk -- both are
+// one overall do_median. Grouped by (month index, week-of-month) using MRROWS.mn/wk -- both are
 // live-derived (mn added in the month-filter task), not a hardcoded May/June split, so this keeps
 // working correctly as the sheet grows past 2 months.
 function computeMRWaitTrend(idxs){
@@ -3210,7 +3247,7 @@ function computeMRWaitTrend(idxs){
   const weeks = Object.values(byWeek).sort((a,b)=> a.mn-b.mn || a.wk-b.wk);
   return weeks.map(w=>({
     label: (MONTH_LIST[w.mn] ? MONTH_LIST[w.mn].slice(0,3) : '') + ' สัปดาห์ ' + w.wk,
-    median_wait: median(w.vals), n: w.vals.length,
+    median_wait: do_median(w.vals), n: w.vals.length,
   }));
 }
 
@@ -3252,7 +3289,7 @@ function computeMRCellDetail(rowIdxs){
   // Top product groups ("กลุ่มเหล็ก") transported in this group, joined via the Data sheet
   // match (dataRow.productGroup -> pgIdx), same weight/completed% shape as topMatcodes.
   const topProductGroups = Object.entries(pgStats).map(([k,v])=>({
-    name: PG_TH[PG_LIST[+k]], legs: v.legs, weight: v.weight,
+    name: do_PG_TH[PG_LIST[+k]], legs: v.legs, weight: v.weight,
     pct_completed: v.legs ? Math.round(v.completed/v.legs*1000)/10 : 0,
   })).sort((a,b)=>b.legs-a.legs).slice(0,8);
   return {n, weight, trips: runSet.size, by_date, by_hour, topTypes, topMatcodes, topProductGroups};
@@ -3277,7 +3314,7 @@ function renderChartDaily(idxs){
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:22}},plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,usePointStyle:true}},datalabels:{
       color:(ctx)=>ctx.datasetIndex===0?COLORS.steel:COLORS.accent, font:{size:10,weight:'700'}, align:'top', offset:5, clip:false,
       display:(ctx)=>{ const arr=ctx.dataset.data; const v=arr[ctx.dataIndex]; const isEdge = ctx.dataIndex===0||ctx.dataIndex===arr.length-1; const isMax = v===Math.max(...arr); return isEdge||isMax; },
-      formatter:v=>fmtNum(v)
+      formatter:v=>do_fmtNum(v)
     }},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:safeMax(totals)*1.15},x:{grid:{display:false}}}}
   });
 }
@@ -3299,13 +3336,13 @@ function renderDowLeadTime(idxs){
   if(!tbody) return;
   const worstIdx = d.reduce((best,cur,i)=> (cur.n>0 && cur.median_lt>(d[best]?d[best].median_lt:-1)) ? i : best, -1);
   tbody.innerHTML = d.map((x,i)=>
-    `<tr${i===worstIdx?' style="background:rgba(214,69,80,0.06);"':''}><td class="left">${x.label}</td><td>${fmtNum(x.n)}</td><td>${x.n?(x.median_lt/60).toFixed(1)+' ชม.':'-'}</td><td>${x.n?x.pct_stuck+'%':'-'}</td></tr>`
+    `<tr${i===worstIdx?' style="background:rgba(214,69,80,0.06);"':''}><td class="left">${x.label}</td><td>${do_fmtNum(x.n)}</td><td>${x.n?(x.median_lt/60).toFixed(1)+' ชม.':'-'}</td><td>${x.n?x.pct_stuck+'%':'-'}</td></tr>`
   ).join('');
   const textEl = document.getElementById('dowLeadTimeText');
   if(textEl){
     if(worstIdx>=0){
       const w = d[worstIdx];
-      textEl.textContent = `วัน${w.label} มี Lead Time เฉลี่ย (median) สูงสุดที่ ${(w.median_lt/60).toFixed(1)} ชั่วโมง และมีงานค้าง ${w.pct_stuck}% ของรายการวันนั้น จากทั้งหมด ${fmtNum(w.n)} รายการในตัวกรองปัจจุบัน`;
+      textEl.textContent = `วัน${w.label} มี Lead Time เฉลี่ย (do_median) สูงสุดที่ ${(w.median_lt/60).toFixed(1)} ชั่วโมง และมีงานค้าง ${w.pct_stuck}% ของรายการวันนั้น จากทั้งหมด ${do_fmtNum(w.n)} รายการในตัวกรองปัจจุบัน`;
     } else {
       textEl.textContent = 'ยังไม่มีข้อมูลงานที่เสร็จสมบูรณ์เพียงพอในตัวกรองปัจจุบันสำหรับเปรียบเทียบ Lead Time รายวัน';
     }
@@ -3320,7 +3357,7 @@ function renderChartHourly(idxs){
   FR_CHARTS.chartHourly = new Chart(document.getElementById('chartHourly'), {
     type:'bar',
     data:{labels:hourLabels.map(x=>x+':00'), datasets:[{label:'รายการ', data:vals, backgroundColor:COLORS.accent, borderRadius:4, maxBarThickness:26}]},
-    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'top',offset:3,clip:false,rotation:-90,color:COLORS.navy,font:{size:9,weight:'700'},formatter:v=>v>0?fmtNum(v):''}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:safeMax(vals)*1.35},x:{grid:{display:false}}}}
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'top',offset:3,clip:false,rotation:-90,color:COLORS.navy,font:{size:9,weight:'700'},formatter:v=>v>0?do_fmtNum(v):''}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:safeMax(vals)*1.35},x:{grid:{display:false}}}}
   });
 }
 
@@ -3330,7 +3367,7 @@ function renderChartStatus(idxs){
   FR_CHARTS.chartStatus = new Chart(document.getElementById('chartStatus'), {
     type:'doughnut',
     data:{labels:['เสร็จสมบูรณ์','ยังไม่เริ่มกระบวนการ','ค้างที่ Preparing'], datasets:[{data:[completed,notstarted,stuck], backgroundColor:[COLORS.green, COLORS.gray, COLORS.red], borderWidth:0}]},
-    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,usePointStyle:true,padding:14}},datalabels:{color:'#fff',...STROKE,font:{size:12,weight:'700'},formatter:(v,ctx)=>{const p=pctOfTotal(v,ctx.chart.data.datasets[0].data); return p<4?'':fmtNum(v)+'\n'+p.toFixed(0)+'%';},align:'center',anchor:'center'}}}
+    options:{responsive:true,maintainAspectRatio:false,cutout:'62%',plugins:{legend:{position:'bottom',labels:{boxWidth:10,usePointStyle:true,padding:14}},datalabels:{color:'#fff',...STROKE,font:{size:12,weight:'700'},formatter:(v,ctx)=>{const p=pctOfTotal(v,ctx.chart.data.datasets[0].data); return p<4?'':do_fmtNum(v)+'\n'+p.toFixed(0)+'%';},align:'center',anchor:'center'}}}
   });
 }
 
@@ -3342,19 +3379,19 @@ function renderChartLeadBucket(idxs){
   const LB_MAX = safeMax([...buckets.open_to_prep, ...buckets.prep_to_comp, ...buckets.open_to_comp]);
   FR_CHARTS.chartLeadBucket = new Chart(document.getElementById('chartLeadBucket'), {
     type:'bar',
-    data:{labels:BUCKET_ORDER, datasets:[
+    data:{labels:do_BUCKET_ORDER, datasets:[
       {label:'เปิด DO → เตรียม (คิวรอ)', data:buckets.open_to_prep, backgroundColor:COLORS.red, borderRadius:3, maxBarThickness:22, categoryPercentage:0.62, barPercentage:0.9},
       {label:'เตรียม → เสร็จ (ผลิตจริง)', data:buckets.prep_to_comp, backgroundColor:COLORS.green, borderRadius:3, maxBarThickness:22, categoryPercentage:0.62, barPercentage:0.9},
       {label:'เปิด DO → เสร็จ (รวม)', data:buckets.open_to_comp, backgroundColor:COLORS.steel, borderRadius:3, maxBarThickness:22, categoryPercentage:0.62, barPercentage:0.9},
     ]},
-    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,usePointStyle:true}},datalabels:{anchor:'end',align:'top',offset:2,clip:false,rotation:-90,color:COLORS.navy,font:{size:8,weight:'700'},formatter:v=>v>0?fmtNum(v):''}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:LB_MAX*1.45},x:{grid:{display:false}}}}
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:18}},plugins:{legend:{position:'top',align:'end',labels:{boxWidth:10,usePointStyle:true}},datalabels:{anchor:'end',align:'top',offset:2,clip:false,rotation:-90,color:COLORS.navy,font:{size:8,weight:'700'},formatter:v=>v>0?do_fmtNum(v):''}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:LB_MAX*1.45},x:{grid:{display:false}}}}
   });
-  document.getElementById('tblStageBuckets').innerHTML = BUCKET_ORDER.map((label,i)=>{
+  document.getElementById('tblStageBuckets').innerHTML = do_BUCKET_ORDER.map((label,i)=>{
     const cell = (stage,val)=>{
       const key = stage+'__'+i;
       const has = (cellRows[key]||[]).length>0;
       const cls = has ? 'cell-click' : 'cell-click cell-empty';
-      return `<td><span class="${cls}" onclick="openCellDetail('${stage}', ${i})">${fmtNum(val)}<span class="ic">&#128269;</span></span></td>`;
+      return `<td><span class="${cls}" onclick="openCellDetail('${stage}', ${i})">${do_fmtNum(val)}<span class="ic">&#128269;</span></span></td>`;
     };
     return `<tr><td class="left">${label}</td>${cell('open_to_prep',buckets.open_to_prep[i])}${cell('prep_to_comp',buckets.prep_to_comp[i])}${cell('open_to_comp',buckets.open_to_comp[i])}</tr>`;
   }).join('');
@@ -3367,7 +3404,7 @@ function renderChartStuckAging(idxs){
   FR_CHARTS.chartStuckAging = new Chart(document.getElementById('chartStuckAging'), {
     type:'bar',
     data:{labels:Object.keys(agg), datasets:[{label:'รายการค้าง', data:vals, backgroundColor:Object.keys(agg).map(k=>k.includes('>30')?COLORS.red:(k.includes('7-30')?COLORS.amber:COLORS.steelLight)), borderRadius:5, maxBarThickness:44}]},
-    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:11,weight:'700'},formatter:v=>v>0?fmtNum(v):''}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:safeMax(vals)*1.25},x:{grid:{display:false},ticks:{font:{size:10.5}}}}}
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:11,weight:'700'},formatter:v=>v>0?do_fmtNum(v):''}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:safeMax(vals)*1.25},x:{grid:{display:false},ticks:{font:{size:10.5}}}}}
   });
   const stuckIdxs = idxs.filter(i=>ROWS.st[i]===2);
   const gateAgg = {};
@@ -3375,25 +3412,25 @@ function renderChartStuckAging(idxs){
   const top8 = Object.entries(gateAgg).sort((a,b)=>b[1]-a[1]).slice(0,8);
   document.getElementById('tblStuckGate').innerHTML = top8.length ? top8.map(([k,v])=>{
     const [fac,gate] = k.split('|');
-    return `<tr><td class="left">${fac}</td><td class="left">${gate}</td><td>${fmtNum(v)}</td></tr>`;
+    return `<tr><td class="left">${fac}</td><td class="left">${gate}</td><td>${do_fmtNum(v)}</td></tr>`;
   }).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--muted);">ไม่มีรายการค้างในตัวกรองปัจจุบัน</td></tr>';
 }
 
 function renderChartGateTop(idxs){
   destroyFR('chartGateTop');
-  const stats = computeGateStats(idxs);
+  const stats = do_computeGateStats(idxs);
   const top15 = stats.filter(g=>g.gate!=='').sort((a,b)=>b.line_items-a.line_items).slice(0,15);
   FR_CHARTS.chartGateTop = new Chart(document.getElementById('chartGateTop'), {
     type:'bar',
     data:{labels:top15.map(g=>g.gate), datasets:[{label:'จำนวนรายการ', data:top15.map(g=>g.line_items), backgroundColor:COLORS.steel, borderRadius:4, maxBarThickness:20}]},
-    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:44}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'end',offset:4,clip:false,color:COLORS.navy,font:{size:10.5,weight:'700'},formatter:v=>fmtNum(v)}},scales:{x:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:safeMax(top15.map(g=>g.line_items))*1.12},y:{grid:{display:false},ticks:{font:{size:10.5}}}}}
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:44}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'end',offset:4,clip:false,color:COLORS.navy,font:{size:10.5,weight:'700'},formatter:v=>do_fmtNum(v)}},scales:{x:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:safeMax(top15.map(g=>g.line_items))*1.12},y:{grid:{display:false},ticks:{font:{size:10.5}}}}}
   });
   const byFac = {};
   stats.forEach(g=>{ if(!byFac[g.factory]) byFac[g.factory]=[]; byFac[g.factory].push(g); });
   const facOrderPresent = FAC_LIST.filter(f=>byFac[f]);
   document.getElementById('tblGatePerf').innerHTML = facOrderPresent.map(f=>
     byFac[f].sort((a,b)=>b.line_items-a.line_items).map(g=>
-      `<tr><td class="left">${f}</td><td class="left">${g.gate||'(ไม่ระบุ)'}</td><td>${fmtNum(g.line_items)}</td><td><span class="badge ${completionBadgeStyle(g.pct_completed)}">${g.pct_completed}%</span></td></tr>`
+      `<tr><td class="left">${f}</td><td class="left">${g.gate||'(ไม่ระบุ)'}</td><td>${do_fmtNum(g.line_items)}</td><td><span class="badge ${completionBadgeStyle(g.pct_completed)}">${g.pct_completed}%</span></td></tr>`
     ).join('')
   ).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted);">ไม่มีข้อมูลในตัวกรองปัจจุบัน</td></tr>';
 }
@@ -3401,54 +3438,54 @@ function renderChartGateTop(idxs){
 function renderCustomerFrequency(idxs){
   const f = computeCustomerFrequency(idxs);
   const set = (id,val)=>{ const el=document.getElementById(id); if(el) el.textContent = val; };
-  set('custFreqRepeatCust', fmtNum(f.repeatCust));
-  set('custFreqOnceCust', fmtNum(f.onceCust));
+  set('custFreqRepeatCust', do_fmtNum(f.repeatCust));
+  set('custFreqOnceCust', do_fmtNum(f.onceCust));
   set('custFreqRepeatCustPct', f.repeatCustPct+'%');
   set('custFreqRepeatQtyPct', f.repeatQtyPct+'%');
   set('custFreqRepeatLinesPct', f.repeatLinesPct+'%');
   const textEl = document.getElementById('custFreqText');
   if(textEl){
-    textEl.textContent = `จากลูกค้าทั้งหมด ${fmtNum(f.totalCust)} ราย เป็นลูกค้าประจำ (สั่งซื้อ 2 ครั้งขึ้นไป) ${fmtNum(f.repeatCust)} ราย (${f.repeatCustPct}%) แต่คิดเป็นสัดส่วนถึง ${f.repeatQtyPct}% ของปริมาณสั่งซื้อรวม และ ${f.repeatLinesPct}% ของจำนวนรายการทั้งหมดในตัวกรองปัจจุบัน`;
+    textEl.textContent = `จากลูกค้าทั้งหมด ${do_fmtNum(f.totalCust)} ราย เป็นลูกค้าประจำ (สั่งซื้อ 2 ครั้งขึ้นไป) ${do_fmtNum(f.repeatCust)} ราย (${f.repeatCustPct}%) แต่คิดเป็นสัดส่วนถึง ${f.repeatQtyPct}% ของปริมาณสั่งซื้อรวม และ ${f.repeatLinesPct}% ของจำนวนรายการทั้งหมดในตัวกรองปัจจุบัน`;
   }
 }
 
 function renderChartTopCustQty(idxs){
   destroyFR('chartTopCustQty');
-  const stats = computeCustomerStats(idxs).sort((a,b)=>b.qty-a.qty);
+  const stats = do_computeCustomerStats(idxs).sort((a,b)=>b.qty-a.qty);
   const top10 = stats.slice(0,10);
   FR_CHARTS.chartTopCustQty = new Chart(document.getElementById('chartTopCustQty'), {
     type:'bar',
     data:{labels:top10.map(c=>c.name), datasets:[{label:'ปริมาณ', data:top10.map(c=>c.qty), backgroundColor:COLORS.accent, borderRadius:4, maxBarThickness:26}]},
-    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:56}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'end',offset:4,clip:false,color:COLORS.navy,font:{size:10.5,weight:'700'},formatter:v=>fmtNum(v)}},scales:{x:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:safeMax(top10.map(c=>c.qty))*1.08},y:{grid:{display:false},ticks:{font:{size:10}}}}}
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,layout:{padding:{right:56}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'end',offset:4,clip:false,color:COLORS.navy,font:{size:10.5,weight:'700'},formatter:v=>do_fmtNum(v)}},scales:{x:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:safeMax(top10.map(c=>c.qty))*1.08},y:{grid:{display:false},ticks:{font:{size:10}}}}}
   });
   document.getElementById('tblTopCustQty').innerHTML = top10.length ? top10.map(c=>
-    `<tr><td class="left">${c.name.slice(0,38)}</td><td>${fmtNum(c.line_items)}</td><td>${fmtNum(c.qty)}</td></tr>`
+    `<tr><td class="left">${c.name.slice(0,38)}</td><td>${do_fmtNum(c.line_items)}</td><td>${do_fmtNum(c.qty)}</td></tr>`
   ).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--muted);">ไม่มีข้อมูลในตัวกรองปัจจุบัน</td></tr>';
   const byLines = stats.slice().sort((a,b)=>b.line_items-a.line_items).slice(0,10);
   document.getElementById('tblTopCustLines').innerHTML = byLines.length ? byLines.map(c=>
-    `<tr><td class="left">${c.name.slice(0,38)}</td><td>${fmtNum(c.line_items)}</td><td>${fmtNum(c.unique_DOs)}</td></tr>`
+    `<tr><td class="left">${c.name.slice(0,38)}</td><td>${do_fmtNum(c.line_items)}</td><td>${do_fmtNum(c.unique_DOs)}</td></tr>`
   ).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--muted);">ไม่มีข้อมูลในตัวกรองปัจจุบัน</td></tr>';
 
   const totalQty = idxs.reduce((a,i)=>a+ROWS.q[i],0);
   const top10Qty = top10.reduce((a,c)=>a+c.qty,0);
   document.querySelectorAll('.fr-pareto-top10').forEach(el=>el.textContent = (totalQty? (top10Qty/totalQty*100).toFixed(1):'0') + '%');
-  document.querySelectorAll('.fr-total-qty').forEach(el=>el.textContent = fmtNum(totalQty));
+  document.querySelectorAll('.fr-total-qty').forEach(el=>el.textContent = do_fmtNum(totalQty));
   const sortedByQty = stats.slice().sort((a,b)=>b.qty-a.qty);
   let cum=0, nFor80=0;
   for(const c of sortedByQty){ cum+=c.qty; nFor80++; if(totalQty && cum/totalQty>=0.8) break; }
-  document.querySelectorAll('.fr-pareto-n80').forEach(el=>el.textContent = fmtNum(nFor80));
+  document.querySelectorAll('.fr-pareto-n80').forEach(el=>el.textContent = do_fmtNum(nFor80));
   document.querySelectorAll('.fr-pareto-pct80').forEach(el=>el.textContent = (stats.length? (nFor80/stats.length*100).toFixed(1):'0'));
 }
 
 function renderOrdersSection(idxs){
-  const largest = computeLargestDO(idxs, 10);
+  const largest = do_computeLargestDO(idxs, 10);
   document.getElementById('tblLargestDO').innerHTML = largest.length ? largest.map(d=>
-    `<tr><td class="left">${d.do}</td><td class="left">${d.customer.slice(0,36)}</td><td>${fmtNum(d.line_items)}</td></tr>`
+    `<tr><td class="left">${d.do}</td><td class="left">${d.customer.slice(0,36)}</td><td>${do_fmtNum(d.line_items)}</td></tr>`
   ).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--muted);">ไม่มีข้อมูลในตัวกรองปัจจุบัน</td></tr>';
   const doSet = new Set(idxs.map(i=>ROWS.oi[i]));
   const nDOs = doSet.size;
   document.getElementById('doMean').textContent = nDOs? (idxs.length/nDOs).toFixed(1) : '0';
-  document.getElementById('kpiDos').textContent = fmtNum(nDOs);
+  document.getElementById('kpiDos').textContent = do_fmtNum(nDOs);
   document.getElementById('doMax').innerHTML = (largest[0]?largest[0].line_items:0) + ' <span class="unit">รายการ</span>';
 }
 
@@ -3457,7 +3494,7 @@ function renderOrderSizeVsLeadTime(idxs){
   const tbody = document.getElementById('tblOrderSizeLT');
   if(!tbody) return;
   tbody.innerHTML = buckets.map(b=>
-    `<tr><td class="left">${b.bucket}</td><td>${fmtNum(b.n_do)}</td><td>${b.n_do_completed? (b.median_lt/60).toFixed(1)+' ชม.':'-'}</td></tr>`
+    `<tr><td class="left">${b.bucket}</td><td>${do_fmtNum(b.n_do)}</td><td>${b.n_do_completed? (b.median_lt/60).toFixed(1)+' ชม.':'-'}</td></tr>`
   ).join('');
 }
 
@@ -3488,35 +3525,35 @@ function renderLeadTimeOutliers(idxs){
   const textEl = document.getElementById('ltOutliersText');
   if(textEl){
     textEl.textContent = r.n_groups_checked
-      ? `ตรวจสอบ ${fmtNum(r.n_groups_checked)} กลุ่ม (แยกตามกลุ่มผลิตภัณฑ์+โรงงาน ที่มีตัวอย่างพอ) พบ ${fmtNum(r.n_flagged)} รายการที่ใช้เวลานานผิดปกติเทียบกับค่ากลางของกลุ่มเดียวกัน (Lead Time สูงกว่าค่ากลางกลุ่มอย่างมีนัยสำคัญทางสถิติ ไม่ใช่แค่ช้าที่สุดโดยรวม)`
+      ? `ตรวจสอบ ${do_fmtNum(r.n_groups_checked)} กลุ่ม (แยกตามกลุ่มผลิตภัณฑ์+โรงงาน ที่มีตัวอย่างพอ) พบ ${do_fmtNum(r.n_flagged)} รายการที่ใช้เวลานานผิดปกติเทียบกับค่ากลางของกลุ่มเดียวกัน (Lead Time สูงกว่าค่ากลางกลุ่มอย่างมีนัยสำคัญทางสถิติ ไม่ใช่แค่ช้าที่สุดโดยรวม)`
       : 'ยังไม่มีกลุ่มที่มีตัวอย่างมากพอ (ต้องการอย่างน้อย 8 รายการที่เสร็จสมบูรณ์ต่อกลุ่มผลิตภัณฑ์+โรงงาน) สำหรับการตรวจจับความผิดปกติในตัวกรองปัจจุบัน';
   }
 }
 
 function renderKPIsAndLeadStats(idxs){
   const kpi = computeKPIs(idxs);
-  document.getElementById('kpiRows').textContent = fmtNum(kpi.total);
+  document.getElementById('kpiRows').textContent = do_fmtNum(kpi.total);
   document.getElementById('kpiCompletedPct').textContent = (kpi.total? kpi.pct_completed.toFixed(1):'0') + '%';
-  document.getElementById('kpiCompletedSub').textContent = fmtNum(kpi.completed) + ' รายการ';
+  document.getElementById('kpiCompletedSub').textContent = do_fmtNum(kpi.completed) + ' รายการ';
   document.getElementById('kpiStuckPct').textContent = (kpi.total? kpi.pct_stuck.toFixed(1):'0') + '%';
-  document.getElementById('kpiStuckSub').textContent = fmtNum(kpi.stuck) + ' รายการ';
-  document.getElementById('kpiCustomers').textContent = fmtNum(kpi.customers);
-  document.querySelectorAll('.fr-customers').forEach(el=>el.textContent = fmtNum(kpi.customers));
+  document.getElementById('kpiStuckSub').textContent = do_fmtNum(kpi.stuck) + ' รายการ';
+  document.getElementById('kpiCustomers').textContent = do_fmtNum(kpi.customers);
+  document.querySelectorAll('.fr-customers').forEach(el=>el.textContent = do_fmtNum(kpi.customers));
 
   const lt = computeLeadStats(idxs);
-  document.querySelectorAll('.fr-ncompleted').forEach(el=>el.textContent = fmtNum(lt.n_completed));
+  document.querySelectorAll('.fr-ncompleted').forEach(el=>el.textContent = do_fmtNum(lt.n_completed));
   document.querySelectorAll('.fr-lt-op-med').forEach(el=>el.textContent = lt.n_completed? Math.round(lt.open_prep.median*10)/10 : '0');
   document.querySelectorAll('.fr-lt-pc-med').forEach(el=>el.textContent = lt.n_completed? Math.round(lt.prep_comp.median*10)/10 : '0');
   document.querySelectorAll('.fr-lt-oc-med').forEach(el=>el.textContent = lt.n_completed? Math.round(lt.open_comp.median*10)/10 : '0');
-  document.querySelectorAll('.fr-lt-op-mean').forEach(el=>el.textContent = (lt.n_completed? lt.open_prep.mean.toFixed(1):'0') + ' นาที');
-  document.querySelectorAll('.fr-lt-pc-mean').forEach(el=>el.textContent = (lt.n_completed? lt.prep_comp.mean.toFixed(1):'0') + ' นาที');
-  document.querySelectorAll('.fr-lt-oc-mean').forEach(el=>el.textContent = (lt.n_completed? lt.open_comp.mean.toFixed(1):'0') + ' นาที');
+  document.querySelectorAll('.fr-lt-op-do_mean').forEach(el=>el.textContent = (lt.n_completed? lt.open_prep.mean.toFixed(1):'0') + ' นาที');
+  document.querySelectorAll('.fr-lt-pc-do_mean').forEach(el=>el.textContent = (lt.n_completed? lt.prep_comp.mean.toFixed(1):'0') + ' นาที');
+  document.querySelectorAll('.fr-lt-oc-do_mean').forEach(el=>el.textContent = (lt.n_completed? lt.open_comp.mean.toFixed(1):'0') + ' นาที');
   // fr-lt-*-med table cells also need ' นาที' suffix appended separately (they sit next to literal text in template)
 }
 
 function updateFilterStatusText(idxs){
   const mnTxt = FILTER.mn>=0 ? MONTH_LIST[FILTER.mn] : null;
-  const pgTxt = FILTER.pg.length ? FILTER.pg.map(v=>PG_TH[PG_LIST[v]]).join('/') : null;
+  const pgTxt = FILTER.pg.length ? FILTER.pg.map(v=>do_PG_TH[PG_LIST[v]]).join('/') : null;
   const facTxt = FILTER.fac>=0 ? FAC_LIST[FILTER.fac] : null;
   const stTxt = FILTER.st>=0 ? ['เสร็จสมบูรณ์','ยังไม่เริ่ม','ค้าง Preparing'][FILTER.st] : null;
   const active = [mnTxt,pgTxt,facTxt,stTxt].filter(Boolean);
@@ -3524,9 +3561,9 @@ function updateFilterStatusText(idxs){
   // doesn't need regenerating on every filter change -- only the short summary line is live.
   const el = document.getElementById('filterStatusMain');
   if(active.length===0){
-    el.innerHTML = '<b>แสดงข้อมูลทั้งหมด</b> (' + fmtNum(idxs.length) + ' รายการ)';
+    el.innerHTML = '<b>แสดงข้อมูลทั้งหมด</b> (' + do_fmtNum(idxs.length) + ' รายการ)';
   } else {
-    el.innerHTML = '<b>กำลังกรอง: ' + active.join(' + ') + '</b> &mdash; พบ ' + fmtNum(idxs.length) + ' รายการ';
+    el.innerHTML = '<b>กำลังกรอง: ' + active.join(' + ') + '</b> &mdash; พบ ' + do_fmtNum(idxs.length) + ' รายการ';
   }
 }
 
@@ -3537,12 +3574,12 @@ var mrcmDateChart = null, mrcmHourChart = null;
 
 function renderMRKPIs(idxs){
   const k = computeMRKPIs(idxs);
-  document.getElementById('mrKpiLegs').textContent = fmtNum(k.legs);
-  document.getElementById('mrKpiRuns').textContent = fmtNum(k.runs);
-  document.getElementById('mrKpiWeight').innerHTML = fmtNum(k.weight) + ' <span class="unit">กก.</span>';
+  document.getElementById('mrKpiLegs').textContent = do_fmtNum(k.legs);
+  document.getElementById('mrKpiRuns').textContent = do_fmtNum(k.runs);
+  document.getElementById('mrKpiWeight').innerHTML = do_fmtNum(k.weight) + ' <span class="unit">กก.</span>';
   document.getElementById('mrKpiCancelPct').textContent = k.pct_cancel.toFixed(1) + '%';
   document.getElementById('mrKpiRunsSub').textContent = 'เฉลี่ย ' + k.legs_per_run.toFixed(2) + ' รายการ/รอบ';
-  document.getElementById('mrKpiCancelSub').textContent = 'ของรายการขนส่งในตัวกรองปัจจุบัน (' + fmtNum(k.cancel) + ' รายการ)';
+  document.getElementById('mrKpiCancelSub').textContent = 'ของรายการขนส่งในตัวกรองปัจจุบัน (' + do_fmtNum(k.cancel) + ' รายการ)';
 }
 
 function renderMRTripsPerDay(idxs){
@@ -3550,11 +3587,11 @@ function renderMRTripsPerDay(idxs){
   const tpdEl = document.getElementById('mrKpiTripsPerDay');
   if(tpdEl) tpdEl.textContent = t.overall.avg_per_day.toFixed(1);
   const subEl = document.getElementById('mrKpiTripsPerDaySub');
-  if(subEl) subEl.textContent = fmtNum(t.overall.trips) + ' เที่ยว จาก ' + fmtNum(t.overall.active_days) + ' วันที่มีข้อมูล';
+  if(subEl) subEl.textContent = do_fmtNum(t.overall.trips) + ' เที่ยว จาก ' + do_fmtNum(t.overall.active_days) + ' วันที่มีข้อมูล';
   const tbody = document.getElementById('tblMRTripsPerDayFac');
   if(tbody){
     tbody.innerHTML = t.byFactory.length ? t.byFactory.map(f=>
-      '<tr><td class="left">'+f.factory+'</td><td>'+fmtNum(f.trips)+'</td><td>'+fmtNum(f.active_days)+'</td><td><b>'+f.avg_per_day.toFixed(1)+'</b></td></tr>'
+      '<tr><td class="left">'+f.factory+'</td><td>'+do_fmtNum(f.trips)+'</td><td>'+do_fmtNum(f.active_days)+'</td><td><b>'+f.avg_per_day.toFixed(1)+'</b></td></tr>'
     ).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--muted);">ไม่มีข้อมูลในตัวกรองปัจจุบัน</td></tr>';
   }
 }
@@ -3602,8 +3639,8 @@ function renderChartMRConsolidation(idxs){
       onClick:(evt,elements)=>{ if(elements.length){ const idx=elements[0].index; openMRDetail('consol', labels[idx]); } },
       onHover:(evt,elements)=>{ evt.native.target.style.cursor = elements.length ? 'pointer':'default'; },
       plugins:{legend:{display:false},
-        tooltip:{callbacks:{label:(ctx)=>{ const l=labels[ctx.dataIndex]; return ['รายการ: '+fmtNum(ctx.parsed.y), 'คิดเป็น: '+fmtNum(runCounts[l])+' เที่ยว (รอบวิ่งจริง)']; }}},
-        datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:11,weight:'700'},formatter:v=>fmtNum(v)}},
+        tooltip:{callbacks:{label:(ctx)=>{ const l=labels[ctx.dataIndex]; return ['รายการ: '+do_fmtNum(ctx.parsed.y), 'คิดเป็น: '+do_fmtNum(runCounts[l])+' เที่ยว (รอบวิ่งจริง)']; }}},
+        datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:11,weight:'700'},formatter:v=>do_fmtNum(v)}},
       scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:safeMax(data,1)*1.2},x:{grid:{display:false}}}}
   });
 }
@@ -3613,7 +3650,7 @@ function renderMRMatPairs(idxs){
   const tbody = document.getElementById('tblMRMatPairs');
   if(tbody){
     tbody.innerHTML = r.pairs.length ? r.pairs.map(p=>
-      '<tr><td class="left">'+p.a.slice(0,42)+'</td><td class="left">'+p.b.slice(0,42)+'</td><td><b>'+fmtNum(p.count)+'</b></td></tr>'
+      '<tr><td class="left">'+p.a.slice(0,42)+'</td><td class="left">'+p.b.slice(0,42)+'</td><td><b>'+do_fmtNum(p.count)+'</b></td></tr>'
     ).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--muted);">ไม่มีรอบวิ่งที่บรรทุกมากกว่า 1 ชนิดวัสดุในตัวกรองปัจจุบัน</td></tr>';
   }
   const textEl = document.getElementById('mrMatPairsText');
@@ -3621,7 +3658,7 @@ function renderMRMatPairs(idxs){
     if(r.pairs.length){
       const top = r.pairs[0];
       const pct = r.totalTrips ? (r.multiItemTrips/r.totalTrips*100).toFixed(1) : '0';
-      textEl.innerHTML = 'จาก '+fmtNum(r.totalTrips)+' รอบวิ่งในตัวกรองปัจจุบัน มี '+fmtNum(r.multiItemTrips)+' รอบ ('+pct+'%) ที่บรรทุกมากกว่า 1 ชนิดวัสดุพร้อมกัน &mdash; คู่วัสดุที่ไปด้วยกันบ่อยที่สุดคือ &ldquo;'+top.a+'&rdquo; กับ &ldquo;'+top.b+'&rdquo; (ไปด้วยกัน '+fmtNum(top.count)+' รอบ)';
+      textEl.innerHTML = 'จาก '+do_fmtNum(r.totalTrips)+' รอบวิ่งในตัวกรองปัจจุบัน มี '+do_fmtNum(r.multiItemTrips)+' รอบ ('+pct+'%) ที่บรรทุกมากกว่า 1 ชนิดวัสดุพร้อมกัน &mdash; คู่วัสดุที่ไปด้วยกันบ่อยที่สุดคือ &ldquo;'+top.a+'&rdquo; กับ &ldquo;'+top.b+'&rdquo; (ไปด้วยกัน '+do_fmtNum(top.count)+' รอบ)';
     } else {
       textEl.textContent = 'ยังไม่มีรอบวิ่งที่บรรทุกมากกว่า 1 ชนิดวัสดุในตัวกรองปัจจุบัน จึงยังไม่มีคู่วัสดุให้วิเคราะห์';
     }
@@ -3630,11 +3667,11 @@ function renderMRMatPairs(idxs){
 
 function renderMRTimingStats(idxs){
   const t = computeMRTiming(idxs);
-  document.getElementById('mrTWait').textContent = fmtNum(t.wts) + ' นาที';
-  document.getElementById('mrTStd').textContent = fmtNum(t.std) + ' นาที';
-  document.getElementById('mrTDtc').textContent = fmtNum(t.dtc) + ' นาที';
-  document.getElementById('mrTCte').textContent = fmtNum(t.cte) + ' นาที';
-  document.getElementById('mrTTotal').textContent = fmtNum(t.tot) + ' นาที';
+  document.getElementById('mrTWait').textContent = do_fmtNum(t.wts) + ' นาที';
+  document.getElementById('mrTStd').textContent = do_fmtNum(t.std) + ' นาที';
+  document.getElementById('mrTDtc').textContent = do_fmtNum(t.dtc) + ' นาที';
+  document.getElementById('mrTCte').textContent = do_fmtNum(t.cte) + ' นาที';
+  document.getElementById('mrTTotal').textContent = do_fmtNum(t.tot) + ' นาที';
 }
 
 function renderMRFlowTable(idxs){
@@ -3648,7 +3685,7 @@ function renderMRFlowTable(idxs){
       const key = ri+'__'+ci;
       const cell = agg[key];
       if(!cell || cell.legs===0){ html += '<td class="flow-empty">0</td>'; return; }
-      html += '<td class="flow-cell" onclick="openMRDetail(\'flow\',\''+key+'\')">'+fmtNum(cell.legs)+'<span class="flow-trips">'+fmtNum(cell.trips)+' เที่ยว</span></td>';
+      html += '<td class="flow-cell" onclick="openMRDetail(\'flow\',\''+key+'\')">'+do_fmtNum(cell.legs)+'<span class="flow-trips">'+do_fmtNum(cell.trips)+' เที่ยว</span></td>';
     });
     html += '</tr>';
   });
@@ -3661,7 +3698,7 @@ function renderMRCancelBreakdown(idxs){
   const tbody = document.getElementById('tblMRCancelRoute');
   if(tbody){
     tbody.innerHTML = rows.length ? rows.map(r=>
-      `<tr><td class="left">${r.route}</td><td>${fmtNum(r.n)}</td><td>${fmtNum(r.cancel)}</td><td><b>${r.pct}%</b></td></tr>`
+      `<tr><td class="left">${r.route}</td><td>${do_fmtNum(r.n)}</td><td>${do_fmtNum(r.cancel)}</td><td><b>${r.pct}%</b></td></tr>`
     ).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--muted);">ยังไม่มีเส้นทางที่มีตัวอย่างมากพอ (ขั้นต่ำ 5 รายการ) ในตัวกรองปัจจุบัน</td></tr>';
   }
 }
@@ -3674,7 +3711,7 @@ function renderMRWaitTrend(idxs){
   FR_CHARTS.mrWaitTrend = new Chart(el, {
     type:'line',
     data:{labels:w.map(x=>x.label), datasets:[{label:'Median Wait Pick Time (นาที)', data:w.map(x=>x.median_wait), borderColor:COLORS.accent, backgroundColor:'rgba(234,115,23,0.1)', tension:.3, fill:true, borderWidth:2, pointRadius:3, pointBackgroundColor:COLORS.accent}]},
-    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:10,weight:'700'},formatter:v=>fmtNum(v)}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:safeMax(w.map(x=>x.median_wait),1)*1.25},x:{grid:{display:false},ticks:{font:{size:10}}}}}
+    options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:20}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'top',offset:4,clip:false,color:COLORS.navy,font:{size:10,weight:'700'},formatter:v=>do_fmtNum(v)}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:safeMax(w.map(x=>x.median_wait),1)*1.25},x:{grid:{display:false},ticks:{font:{size:10}}}}}
   });
 }
 
@@ -3683,7 +3720,7 @@ function renderMRConsolidationOpportunity(idxs){
   const tbody = document.getElementById('tblMRConsolOpp');
   if(tbody){
     tbody.innerHTML = rows.length ? rows.map(r=>
-      `<tr><td class="left">${r.route}</td><td>${fmtNum(r.trips)}</td><td>${r.ratio.toFixed(1)}</td></tr>`
+      `<tr><td class="left">${r.route}</td><td>${do_fmtNum(r.trips)}</td><td>${r.ratio.toFixed(1)}</td></tr>`
     ).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--muted);">ไม่พบเส้นทางที่เข้าเกณฑ์ (ขั้นต่ำ 5 เที่ยว และรายการ/เที่ยว &le; 1.3) ในตัวกรองปัจจุบัน</td></tr>';
   }
 }
@@ -3691,19 +3728,19 @@ function renderMRConsolidationOpportunity(idxs){
 function renderMRDriverTable(idxs){
   const rows = computeMRTop(idxs, 'drv', MR_DRIVERS, 10);
   document.getElementById('tblMRDriver').innerHTML = rows.length ? rows.map(r=>
-    '<tr><td class="left">'+r.name+'</td><td>'+fmtNum(r.legs)+'</td><td>'+fmtNum(r.runs)+'</td></tr>'
+    '<tr><td class="left">'+r.name+'</td><td>'+do_fmtNum(r.legs)+'</td><td>'+do_fmtNum(r.runs)+'</td></tr>'
   ).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--muted);">ไม่มีข้อมูล</td></tr>';
 }
 function renderMRTruckTable(idxs){
   const rows = computeMRTop(idxs, 'trk', MR_TRUCKS, 10);
   document.getElementById('tblMRTruck').innerHTML = rows.length ? rows.map(r=>
-    '<tr><td class="left">'+r.name+'</td><td>'+fmtNum(r.legs)+'</td><td>'+fmtNum(r.weight)+' กก.</td></tr>'
+    '<tr><td class="left">'+r.name+'</td><td>'+do_fmtNum(r.legs)+'</td><td>'+do_fmtNum(r.weight)+' กก.</td></tr>'
   ).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--muted);">ไม่มีข้อมูล</td></tr>';
 }
 function renderMRGateTable(idxs){
   const rows = computeMRTop(idxs, 'gate', MR_GATES, 10);
   document.getElementById('tblMRGate').innerHTML = rows.length ? rows.map(r=>
-    '<tr><td class="left">'+r.name+'</td><td>'+fmtNum(r.legs)+'</td></tr>'
+    '<tr><td class="left">'+r.name+'</td><td>'+do_fmtNum(r.legs)+'</td></tr>'
   ).join('') : '<tr><td colspan="2" style="text-align:center;color:var(--muted);">ไม่มีข้อมูล</td></tr>';
 }
 
@@ -3737,14 +3774,14 @@ function openMRDetail(mode, key){
   }
   const d = computeMRCellDetail(rowIdxs);
   document.getElementById('mrcmTitle').textContent = title;
-  document.getElementById('mrcmStatValue').textContent = fmtNum(d.n);
-  document.getElementById('mrcmStatTrips').textContent = fmtNum(d.trips);
-  document.getElementById('mrcmStatWeight').textContent = fmtNum(d.weight);
+  document.getElementById('mrcmStatValue').textContent = do_fmtNum(d.n);
+  document.getElementById('mrcmStatTrips').textContent = do_fmtNum(d.trips);
+  document.getElementById('mrcmStatWeight').textContent = do_fmtNum(d.weight);
   document.getElementById('mrcmTopTypes').innerHTML = d.topMatcodes.length ? d.topMatcodes.map(m=>
-    '<tr><td class="left">'+m.name.slice(0,42)+'</td><td>'+fmtNum(m.weight)+' กก.</td><td>'+fmtNum(m.legs)+'</td><td><span class="badge '+completionBadgeStyle(m.pct_completed)+'">'+m.pct_completed+'%</span></td></tr>'
+    '<tr><td class="left">'+m.name.slice(0,42)+'</td><td>'+do_fmtNum(m.weight)+' กก.</td><td>'+do_fmtNum(m.legs)+'</td><td><span class="badge '+completionBadgeStyle(m.pct_completed)+'">'+m.pct_completed+'%</span></td></tr>'
   ).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--muted);">ไม่มีข้อมูล</td></tr>';
   document.getElementById('mrcmTopPg').innerHTML = d.topProductGroups.length ? d.topProductGroups.map(g=>
-    '<tr><td class="left">'+g.name+'</td><td>'+fmtNum(g.weight)+' กก.</td><td>'+fmtNum(g.legs)+'</td><td><span class="badge '+completionBadgeStyle(g.pct_completed)+'">'+g.pct_completed+'%</span></td></tr>'
+    '<tr><td class="left">'+g.name+'</td><td>'+do_fmtNum(g.weight)+' กก.</td><td>'+do_fmtNum(g.legs)+'</td><td><span class="badge '+completionBadgeStyle(g.pct_completed)+'">'+g.pct_completed+'%</span></td></tr>'
   ).join('') : '<tr><td colspan="4" style="text-align:center;color:var(--muted);">ไม่มีข้อมูล</td></tr>';
 
   if(mrcmDateChart) mrcmDateChart.destroy();
@@ -3827,13 +3864,13 @@ function openCellDetail(stage, bucketIdx){
   const rowIdxs = CURRENT_CELLROWS[key] || [];
   const durField = stage==='open_to_prep' ? 'lo' : (stage==='prep_to_comp' ? 'lp' : 'lc');
   const d = computeCellDetailFromRows(rowIdxs);
-  const bucketLabel = BUCKET_ORDER[bucketIdx];
+  const bucketLabel = do_BUCKET_ORDER[bucketIdx];
 
   document.getElementById('cmTitle').textContent = STAGE_LABEL[stage] + ' · ' + bucketLabel;
   const totalCompleted = computeLeadStats(getFilteredIndices()).n_completed;
-  document.getElementById('cmStatValue').textContent = fmtNum(d.n);
+  document.getElementById('cmStatValue').textContent = do_fmtNum(d.n);
   document.getElementById('cmStatPct').textContent = (totalCompleted? (d.n/totalCompleted*100).toFixed(1):'0') + '%';
-  document.getElementById('cmStatPctLabel').textContent = 'ของงานที่เสร็จสมบูรณ์ในตัวกรองปัจจุบัน (' + fmtNum(totalCompleted) + ' รายการ)';
+  document.getElementById('cmStatPctLabel').textContent = 'ของงานที่เสร็จสมบูรณ์ในตัวกรองปัจจุบัน (' + do_fmtNum(totalCompleted) + ' รายการ)';
 
   if(cmDateChart) cmDateChart.destroy();
   if(cmHourChart) cmHourChart.destroy();
@@ -3850,7 +3887,7 @@ function openCellDetail(stage, bucketIdx){
     options:{responsive:true,maintainAspectRatio:false,layout:{padding:{top:16}},plugins:{legend:{display:false},datalabels:{anchor:'end',align:'top',offset:2,clip:false,color:COLORS.navy,font:{size:8.5,weight:'700'},formatter:v=>v>0?v:''}},scales:{y:{beginAtZero:true,grid:{color:'#eef1f5'},suggestedMax:safeMax(d.by_hour.map(x=>x.n),1)*1.3},x:{grid:{display:false},ticks:{font:{size:9.5}}}}}
   });
 
-  document.getElementById('cmTableLabel').textContent = 'รายการทั้งหมดในกลุ่มนี้ (' + fmtNum(d.n) + ' รายการ)';
+  document.getElementById('cmTableLabel').textContent = 'รายการทั้งหมดในกลุ่มนี้ (' + do_fmtNum(d.n) + ' รายการ)';
   CM_DETAILS = buildCMDetails(rowIdxs, durField);
   CM_SORT = {col:'open', dir:'asc'};
   CM_PAGE = 1;
@@ -4094,7 +4131,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-07.2';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-07.3';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -4617,8 +4654,26 @@ const PAGES = {
   profile: {t:'โปรไฟล์<span class="ac">ของฉัน</span>',       s:'แก้ไขข้อมูลส่วนตัวและรหัสผ่าน', f:pageProfile},
   users:   {t:'จัดการ<span class="ac">ผู้ใช้</span>',        s:'อนุมัติผู้สมัครและกำหนดสิทธิ์', f:pageUsers}
 };
+/* หน้า DO ตั้งฟอนต์/สีเริ่มต้นของ Chart.js ระดับโลก (Sarabun) ซึ่งจะติดไปกับกราฟ
+   หน้าอื่นหลังจากเคยเข้าหน้า DO — จำค่าเดิมไว้แล้วสลับกลับเมื่อออกจากหน้านั้น */
+let CHART_DEF = null;
+function chartDefaultsFor(page){
+  if(typeof Chart === 'undefined' || !Chart.defaults) return;
+  if(!CHART_DEF) CHART_DEF = { font: Chart.defaults.font.family, color: Chart.defaults.color };
+  if(page === 'do'){
+    Chart.defaults.font.family = "'Sarabun', sans-serif";
+    Chart.defaults.color = '#6b7686';
+  }else{
+    Chart.defaults.font.family = CHART_DEF.font;
+    Chart.defaults.color = CHART_DEF.color;
+  }
+}
+
 function go(p,e){
   if(e) e.preventDefault();
+  if(typeof hideTip === 'function') hideTip();      // กล่องข้อความลอยค้างตอนสลับหน้า
+  document.body.style.overflow = '';                // กันหน้าจอเลื่อนไม่ได้ ถ้ามี popup ค้าง
+  chartDefaultsFor(p);
   if((p==='import'||p==='users') && ME.role!=='admin') p='fg';
   PAGE = p;
   document.querySelectorAll('nav a').forEach(a=>a.classList.toggle('on',a.dataset.p===p));
@@ -6848,6 +6903,14 @@ window.initNavPolish = function () {
 /* ====== หน้า DO Preparing + Milk Run — ยกมาจากไฟล์ "Analysis DO" ของผู้ใช้ทั้งหน้า
    โค้ดคำนวณและวาดกราฟเหมือนเดิมทุกบรรทัด เปลี่ยนเฉพาะแหล่งข้อมูลเป็น Supabase ====== */
 const DOPAGE = (function(){
+/* ⚠ สคริปต์ตัวกรอง (tplFilterUI) ที่ถูกฉีดเข้าหน้าตอนวาด ประกาศฟังก์ชันชื่อซ้ำกับ
+   โมดูลวิเคราะห์หลัก 3 ตัว พอฉีดแล้วมันไปทับของเดิมบน window
+   ผลคือเข้าหน้านี้รอบแรกปกติ แต่รอบที่สองจะเรียกฟังก์ชันผิดตัวแล้วพัง
+   แก้โดยจับของจริงเก็บไว้ตั้งแต่ตอนโหลดไฟล์ (ก่อนมีการฉีดใดๆ) */
+const computeCustomerStats = window.computeCustomerStats;
+const computeGateStats     = window.computeGateStats;
+const computeLargestDO     = window.computeLargestDO;
+
 // ===== Live-refresh bootstrap =====
 // Fetches the Data + Milk Run sheets fresh from Google Sheets every time this page loads,
 // runs the full client-side cleaning/analysis/token pipeline (browser_bundle.js, loaded just
@@ -6892,7 +6955,8 @@ const MR_KEYS = ['Milk Run No.','หัวลาก','หางลาก','Weigh
   'Running Time','Gate','Next Gate','Status','User หัวลาก','ต้นทาง','ปลายทาง','Date','Month','สัปดาห์'];
 let DO_CACHE = null;
 
-async function loadDoData(force) {
+async function loadDoData(force, onProgress) {
+  const setStatus = onProgress || window.__doSetStatus || function(){};
   if (DO_CACHE && !force) { setStatus('ใช้ข้อมูลที่โหลดไว้แล้ว...'); return DO_CACHE; }
   const toObj = (rows, keys) => rows.map(r => {
     const o = {};
@@ -7136,7 +7200,8 @@ return {
     if(!DO_DOC_WIRED){ DO_DOC_WIRED = true; }
     await boot();
   },
-  clearCache: function(){ DO_CACHE = null; }
+  clearCache: function(){ DO_CACHE = null; },
+  preload: function(onProgress){ return loadDoData(false, onProgress); }
 };
 })();
 
@@ -9381,7 +9446,8 @@ function mountDom(){
 
 return {
   mount: async function(){ mountDom(); await loadData(false); },
-  clearCache: function(){ CACHED_ROWS = null; }
+  clearCache: function(){ CACHED_ROWS = null; },
+  preload: function(onProgress){ return loadFromSupabase(onProgress, false); }
 };
 
 })();
