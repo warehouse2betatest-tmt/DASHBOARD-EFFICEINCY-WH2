@@ -4201,7 +4201,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-10.1';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-10.2';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -6979,9 +6979,13 @@ window.initNavPolish = function () {
    ========================================================================= */
 async function pageOps(){
   let R;
+  let SP;
   try{ R = await rpcCached('app_dash_ops',{
         p_months: orNull('months'), p_slocs: orNull('opsloc') }); }
   catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
+  /* ของกระจายกี่คลัง กับ เวลาที่รถอยู่ในระบบ */
+  try{ SP = await rpcCached('app_dash_spread',{ p_months: orNull('months') }); }
+  catch(_){ SP = null; }
 
   const F = R.flow||{}, T = R.timeout||{}, L = R.load||{};
   const N = v => v==null ? null : +v;
@@ -7094,7 +7098,77 @@ async function pageOps(){
     ], T.by_fac||[]) + `</div>
   </div>
 
-  ${sect(3,'ประสิทธิภาพการบรรทุก','รถแต่ละประเภทบรรทุกจริงเท่าไร เทียบกับที่เคยทำได้','o')}
+  ${SP ? (()=>{ const S=SP.kpi||{}, BS=SP.by_sloc||[], SV=SP.saving||{};
+    return `
+  ${sect(3,'ของกระจายกี่คลัง กับ เวลาที่รถอยู่ในระบบ','ยิ่งของอยู่หลายคลัง รถยิ่งต้องแวะหลาย Gate และอยู่ในระบบนานขึ้น','o')}
+  <div class="card anim d1" style="border-left:5px solid var(--org);background:linear-gradient(180deg,var(--org-soft) 0%,#fff 55%)">
+    <h3 style="margin-bottom:12px">ข้อค้นพบ</h3>
+    <p style="font-size:15px;line-height:2.1;font-weight:300">
+      ทุก<b>คลังที่เพิ่มขึ้น 1 แห่ง</b> รถอยู่ในระบบนานขึ้นราว
+      <b style="color:var(--org-deep);font-size:17px">${fmt(S.min_per_sloc)} นาที</b><br>
+      รถที่ของอยู่คลังเดียวใช้เวลา <b>${fmt((BS[0]||{}).weigh)} นาที</b>
+      แต่ถ้าของกระจาย 6 คลังขึ้นไป ใช้ถึง <b style="color:var(--org-deep)">${
+        fmt((BS.find(x=>+x.k===6)||BS[BS.length-1]||{}).weigh)} นาที</b><br>
+      ตอนนี้มี <b>${fmt(S.spread3)} เที่ยว (${fmt(S.spread3_pct,1)}%)</b> ที่ของกระจายตั้งแต่ 3 คลังขึ้นไป
+    </p>
+    <p class="sm" style="margin-top:8px">
+      ⚠ วัดจาก <b>ชั่งน้ำหนักเข้า → ชั่งน้ำหนักออก</b> ซึ่งเป็นเวลาที่รถอยู่ในระบบจริง
+      (ไม่ได้ใช้ช่อง Used Time ของระบบต้นทาง เพราะเป็นค่าเฉลี่ยต่อการเข้า Gate หนึ่งครั้ง ไม่ใช่ผลรวมทั้งเที่ยว)
+    </p></div>
+
+  <div class="kpis">
+    <div class="kpi o anim d1"><div class="k">ต้นทุนต่อคลังที่เพิ่ม</div><div class="v">${fmt(S.min_per_sloc)}</div>
+      <div class="s">นาที · ต่อ Gate ที่เพิ่ม ${fmt(S.min_per_gate)} นาที</div></div>
+    <div class="kpi anim d2"><div class="k">ความสัมพันธ์ คลัง ↔ เวลา</div><div class="v">${fmt(S.corr_sloc_weigh,3)}</div>
+      <div class="s">${(()=>{const c=Math.abs(+S.corr_sloc_weigh||0);
+        return c>=.5?'สัมพันธ์กันชัดเจน':c>=.3?'สัมพันธ์กันปานกลาง':'สัมพันธ์กันน้อย';})()}</div></div>
+    <div class="kpi anim d3"><div class="k">คลังเฉลี่ยต่อเที่ยว</div><div class="v">${fmt(S.avg_sloc,2)}</div>
+      <div class="s">แวะ ${fmt(S.avg_gate,2)} Gate · อยู่ในระบบ ${fmt(S.avg_weigh)} นาที</div></div>
+    <div class="kpi g anim d4"><div class="k">ถ้าลดเหลือ 2 คลัง</div><div class="v">${fmt(SV.save_total_hr)}</div>
+      <div class="s">ชั่วโมงที่ประหยัดได้รวม · เที่ยวละ ${fmt(SV.save_per_trip)} นาที</div></div>
+  </div>
+
+  <div class="card anim d1"><h3>ของกระจายกี่คลัง แล้วรถอยู่ในระบบนานเท่าไร</h3>
+    <div class="chartbox" style="height:300px"><canvas id="op9"></canvas></div>
+    <p class="sm" style="margin-top:10px">แท่ง = ชั่งเข้า→ชั่งออก · เส้น = จำนวน Gate ที่ต้องแวะ</p></div>
+
+  <div class="card anim d2"><h3>ตารางเปรียบเทียบ</h3>` + tableHTML([
+      {h:'ของอยู่กี่คลัง',k:'k',n:1,raw:1,f:r=>`<b>${fmt(r.k)}</b>`},
+      {h:'เที่ยวรถ',k:'n',n:1,f:r=>fmt(r.n)},
+      {h:'Gate ที่แวะ',k:'gate',n:1,f:r=>fmt(r.gate,2)},
+      {h:'เข้า Gate แรก→ออกสุดท้าย',k:'door',n:1,f:r=>fmt(r.door)+' น.'},
+      {h:'อยู่ในระบบ (ชั่งเข้า→ออก)',k:'weigh',n:1,raw:1,f:r=>`<b>${fmt(r.weigh)} น.</b>`},
+      {h:'ช้ากว่าคลังเดียว',k:'extra',n:1,raw:1,f:r=>+r.extra>0
+          ? `<b style="color:var(--bad)">+${fmt(r.extra)} น.</b>` : '—'},
+      {h:'ตัน/คัน',k:'ton',n:1,f:r=>fmt(r.ton,2)},
+      {h:'รายการ/คัน',k:'lines',n:1,f:r=>fmt(r.lines,1)}
+    ], BS) + `</div>
+
+  <div class="grid2">
+    <div class="card anim d3"><h3>ผลตามประเภทรถ</h3>` + tableHTML([
+      {h:'ประเภทรถ',k:'k'},{h:'เที่ยว',k:'n',n:1,f:r=>fmt(r.n)},
+      {h:'คลังเฉลี่ย',k:'sloc',n:1,f:r=>fmt(r.sloc,2)},
+      {h:'อยู่ในระบบ',k:'weigh',n:1,f:r=>fmt(r.weigh)+' น.'},
+      {h:'ต้นทุน/คลัง',k:'slope',n:1,raw:1,f:r=>`<b style="color:var(--org-deep)">${fmt(r.slope)} น.</b>`}
+    ], SP.by_veh||[]) + `</div>
+    <div class="card anim d4"><h3>กลุ่มสินค้าที่กระจายมากที่สุด</h3>` + tableHTML([
+      {h:'กลุ่มผลิตภัณฑ์',k:'k'},{h:'เที่ยว',k:'n',n:1,f:r=>fmt(r.n)},
+      {h:'คลังเฉลี่ย',k:'sloc',n:1,raw:1,f:r=>`<b>${fmt(r.sloc,2)}</b>`},
+      {h:'อยู่ในระบบ',k:'weigh',n:1,f:r=>fmt(r.weigh)+' น.'}
+    ], SP.by_group||[]) + `</div>
+  </div>
+
+  <div class="card anim d5"><h3>15 เที่ยวที่ของกระจายมากที่สุด</h3>` + tableHTML([
+      {h:'เที่ยวรถ',k:'sh'},{h:'วันที่',k:'d',f:r=>dmy(r.d)},
+      {h:'ของอยู่กี่คลัง',k:'sl',n:1,raw:1,f:r=>`<b style="color:var(--bad)">${fmt(r.sl)}</b>`},
+      {h:'Gate ที่แวะ',k:'g',n:1,f:r=>fmt(r.g)},
+      {h:'อยู่ในระบบ',k:'w',n:1,f:r=>fmt(r.w)+' น.'},
+      {h:'รายการ',k:'ln',n:1,f:r=>fmt(r.ln)},
+      {h:'ตัน',k:'ton',n:1,f:r=>fmt(r.ton,2)}
+    ], SP.worst||[]) + `</div>
+`;})() : ''}
+
+  ${sect(4,'ประสิทธิภาพการบรรทุก','รถแต่ละประเภทบรรทุกจริงเท่าไร เทียบกับที่เคยทำได้','o')}
   <div class="kpis">
     <div class="kpi o anim d1"><div class="k">น้ำหนักเฉลี่ยต่อคัน</div><div class="v">${fmt(L.avg_ton,2)}</div>
       <div class="s">ตัน · ค่ากลาง ${fmt(L.med_ton,2)} ตัน</div></div>
@@ -7206,6 +7280,26 @@ async function pageOps(){
       return `<b>${esc(r.k)}</b><br>ค่ากลาง ${fmt(r.med,2)} ตัน · เฉลี่ย ${fmt(r.avg,2)} ตัน<br>`+
              `สูงสุดที่เคยทำได้ ${fmt(r.max,2)} ตัน<br>`+
              `<span style="opacity:.75">ใช้พื้นที่ราว ${fmt(+r.med/Math.max(+r.max,.01)*100,0)}% · ${fmt(r.n)} เที่ยว</span>`;}}));
+
+  if(SP){
+    const BS2 = SP.by_sloc||[];
+    chart('op9','bar',BS2.map(x=>fmt(x.k)+' คลัง'),[
+      {label:'อยู่ในระบบ (นาที)',data:BS2.map(x=>+x.weigh),backgroundColor:'#ff7a18',borderRadius:6,order:2},
+      {type:'line',label:'Gate ที่แวะ',data:BS2.map(x=>+x.gate),borderColor:'#0b2447',backgroundColor:'#0b2447',
+       borderWidth:2.5,tension:.3,pointRadius:4,yAxisID:'y2',order:1}
+    ],{layout:{padding:{top:22}},
+       scales:{y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont,
+                  title:{display:true,text:'นาที',font:{family:'Kanit',size:10}}},
+               y2:{position:'right',beginAtZero:true,grid:{display:false},border:{display:false},ticks:axisFont,
+                  title:{display:true,text:'Gate',font:{family:'Kanit',size:10}}},
+               x:{grid:{display:false},ticks:axisFont}},
+       vl:(v,i,ds)=> ds.type==='line' ? fmt(v,1) : fmt(v,0),
+       tip:(pts)=>{const r=BS2[pts[0].dataIndex];
+         return `<b>ของอยู่ ${fmt(r.k)} คลัง</b><br>อยู่ในระบบ ${fmt(r.weigh)} นาที`+
+                (+r.extra>0?` <span style="color:#ff9248">(ช้ากว่าคลังเดียว ${fmt(r.extra)} นาที)</span>`:'')+
+                `<br>แวะ ${fmt(r.gate,2)} Gate · เข้า-ออก Gate ${fmt(r.door)} นาที<br>`+
+                `<span style="opacity:.75">${fmt(r.n)} เที่ยว · ${fmt(r.ton,2)} ตัน · ${fmt(r.lines,1)} รายการ</span>`;}});
+  }
 
   const dTot = DIST.reduce((s,x)=>s+ +x.v,0)||1;
   chart('op8','bar',DIST.map(x=>x.k),
