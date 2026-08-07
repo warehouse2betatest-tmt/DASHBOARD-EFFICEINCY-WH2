@@ -1053,9 +1053,16 @@ details summary{cursor:pointer;user-select:none}
   }
 /* เดิม z-index 99999 คลุมทั้งจอรวมถึงแถบเมนูซ้าย ทำให้ระหว่างโหลดกดไปหน้าอื่นไม่ได้
    ลดลงมาต่ำกว่าแถบเมนู (z 60) และหัวข้อหน้า (z 45) ให้ยังนำทางได้ */
-#doRoot #liveLoadingOverlay{position:fixed;inset:0;z-index:30;background:#12213a;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;font-family:'Kanit',sans-serif;transition:opacity .4s ease;}
+#doRoot #liveLoadingOverlay{position:fixed;inset:0;z-index:50;background:#12213a;display:flex;align-items:center;justify-content:center;flex-direction:column;color:#fff;font-family:'Kanit',sans-serif;transition:opacity .4s ease;}
 #doRoot #liveLoadingOverlay.live-loading-fade{opacity:0;pointer-events:none;}
 #doRoot #liveLoadingOverlay.live-loading-hidden{display:none;}
+/* ระหว่างโหลด ให้ซ่อนเนื้อหาที่ยังไม่ได้แทนค่าไว้ก่อน กันไม่ให้เห็น @@TOKEN@@ และโครงเปล่า
+   (ไฟล์ต้นฉบับใช้ #mainContent ครอบไว้ ตอนยกมารวมกับ Efficiency ตัวครอบนั้นหายไป) */
+#doRoot.dq-loading .hero,
+#doRoot.dq-loading .nav,
+#doRoot.dq-loading .filterbar,
+#doRoot.dq-loading .wrap{visibility:hidden;}
+#doRoot .hero,#doRoot .wrap{transition:opacity .25s ease;}
 #doRoot .live-spinner{width:52px;height:52px;border:4px solid rgba(255,255,255,0.25);border-top-color:#ea7317;border-radius:50%;animation:liveSpin 0.9s linear infinite;margin-bottom:22px;}
 
 @keyframes liveSpin{to{transform:rotate(360deg);}}
@@ -4133,7 +4140,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-08.1';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-08.3';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -6951,14 +6958,15 @@ const MR_KEYS = ['Milk Run No.','หัวลาก','หางลาก','Weigh
 let DO_CACHE = null;
 
 async function loadDoData(force, onProgress) {
-  const setStatus = onProgress || window.__doSetStatus || function(){};
-  if (DO_CACHE && !force) { setStatus('ใช้ข้อมูลที่โหลดไว้แล้ว...'); return DO_CACHE; }
+  // ตัวรายงานความคืบหน้า: ถ้าไม่ได้ส่งมา ให้เขียนลงหน้าจอโหลดของหน้านี้
+  const say = (t)=>{ if(onProgress) onProgress(t); setStatus(t); };
+  if (DO_CACHE && !force) { say('ใช้ข้อมูลที่โหลดไว้แล้ว...'); return DO_CACHE; }
   const toObj = (rows, keys) => rows.map(r => {
     const o = {};
     for (let i = 0; i < keys.length; i++) o[keys[i]] = (r[i] === null || r[i] === undefined) ? '' : String(r[i]);
     return o;
   });
-  setStatus('กำลังเชื่อมต่อฐานข้อมูล...');
+  say('กำลังเชื่อมต่อฐานข้อมูล...');
   const head = await rpc('app_do_head');
   const nDo = +head.do_rows || 0, nMr = +head.mr_rows || 0;
   if (!nDo) throw new Error('ยังไม่มีข้อมูล DO Preparing ในระบบ — กรุณานำเข้าชีท Prepare ก่อน');
@@ -6968,14 +6976,14 @@ async function loadDoData(force, onProgress) {
   for (let off = 0; off < nDo; off += P) {
     const part = await rpc('app_do_page', { p_offset: off, p_limit: P });
     doRows.push(...part);
-    setStatus(`กำลังดึงข้อมูล DO... (${doRows.length.toLocaleString('th-TH')} / ${nDo.toLocaleString('th-TH')} แถว)`);
+    say(`กำลังดึงข้อมูล DO... (${doRows.length.toLocaleString('th-TH')} / ${nDo.toLocaleString('th-TH')} แถว)`);
     if (part.length < P) break;
   }
   const mrRows = [];
   for (let off = 0; off < nMr; off += P) {
     const part = await rpc('app_mr_page', { p_offset: off, p_limit: P });
     mrRows.push(...part);
-    setStatus(`กำลังดึงข้อมูล Milk Run... (${mrRows.length.toLocaleString('th-TH')} / ${nMr.toLocaleString('th-TH')} แถว)`);
+    say(`กำลังดึงข้อมูล Milk Run... (${mrRows.length.toLocaleString('th-TH')} / ${nMr.toLocaleString('th-TH')} แถว)`);
     if (part.length < P) break;
   }
   DO_CACHE = { data: toObj(doRows, DO_KEYS), mr: toObj(mrRows, MR_KEYS) };
@@ -7205,11 +7213,17 @@ async function pageDO(){
   const tpl = el('doTpl');
   if(!tpl){ body(errCard('ไม่พบโครงหน้า DO')); return; }
   body(tpl.innerHTML);
-  try{ await DOPAGE.mount(); }
-  catch(ex){
+  const root = el('doRoot');
+  if(root) root.classList.add('dq-loading');   // ซ่อนโครงเปล่าไว้ก่อน
+  try{
+    await DOPAGE.mount();
+  }catch(ex){
+    if(root) root.classList.remove('dq-loading');
     if(ex && ex.session){ body(sessionExpiredCard()); return; }
     body(errCard(ex && ex.message ? ex.message : String(ex)));
+    return;
   }
+  if(root) root.classList.remove('dq-loading'); // ข้อมูลพร้อมแล้วค่อยเผยเนื้อหา
 }
 
 
