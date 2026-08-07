@@ -1239,6 +1239,7 @@ details summary{cursor:pointer;user-select:none}
       <a href="#" data-p="shipment" onclick="go('shipment',event)"><span class="ic">🚛</span> Shipment Analysis</a>
       <a href="#" data-p="do" onclick="go('do',event)"><span class="ic">⏱️</span> DO Preparing &amp; Milk Run</a>
       <a href="#" data-p="mrfg" onclick="go('mrfg',event)"><span class="ic">🔗</span> Shipment &amp; Milk Run</a>
+      <a href="#" data-p="ops" onclick="go('ops',event)"><span class="ic">📈</span> สายงาน &amp; ประสิทธิภาพ</a>
       <div class="navlbl">ระบบ</div>
       <a href="#" data-p="import" id="navImport" onclick="go('import',event)"><span class="ic">📥</span> นำเข้าข้อมูล</a>
       <a href="#" data-p="profile" onclick="go('profile',event)"><span class="ic">👤</span> โปรไฟล์ของฉัน</a>
@@ -4200,7 +4201,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-09.6';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-10.1';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -4235,7 +4236,7 @@ let ME = null, TOKEN = null, CHARTS = {}, PAGE = 'fg';
 let DATE_ISSUES = [];   // ปัญหาวันเวลาที่ตรวจพบหลังนำเข้าล่าสุด
 
 /* ตัวกรองใช้ร่วมกันทุกหน้า + แคชข้อมูลไว้ ไม่ต้องยิงซ้ำตอนเปลี่ยนตัวกรอง */
-let FILTERS = { months:[], factories:[], shtys:[], routes:[], mstat:['Completed'], dim:'gate', keys:[] };
+let FILTERS = { months:[], factories:[], shtys:[], routes:[], mstat:['Completed'], opsloc:[], dim:'gate', keys:[] };
 let MONTHS_CACHE = [];        // รายชื่อเดือนที่มีข้อมูล ใช้ร่วมกันทุกหน้า
 const hasF = k => (FILTERS[k]||[]).length > 0;
 const orNull = k => hasF(k) ? FILTERS[k] : null;
@@ -4720,6 +4721,7 @@ document.addEventListener('click', ()=>{
 const PAGES = {
   fg:      {t:'FG <span class="ac">[Outbound &amp; Inbound]</span>', s:'ภาพรวมการรับเข้าและจ่ายออกสินค้าสำเร็จรูป — ข้อมูลทั้งหมด', f:pageFG},
   shipment:{t:'Shipment <span class="ac">Analysis</span>', s:'เจาะลึกเที่ยวรถ เวลาแต่ละขั้น และจุดที่เสียเวลา', f:pageShipment},
+  ops:     {t:'สายงาน &amp; <span class="ac">ประสิทธิภาพ</span>', s:'ไล่เวลาตั้งแต่เปิด DO จนรถออก · เวลาเลิกงาน · การใช้พื้นที่รถ', f:pageOps},
   mrfg:    {t:'Shipment &amp; <span class="ac">Milk Run</span>', s:'จับคู่สินค้าที่ขนย้ายระหว่างโรงกับเที่ยวรถที่จ่ายออกจริง ด้วยใบส่ง + เลขรายการ', f:pageMRFG},
   do:      {t:'DO Preparing &amp; <span class="ac">Milk Run</span>', s:'วิเคราะห์เวลาจัดเตรียมสินค้าและการขนส่งระหว่างโรงแบบเจาะลึก', f:pageDO},
   import:  {t:'นำเข้า<span class="ac">ข้อมูล</span>',        s:'อัปโหลดไฟล์ Excel 8 ชีทเข้าฐานข้อมูล', f:pageImport},
@@ -5039,6 +5041,7 @@ function filterBar(sets, shown, total, fn){
 function resetFilters(fn){
   FILTERS.months=[]; FILTERS.factories=[]; FILTERS.shtys=[]; FILTERS.keys=[]; FILTERS.routes=[];
   FILTERS.mstat=['Completed'];   // สถานะ Milk Run กลับไปเป็นค่าตั้งต้น = นับเฉพาะที่ทำสำเร็จ
+  FILTERS.opsloc=[];
   window[fn]();
 }
 
@@ -6966,6 +6969,252 @@ window.initNavPolish = function () {
   }
 };
 
+
+
+/* =========================================================================
+   หน้า สายงาน & ประสิทธิภาพ — 3 ส่วน
+   1) สายงานเต็มเส้น : ต่อ 3 ชีท (Prepare → FG → Shipment) 53,941 รายการ
+   2) เวลาเลิกงาน    : ปริมาณงานกับเวลาเลิกงานสัมพันธ์กันแค่ไหน
+   3) การบรรทุก      : รถแต่ละประเภทบรรทุกจริงเท่าไร เทียบกับที่ทำได้
+   ========================================================================= */
+async function pageOps(){
+  let R;
+  try{ R = await rpcCached('app_dash_ops',{
+        p_months: orNull('months'), p_slocs: orNull('opsloc') }); }
+  catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
+
+  const F = R.flow||{}, T = R.timeout||{}, L = R.load||{};
+  const N = v => v==null ? null : +v;
+  const sect = (n,t,s,cls='') =>
+    `<div class="sect ${cls}"><div class="no">${n}</div>
+       <div><h2>${t}</h2><p>${s}</p></div><div class="ln"></div></div>`;
+  const hm = m => m==null||isNaN(m) ? '—'
+      : (Math.abs(m)>=60 ? (m<0?'-':'')+Math.floor(Math.abs(m)/60)+' ชม. '+pad(Math.round(Math.abs(m)%60))+' น.'
+                         : Math.round(m)+' นาที');
+  const hhmm = x => { if(x==null||isNaN(x)) return '—';
+    const t=Math.round(x*60); return pad(Math.floor(t/60))+':'+pad(t%60); };
+
+  const bar = `<div class="filters anim">
+    ${msRender('months','เดือน',R.months||[],FILTERS.months,'pageOps',monthLabel)}
+    ${msRender('opsloc','คลัง',R.all_slocs||[],FILTERS.opsloc,'pageOps')}
+    <button class="fbtn alt" onclick="resetFilters('pageOps')">ล้างตัวกรอง</button>
+    <button class="fbtn alt" onclick="pageOps()">↻ โหลดใหม่</button>
+    <div style="margin-left:auto;text-align:right">
+      <div class="sm">ต่อสายได้</div>
+      <div style="font-weight:500;font-size:15px">${fmt(F.rows)}
+        <span class="sm" style="font-weight:300">รายการ</span></div>
+    </div></div>`;
+
+  if(!+F.rows){ body(bar + emptyBox('ไม่พบข้อมูลตามตัวกรองที่เลือก')); return; }
+
+  const SG = (F.stages||[]).slice().sort((a,b)=>a.ord-b.ord);
+  const sumAvg = SG.reduce((s,x)=>s+(+x.avg||0),0) || 1;
+  const worstStage = SG.slice().sort((a,b)=>b.med-a.med)[0] || {k:'—',med:0};
+  const GD = F.gap_dist||[], BL = T.by_load||[], DIST = L.dist||[];
+
+  body(bar + `
+
+  ${sect(1,'สายงานเต็มเส้น','ตั้งแต่เปิด DO จนชั่งน้ำหนักเสร็จ — ต่อข้อมูล 3 ชีทเข้าด้วยกัน','o')}
+  <div class="kpis">
+    <div class="kpi o anim d1"><div class="k">เวลารวมทั้งสาย</div><div class="v">${fmt(F.total_h,1)}</div>
+      <div class="s">ชั่วโมงเฉลี่ย · จาก ${fmt(F.rows_gate)} รายการที่มีข้อมูลรถครบ</div></div>
+    <div class="kpi anim d2"><div class="k">ช่วงที่นานที่สุด (ค่ากลาง)</div>
+      <div class="v" style="font-size:18px">${esc(worstStage.k)}</div>
+      <div class="s">${hm(worstStage.med)}</div></div>
+    <div class="kpi r anim d3"><div class="k">รถมาถึงก่อนของเสร็จ</div><div class="v">${fmt(F.truck_wait_pct,1)}%</div>
+      <div class="s">${fmt(F.truck_wait)} รายการ · รถต้องรอของ</div></div>
+    <div class="kpi anim d4"><div class="k">น้ำหนักที่วิเคราะห์</div><div class="v">${fmt(F.ton,0)}</div>
+      <div class="s">ตัน</div></div>
+  </div>
+
+  <div class="card anim d1"><h3>เวลาแต่ละช่วง — ดูค่ากลางเป็นหลัก</h3>
+    <div class="chartbox" style="height:260px"><canvas id="op1"></canvas></div>
+    <p class="sm" style="margin-top:10px">
+      ค่าเฉลี่ยถูกลากด้วยรายการหางยาว จึงควรดู<b>ค่ากลาง</b> เป็นหลัก —
+      เช่นช่วง "เตรียมเสร็จ → รถเข้า Gate" เฉลี่ย ${hm((SG[2]||{}).avg)}
+      แต่ค่ากลางจริงแค่ ${hm((SG[2]||{}).med)}</p></div>
+
+  <div class="card anim d2" style="border-left:5px solid var(--org)">
+    <h3>ของพร้อมแล้ว รอรถนานแค่ไหน</h3>
+    <div class="chartbox" style="height:250px"><canvas id="op2"></canvas></div>
+    <p class="sm" style="margin-top:10px">
+      ${(()=>{const tot=GD.reduce((s,x)=>s+ +x.v,0)||1;
+        const early=(GD.find(x=>+x.ord===0)||{v:0}).v;
+        const long=GD.filter(x=>+x.ord>=4).reduce((s,x)=>s+ +x.v,0);
+        return `<b>${fmt(early/tot*100,1)}%</b> รถมาถึงก่อนของเสร็จ (รถรอ) ·
+                <b>${fmt(long/tot*100,1)}%</b> ของเสร็จแล้วรอรถเกิน 8 ชั่วโมง (ของค้าง)`;})()}
+    </p></div>
+
+  <div class="grid2">
+    <div class="card anim d3"><h3>ค่ากลาง "รอรถ" แยกตามคลัง (นาที)</h3>
+      <div class="chartbox" style="height:${Math.max(240,(F.by_sloc||[]).length*28)}px"><canvas id="op3"></canvas></div></div>
+    <div class="card anim d4"><h3>ค่ากลาง "รอรถ" แยกตามกลุ่มขาย (นาที)</h3>
+      <div class="chartbox" style="height:${Math.max(240,(F.by_gsale||[]).length*28)}px"><canvas id="op4"></canvas></div></div>
+  </div>
+
+  <div class="card anim d5"><h3>15 รายการที่ของค้างนานที่สุด</h3>` + tableHTML([
+      {h:'วันที่',k:'d',f:r=>dmy(r.d)},{h:'เที่ยวรถ',k:'sh'},{h:'คลัง',k:'sl'},
+      {h:'กลุ่มขาย',k:'gs'},
+      {h:'ของพร้อมแล้วรอรถ',k:'gap',n:1,raw:1,f:r=>`<b style="color:var(--bad)">${hm(+r.gap)}</b>`},
+      {h:'ตัน',k:'ton',n:1,f:r=>fmt(r.ton,2)}
+    ], F.worst||[]) + `</div>
+
+  ${sect(2,'เวลาเลิกงาน กับ ปริมาณงาน','งานเยอะแล้วเลิกดึกขึ้นจริงไหม และเท่าไร','o')}
+  <div class="kpis">
+    <div class="kpi anim d1"><div class="k">เวลาเลิกงานเฉลี่ย</div><div class="v">${hhmm(T.avg_h)}</div>
+      <div class="s">จาก ${fmt(T.days)} วันทำงาน</div></div>
+    <div class="kpi ${+T.over_pct>40?'r':''} anim d2"><div class="k">วันที่เลิกเกินเป้า 20:30</div>
+      <div class="v">${fmt(T.over_pct,1)}%</div><div class="s">${fmt(T.over_target)} วัน</div></div>
+    <div class="kpi o anim d3"><div class="k">ความสัมพันธ์ จำนวนคัน ↔ เวลาเลิก</div>
+      <div class="v">${fmt(T.corr_truck,3)}</div>
+      <div class="s">${(()=>{const c=Math.abs(+T.corr_truck||0);
+        return c>=.7?'สัมพันธ์กันสูงมาก':c>=.5?'สัมพันธ์กันชัดเจน':c>=.3?'สัมพันธ์กันปานกลาง':'สัมพันธ์กันน้อย';})()}</div></div>
+    <div class="kpi anim d4"><div class="k">ความสัมพันธ์ น้ำหนัก ↔ เวลาเลิก</div>
+      <div class="v">${fmt(T.corr_ton,3)}</div><div class="s">เทียบกับจำนวนคัน</div></div>
+  </div>
+
+  <div class="card anim d1" style="border-left:5px solid var(--org)">
+    <h3>ปริมาณรถเท่าไร เลิกงานกี่โมง</h3>
+    <div class="chartbox" style="height:250px"><canvas id="op5"></canvas></div>
+    <p class="sm" style="margin-top:10px">
+      ${BL.length>1 ? `จาก ${esc(BL[0].k)} เลิก ${hhmm(BL[0].h)} ไปจนถึง ${esc(BL[BL.length-1].k)} เลิก ${hhmm(BL[BL.length-1].h)}
+        — ต่างกัน <b>${fmt((+BL[BL.length-1].h - +BL[0].h)*60,0)} นาที</b>` : ''}
+      · เส้นประแดงคือเป้า 20:30</p></div>
+
+  <div class="grid2">
+    <div class="card anim d2"><h3>แต่ละวัน: จำนวนรถ กับ เวลาเลิกงาน</h3>
+      <div class="chartbox" style="height:280px"><canvas id="op6"></canvas></div>
+      <p class="sm" style="margin-top:10px">แต่ละจุดคือหนึ่งวัน · จุดแดง = เลิกเกินเป้า</p></div>
+    <div class="card anim d3"><h3>เวลาเลิกงานเฉลี่ยรายโรง</h3>` + tableHTML([
+      {h:'โรงงาน',k:'k'},
+      {h:'เลิกเฉลี่ย',k:'h',n:1,raw:1,f:r=>`<b style="color:${+r.h>20.5?'var(--bad)':'inherit'}">${hhmm(r.h)}</b>`},
+      {h:'วันที่เกินเป้า',k:'late',n:1,f:r=>fmt(r.late)},
+      {h:'วันทั้งหมด',k:'n',n:1,f:r=>fmt(r.n)},
+      {h:'สัดส่วนเกินเป้า',k:'late',n:1,f:r=>fmt(+r.late/Math.max(+r.n,1)*100,0)+'%'}
+    ], T.by_fac||[]) + `</div>
+  </div>
+
+  ${sect(3,'ประสิทธิภาพการบรรทุก','รถแต่ละประเภทบรรทุกจริงเท่าไร เทียบกับที่เคยทำได้','o')}
+  <div class="kpis">
+    <div class="kpi o anim d1"><div class="k">น้ำหนักเฉลี่ยต่อคัน</div><div class="v">${fmt(L.avg_ton,2)}</div>
+      <div class="s">ตัน · ค่ากลาง ${fmt(L.med_ton,2)} ตัน</div></div>
+    <div class="kpi anim d2"><div class="k">เที่ยวรถที่วิเคราะห์</div><div class="v">${fmt(L.trips)}</div>
+      <div class="s">เที่ยว</div></div>
+    <div class="kpi r anim d3"><div class="k">รถที่บรรทุกไม่ถึงครึ่ง</div><div class="v">${fmt((L.under||{}).pct,1)}%</div>
+      <div class="s">${fmt((L.under||{}).n)} เที่ยว · เทียบกับสถิติสูงสุดของรถประเภทเดียวกัน</div></div>
+    <div class="kpi anim d4"><div class="k">พื้นที่ที่เหลือรวม</div><div class="v">${fmt((L.under||{}).lost_ton,0)}</div>
+      <div class="s">ตัน · ถ้าจัดรวมเที่ยวได้</div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card anim d1"><h3>น้ำหนักต่อคัน แยกตามประเภทรถ</h3>
+      <div class="chartbox" style="height:${Math.max(250,(L.by_vehicle||[]).length*30)}px"><canvas id="op7"></canvas></div>
+      <p class="sm" style="margin-top:10px">แท่งเข้ม = ค่ากลาง · แท่งอ่อน = สถิติสูงสุดที่เคยทำได้</p></div>
+    <div class="card anim d2"><h3>กระจายน้ำหนักต่อคัน</h3>
+      <div class="chartbox" style="height:250px"><canvas id="op8"></canvas></div></div>
+  </div>
+  <div class="card anim d3"><h3>รายละเอียดตามประเภทรถ</h3>` + tableHTML([
+      {h:'ประเภทรถ',k:'k'},
+      {h:'จำนวนเที่ยว',k:'n',n:1,f:r=>fmt(r.n)},
+      {h:'ค่ากลาง (ตัน)',k:'med',n:1,raw:1,f:r=>`<b>${fmt(r.med,2)}</b>`},
+      {h:'เฉลี่ย (ตัน)',k:'avg',n:1,f:r=>fmt(r.avg,2)},
+      {h:'สูงสุดที่เคยทำได้',k:'max',n:1,f:r=>fmt(r.max,2)},
+      {h:'ใช้พื้นที่',k:'med',n:1,raw:1,f:r=>{const u=+r.med/Math.max(+r.max,.01)*100;
+        return `<b style="color:${u<50?'var(--bad)':u<70?'var(--org)':'var(--ok)'}">${fmt(u,0)}%</b>`;}},
+      {h:'น้ำหนักรวม (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,0)}
+    ], L.by_vehicle||[]) + `
+    <p class="sm" style="margin-top:10px">"ใช้พื้นที่" = ค่ากลาง ÷ สถิติสูงสุดของรถประเภทนั้น —
+      ต่ำกว่า 50% แปลว่ารถวิ่งไม่เต็มลำเป็นปกติ</p></div>
+  `);
+
+  /* ---------------- วาดกราฟ ---------------- */
+  const axisFont = {font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'};
+  const hBar = {indexAxis:'y',layout:{padding:{right:40}},scales:{
+      x:{beginAtZero:true,grace:'16%',grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+      y:{grid:{display:false},ticks:axisFont}}};
+  const vBar = {layout:{padding:{top:20}},scales:{
+      y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+      x:{grid:{display:false},ticks:axisFont}}};
+  const cut=(s,n)=>String(s).length>n?String(s).slice(0,n)+'…':String(s);
+
+  chart('op1','bar',SG.map(x=>cut(x.k,26)),[
+    {label:'ค่ากลาง',data:SG.map(x=>+x.med),backgroundColor:'#ff7a18',borderRadius:6},
+    {label:'เฉลี่ย',data:SG.map(x=>+x.avg),backgroundColor:'#ffc78a',borderRadius:6}
+  ],Object.assign({},hBar,{vl:v=>fmt(v,0),
+    tip:(pts)=>{const s=SG[pts[0].dataIndex];
+      return `<b>${esc(s.k)}</b><br>ค่ากลาง ${hm(+s.med)}<br>เฉลี่ย ${hm(+s.avg)}<br>`+
+             `<span style="opacity:.75">ช้าสุด 10% ใช้เกิน ${hm(+s.p90)}</span>`;}}));
+
+  const gdTot = GD.reduce((s,x)=>s+ +x.v,0)||1;
+  chart('op2','bar',GD.map(x=>x.k),
+    [{label:'รายการ',data:GD.map(x=>+x.v),
+      backgroundColor:GD.map(x=>+x.ord===0?'#e03131':+x.ord>=4?'#ff7a18':'#1d4f92'),borderRadius:6}],
+    Object.assign({},vBar,{vl:(v)=>`${fmt(v)}\n${fmt(v/gdTot*100,0)}%`,
+      tip:(pts)=>{const g=GD[pts[0].dataIndex];
+        return `<b>${esc(g.k)}</b><br>${fmt(g.v)} รายการ (${fmt(+g.v/gdTot*100,1)}%)`;}}));
+
+  const BS=F.by_sloc||[];
+  chart('op3','bar',BS.map(x=>x.k),
+    [{label:'นาที',data:BS.map(x=>+x.gap),backgroundColor:'#1d4f92',borderRadius:6}],
+    Object.assign({},hBar,{vl:v=>fmt(v,0),
+      tip:(pts)=>{const r=BS[pts[0].dataIndex];
+        return `<b>คลัง ${esc(r.k)}</b><br>ของพร้อมแล้วรอรถ ${hm(+r.gap)} (ค่ากลาง)<br>`+
+               `<span style="opacity:.75">เตรียมของ ${hm(+r.prep)} · อยู่ใน Gate ${hm(+r.gate)} · ${fmt(r.n)} รายการ</span>`;}}));
+
+  const BG=F.by_gsale||[];
+  chart('op4','bar',BG.map(x=>cut(x.k,20)),
+    [{label:'นาที',data:BG.map(x=>+x.gap),backgroundColor:'#ff9945',borderRadius:6}],
+    Object.assign({},hBar,{vl:v=>fmt(v,0),
+      tip:(pts)=>{const r=BG[pts[0].dataIndex];
+        return `<b>${esc(r.k)}</b><br>ของพร้อมแล้วรอรถ ${hm(+r.gap)} (ค่ากลาง)<br>`+
+               `<span style="opacity:.75">${fmt(r.n)} รายการ</span>`;}}));
+
+  chart('op5','bar',BL.map(x=>x.k),
+    [{label:'เวลาเลิกงาน',data:BL.map(x=>+x.h),
+      backgroundColor:BL.map(x=>+x.h>20.5?'#e03131':'#0b2447'),borderRadius:7,maxBarThickness:56},
+     {type:'line',label:'เป้า 20:30',data:BL.map(()=>20.5),borderColor:'#e03131',borderWidth:2,
+      borderDash:[6,4],pointRadius:0,noLabel:true}],
+    {layout:{padding:{top:22}},
+     scales:{y:{beginAtZero:false,min:17,grid:{color:'#eef2f8'},border:{display:false},
+                ticks:Object.assign({},axisFont,{callback:v=>hhmm(v)})},
+             x:{grid:{display:false},ticks:axisFont}},
+     vl:(v,i,ds)=> ds.label==='เป้า 20:30' ? null : hhmm(v),
+     tip:(pts)=>{const b=BL[pts[0].dataIndex];
+       return `<b>${esc(b.k)}</b><br>เลิกงานเฉลี่ย ${hhmm(b.h)}<br>`+
+              `<span style="opacity:.75">${fmt(b.n)} วัน · เฉลี่ย ${fmt(b.ton)} ตัน/วัน</span>`;}});
+
+  const SC=T.scatter||[];
+  chart('op6','scatter',null,
+    [{label:'แต่ละวัน',data:SC.map(x=>({x:+x.x,y:+x.y})),
+      backgroundColor:SC.map(x=>+x.y>20.5?'#e03131':'#1d4f92'),pointRadius:4,pointHoverRadius:6}],
+    {scales:{x:{title:{display:true,text:'จำนวนรถ (คัน)',font:{family:'Kanit',size:11}},
+                grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+             y:{title:{display:true,text:'เวลาเลิกงาน',font:{family:'Kanit',size:11}},
+                grid:{color:'#eef2f8'},border:{display:false},
+                ticks:Object.assign({},axisFont,{callback:v=>hhmm(v)})}},
+     plugins:{legend:{display:false}},
+     tip:(pts)=>{const i=pts[0].dataIndex, s=SC[i];
+       return `<b>${dmy(s.d)}</b><br>${fmt(s.x)} คัน · ${fmt(s.t,1)} ตัน<br>`+
+              `เลิกงาน ${hhmm(s.y)}${s.f?` (${esc(s.f)})`:''}`;}});
+
+  const BV=L.by_vehicle||[];
+  chart('op7','bar',BV.map(x=>cut(x.k,22)),[
+    {label:'ค่ากลาง',data:BV.map(x=>+x.med),backgroundColor:'#0b2447',borderRadius:5},
+    {label:'สูงสุดที่เคยทำได้',data:BV.map(x=>+x.max),backgroundColor:'#c6d5e8',borderRadius:5}
+  ],Object.assign({},hBar,{vl:v=>fmt(v,1),
+    tip:(pts)=>{const r=BV[pts[0].dataIndex];
+      return `<b>${esc(r.k)}</b><br>ค่ากลาง ${fmt(r.med,2)} ตัน · เฉลี่ย ${fmt(r.avg,2)} ตัน<br>`+
+             `สูงสุดที่เคยทำได้ ${fmt(r.max,2)} ตัน<br>`+
+             `<span style="opacity:.75">ใช้พื้นที่ราว ${fmt(+r.med/Math.max(+r.max,.01)*100,0)}% · ${fmt(r.n)} เที่ยว</span>`;}}));
+
+  const dTot = DIST.reduce((s,x)=>s+ +x.v,0)||1;
+  chart('op8','bar',DIST.map(x=>x.k),
+    [{label:'จำนวนเที่ยว',data:DIST.map(x=>+x.v),
+      backgroundColor:DIST.map(x=>+x.ord<=1?'#e03131':+x.ord<=2?'#ff9945':'#1d4f92'),borderRadius:6}],
+    Object.assign({},vBar,{vl:v=>`${fmt(v)}\n${fmt(v/dTot*100,0)}%`,
+      tip:(pts)=>{const g=DIST[pts[0].dataIndex];
+        return `<b>${esc(g.k)}</b><br>${fmt(g.v)} เที่ยว (${fmt(+g.v/dTot*100,1)}%)`;}}));
+}
 
 /* =========================================================================
    หน้า Shipment & Milk Run — จับคู่สินค้าที่ขนย้ายระหว่างโรง (Milk Run)
