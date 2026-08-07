@@ -218,6 +218,24 @@ main{flex:1;margin-left:256px;padding:0 26px 26px;max-width:100%;min-width:0}
 .kpi.o .v{color:var(--org)}
 .kpi .s{font-size:11px;color:var(--muted);position:relative;z-index:1;font-weight:300}
 
+/* ---------- ตารางความร้อน (Heat map) ---------- */
+.heat{border-collapse:separate;border-spacing:3px;width:100%}
+.heat th{font-size:11.5px;font-weight:500;color:var(--muted);padding:4px 6px;white-space:nowrap}
+.heat th.rowh{text-align:right;padding-right:10px;color:var(--txt);font-weight:500}
+.heat td{padding:0}
+.heat .cell{border-radius:9px;padding:9px 6px;text-align:center;cursor:pointer;
+  transition:transform .12s,box-shadow .12s;min-width:64px}
+.heat .cell:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(11,36,71,.18)}
+.heat .cell.z{background:var(--bg);cursor:default;color:#c6d0dd}
+.heat .cell .v{font-size:13.5px;font-weight:600;line-height:1.2}
+.heat .cell .s{font-size:10px;font-weight:300;opacity:.85;margin-top:1px}
+.heat .cell.dark{color:#fff}
+.heatlegend{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:11.5px;color:var(--muted)}
+.heatlegend i{display:block;width:26px;height:10px;border-radius:3px}
+.pairrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:12.5px}
+.pairrow:first-child{border-top:none}
+.pairrow .n{margin-left:auto;font-weight:600;color:var(--org-deep);white-space:nowrap}
+.pairrow .plus{color:var(--org);font-weight:700}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:17px}
 .grid3{display:grid;grid-template-columns:2fr 1fr;gap:17px}
 .chartbox{position:relative;height:296px}
@@ -4141,7 +4159,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-09.1';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-09.4';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -4176,7 +4194,7 @@ let ME = null, TOKEN = null, CHARTS = {}, PAGE = 'fg';
 let DATE_ISSUES = [];   // ปัญหาวันเวลาที่ตรวจพบหลังนำเข้าล่าสุด
 
 /* ตัวกรองใช้ร่วมกันทุกหน้า + แคชข้อมูลไว้ ไม่ต้องยิงซ้ำตอนเปลี่ยนตัวกรอง */
-let FILTERS = { months:[], factories:[], shtys:[], routes:[], dim:'gate', keys:[] };
+let FILTERS = { months:[], factories:[], shtys:[], routes:[], mstat:['Completed'], dim:'gate', keys:[] };
 let MONTHS_CACHE = [];        // รายชื่อเดือนที่มีข้อมูล ใช้ร่วมกันทุกหน้า
 const hasF = k => (FILTERS[k]||[]).length > 0;
 const orNull = k => hasF(k) ? FILTERS[k] : null;
@@ -4977,6 +4995,7 @@ function filterBar(sets, shown, total, fn){
 
 function resetFilters(fn){
   FILTERS.months=[]; FILTERS.factories=[]; FILTERS.shtys=[]; FILTERS.keys=[]; FILTERS.routes=[];
+  FILTERS.mstat=['Completed'];   // สถานะ Milk Run กลับไปเป็นค่าตั้งต้น = นับเฉพาะที่ทำสำเร็จ
   window[fn]();
 }
 
@@ -6914,12 +6933,13 @@ window.initNavPolish = function () {
 async function pageMRFG(){
   let R;
   try{ R = await rpcCached('app_dash_mrfg',{
-        p_months: orNull('months'), p_routes: orNull('routes') }); }
+        p_months: orNull('months'), p_routes: orNull('routes'),
+        p_status: (FILTERS.mstat && FILTERS.mstat.length) ? FILTERS.mstat : null }); }
   catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
+  MRFG_DATA = R;
 
   const K = R.kpi || {};
   const N = v => v==null ? null : +v;
-  const kv = a => (a||[]).map(x=>[x.k, +x.v]);
   const sect = (n,t,s,cls='') =>
     `<div class="sect ${cls}"><div class="no">${n}</div>
        <div><h2>${t}</h2><p>${s}</p></div><div class="ln"></div></div>`;
@@ -6927,6 +6947,7 @@ async function pageMRFG(){
   const bar = `<div class="filters anim">
     ${msRender('months','เดือน',R.months||[],FILTERS.months,'pageMRFG',monthLabel)}
     ${msRender('routes','เส้นทางขนย้าย',R.all_routes||[],FILTERS.routes,'pageMRFG')}
+    ${msRender('mstat','สถานะ Milk Run',R.all_status||[],FILTERS.mstat,'pageMRFG')}
     <button class="fbtn alt" onclick="resetFilters('pageMRFG')">ล้างตัวกรอง</button>
     <button class="fbtn alt" onclick="pageMRFG()">↻ โหลดใหม่</button>
     <div style="margin-left:auto;text-align:right">
@@ -6935,32 +6956,108 @@ async function pageMRFG(){
         <span class="sm" style="font-weight:300">รายการ</span></div>
     </div></div>`;
 
-  if(!+K.rows){
-    body(bar + emptyBox('ไม่พบรายการที่จับคู่กันได้ตามตัวกรองที่เลือก'));
-    return;
-  }
+  if(!+K.rows){ body(bar + emptyBox('ไม่พบรายการที่จับคู่กันได้ตามตัวกรองที่เลือก')); return; }
 
-  const RT = R.by_route||[], LD = R.lead_dist||[], ST = R.stages||{};
+  /* ---------- ตารางความร้อน ต้นทาง x ปลายทาง ---------- */
+  const OR = R.origins||[], DS = R.dests||[], HT = R.heat||[];
+  const hmap = {}; HT.forEach(x=>{ hmap[x.o+'|'+x.d] = x; });
+  const maxV = Math.max(1, ...HT.map(x=>+x.v));
+  const rowTot = o => HT.filter(x=>x.o===o).reduce((s,x)=>s+ +x.v,0);
+  const colTot = d => HT.filter(x=>x.d===d).reduce((s,x)=>s+ +x.v,0);
+  const heatHTML = `<div class="tw"><table class="heat">
+    <thead><tr><th class="rowh">จาก \\ ไป</th>${DS.map(d=>`<th>${esc(d)}</th>`).join('')}<th>รวม</th></tr></thead>
+    <tbody>${OR.map(o=>`<tr><th class="rowh">${esc(o)}</th>${DS.map(d=>{
+        const c = hmap[o+'|'+d];
+        if(!c) return `<td><div class="cell z"><div class="v">—</div></div></td>`;
+        const r = Math.pow((+c.v)/maxV, 0.6);           // ไล่สีแบบไม่เชิงเส้น ให้ค่าน้อยยังพอเห็น
+        const bg = `rgba(255,122,24,${(0.12 + r*0.85).toFixed(2)})`;
+        return `<td><div class="cell${r>0.55?' dark':''}" style="background:${bg}"
+          onclick="mrDrill('${esc(o)}','${esc(d)}')" title="กดเพื่อดูรายการ">
+          <div class="v">${fmt(c.v,1)}</div><div class="s">${fmt(c.tr)} รอบ</div></div></td>`;
+      }).join('')}<td><div class="cell z" style="background:var(--navy-soft);color:var(--txt)">
+        <div class="v">${fmt(rowTot(o),1)}</div><div class="s">ตัน</div></div></td></tr>`).join('')}
+    <tr><th class="rowh">รวม</th>${DS.map(d=>`<td><div class="cell z" style="background:var(--navy-soft);color:var(--txt)">
+        <div class="v">${fmt(colTot(d),1)}</div><div class="s">ตัน</div></div></td>`).join('')}
+      <td><div class="cell z"></div></td></tr></tbody></table></div>
+    <div class="heatlegend"><span>น้อย</span>
+      <i style="background:rgba(255,122,24,.15)"></i><i style="background:rgba(255,122,24,.4)"></i>
+      <i style="background:rgba(255,122,24,.65)"></i><i style="background:rgba(255,122,24,.9)"></i>
+      <span>มาก</span><span style="margin-left:auto">ตัวเลขบน = ตัน · ล่าง = จำนวนรอบ · กดที่ช่องเพื่อดูรายการ</span></div>`;
+
+  /* ---------- คอขวด ---------- */
+  const ST = R.stages||{};
   const stageRows = [
-    {k:'รอหยิบของ',       v:N(ST.wait_pick)},
-    {k:'วิ่งไปปลายทาง',   v:N(ST.travel)},
-    {k:'รอเช็คอิน',       v:N(ST.wait_in)},
-    {k:'ลงของ',           v:N(ST.unload)}
-  ].filter(x=>x.v!=null && x.v>=0);
+    {k:'รอหยิบของ',     v:N(ST.wait_pick)},
+    {k:'วิ่งไปปลายทาง', v:N(ST.travel)},
+    {k:'รอเช็คอิน',     v:N(ST.wait_in)},
+    {k:'ลงของ',         v:N(ST.unload)}
+  ].filter(x=>x.v!=null && x.v>=0).sort((a,b)=>b.v-a.v);
+  const worst = stageRows[0] || {k:'—',v:0};
+  const totMin = stageRows.reduce((s,x)=>s+x.v,0) || 1;
+
+  const SR = R.stage_route||[];
+  const TI = R.top_items||[], PR = R.pairs||[];
 
   body(bar + `
 
-  ${sect(1,'ภาพรวมการเชื่อมโยง','สินค้าที่ถูกขนย้ายระหว่างโรงก่อนจ่ายออกจริง','o')}
-  <div class="kpis">
-    <div class="kpi o anim d1"><div class="k">น้ำหนักที่ต้องขนย้ายก่อนส่ง</div><div class="v">${fmt(K.ton,1)}</div>
-      <div class="s">ตัน · คิดเป็น ${fmt(K.share_pct,2)}% ของจ่ายออกทั้งหมด ${fmt(K.ton_all_fg,0)} ตัน</div></div>
-    <div class="kpi anim d2"><div class="k">รอบ Milk Run</div><div class="v">${fmt(K.mr_trips)}</div>
-      <div class="s">ส่งต่อไปยัง ${fmt(K.shipments)} เที่ยวรถขาออก</div></div>
-    <div class="kpi anim d3"><div class="k">ขนย้ายวันเดียวกับที่ส่ง</div><div class="v">${fmt(K.same_day_pct,1)}%</div>
-      <div class="s">เฉลี่ยห่างกัน ${fmt(K.avg_lead,2)} วัน</div></div>
-    <div class="kpi g anim d4"><div class="k">เวลาต่อรอบ</div><div class="v">${fmt(K.avg_total_min)}</div>
-      <div class="s">นาที · อยู่บนถนน ${fmt(K.avg_run_min)} นาที</div></div>
+  ${sect(1,'Milk Run เข้าไปช่วยงานจ่ายออกแค่ไหน',
+      'เทียบกับยอดจ่ายออกทั้งหมด ไม่รวมรับเข้า · นับเฉพาะสถานะ '
+      + ((FILTERS.mstat||[]).join(', ') || 'ทั้งหมด'),'o')}
+  <div class="card anim d1" style="border-left:5px solid var(--org);background:linear-gradient(180deg,var(--org-soft) 0%,#fff 55%)">
+    <h3 style="margin-bottom:14px">สรุปเป็นประโยคเดียว</h3>
+    <p style="font-size:15px;line-height:2.1;font-weight:300">
+      จากงาน<b>จ่ายออก</b>ทั้งหมด <b style="color:var(--org-deep);font-size:17px">${fmt(K.ton_out_all,0)} ตัน</b>
+      (${fmt(K.ships_out_all)} เที่ยวรถ)<br>
+      มีของที่ต้อง<b>ขนย้ายระหว่างโรงมาก่อน</b>
+      <b style="color:var(--org-deep);font-size:17px">${fmt(K.ton,1)} ตัน</b>
+      คิดเป็น <b style="color:var(--org-deep);font-size:17px">${fmt(K.share_out_pct,2)}%</b> ของน้ำหนัก<br>
+      แต่ของจำนวนนี้กระจายอยู่ใน <b style="color:var(--org-deep);font-size:17px">${fmt(K.shipments)} เที่ยวรถ</b>
+      หรือ <b style="color:var(--org-deep);font-size:17px">${fmt(K.ships_out_pct,2)}%</b> ของเที่ยวรถขาออกทั้งหมด
+    </p>
+    <p class="sm" style="margin-top:6px">
+      นับเฉพาะรายการสถานะ <b>${esc((FILTERS.mstat||[]).join(', ') || 'ทั้งหมด')}</b>
+      ${+K.excl_rows ? `· ตัดออก ${fmt(K.excl_rows)} รายการ (${fmt(K.excl_ton,1)} ตัน) ที่สถานะไม่เข้าเกณฑ์` : ''}
+    </p>
   </div>
+
+  <div class="card anim d2"><h3>รายการ Milk Run แยกตามสถานะ</h3>` + tableHTML([
+      {h:'สถานะ',k:'k',raw:1,f:r=>r.used
+         ? `<b style="color:var(--ok)">✓ ${esc(r.k)}</b> <span class="sm">(นับ)</span>`
+         : `<span style="color:var(--muted)">${esc(r.k)}</span> <span class="sm">(ไม่นับ)</span>`},
+      {h:'รายการ',k:'n',n:1,f:r=>fmt(r.n)},
+      {h:'น้ำหนัก (ตัน)',k:'v',n:1,f:r=>fmt(r.v,1)},
+      {h:'เที่ยวรถขาออก',k:'sh',n:1,f:r=>fmt(r.sh)},
+      {h:'รอบขนย้าย',k:'tr',n:1,f:r=>fmt(r.tr)}
+    ], R.by_status||[]) + `</div>
+
+  <div class="kpis">
+    <div class="kpi o anim d1"><div class="k">% ของน้ำหนักที่จ่ายออก</div><div class="v">${fmt(K.share_out_pct,2)}%</div>
+      <div class="s">${fmt(K.ton,1)} จาก ${fmt(K.ton_out_all,0)} ตัน</div></div>
+    <div class="kpi anim d2"><div class="k">% ของเที่ยวรถที่จ่ายออก</div><div class="v">${fmt(K.ships_out_pct,2)}%</div>
+      <div class="s">${fmt(K.shipments)} จาก ${fmt(K.ships_out_all)} เที่ยว</div></div>
+    <div class="kpi anim d3"><div class="k">Milk Run เติมให้เที่ยวละ</div><div class="v">${fmt(K.ton_per_ship_mr,2)}</div>
+      <div class="s">ตัน · ขณะที่รถบรรทุกเฉลี่ยเที่ยวละ ${fmt(K.ton_per_ship_out,2)} ตัน</div></div>
+    <div class="kpi g anim d4"><div class="k">ขนย้ายวันเดียวกับที่ส่ง</div><div class="v">${fmt(K.same_day_pct,1)}%</div>
+      <div class="s">เฉลี่ยห่างกัน ${fmt(K.avg_lead,2)} วัน · ${fmt(K.mr_trips)} รอบขนย้าย</div></div>
+  </div>
+
+  <div class="card anim d5">
+    <h3>ตีความยังไง</h3>
+    <p class="sm" style="line-height:2">
+      • <b>น้ำหนักแค่ ${fmt(K.share_out_pct,2)}% แต่แตะเที่ยวรถถึง ${fmt(K.ships_out_pct,2)}%</b> —
+        สัดส่วนต่างกัน ${fmt((+K.ships_out_pct)/Math.max(+K.share_out_pct,0.01),1)} เท่า
+        แปลว่า Milk Run ถูกใช้กับ<b>ของชิ้นเล็กจำนวนมากเที่ยว</b> ไม่ใช่ของก้อนใหญ่ไม่กี่เที่ยว<br>
+      • <b>เติมให้เที่ยวละ ${fmt(K.ton_per_ship_mr,2)} ตัน</b> จากที่รถบรรทุกได้เฉลี่ย ${fmt(K.ton_per_ship_out,2)} ตัน
+        คิดเป็นราว ${fmt((+K.ton_per_ship_mr)/Math.max(+K.ton_per_ship_out,0.01)*100,0)}% ของน้ำหนักบนรถคันนั้น —
+        เป็นการ<b>เติมของที่ขาดให้รถออกได้ครบ</b> ไม่ใช่การขนของหลัก<br>
+      • ${(+K.same_day_pct>=95)
+          ? `<b>${fmt(K.same_day_pct,1)}% ขนย้ายวันเดียวกับที่ส่ง</b> — เป็นงานแก้สถานการณ์เฉพาะหน้า ไม่ได้วางแผนล่วงหน้า`
+          : `มีเพียง ${fmt(K.same_day_pct,1)}% ที่ขนย้ายวันเดียวกับที่ส่ง — ส่วนใหญ่ทำล่วงหน้า`}<br>
+      • ถ้าวางสต็อกให้ตรงโรงตั้งแต่ต้น จะตัดงานขนย้ายออกได้ <b>${fmt(K.mr_trips)} รอบ</b>
+        และลดความเสี่ยงรถออกช้าใน ${fmt(K.shipments)} เที่ยว
+    </p>
+  </div>
+
   <div class="kpis">
     <div class="kpi anim d1"><div class="k">เส้นทาง</div><div class="v">${fmt(K.routes)}</div>
       <div class="s">คู่โรงงานต้นทาง-ปลายทาง</div></div>
@@ -6968,42 +7065,50 @@ async function pageMRFG(){
       <div class="s">${fmt(K.skus)} รหัสสินค้า</div></div>
     <div class="kpi ${+K.wt_diff_pct>2?'r':'g'} anim d3"><div class="k">น้ำหนักสองระบบต่างกัน</div>
       <div class="v">${fmt(K.wt_diff_pct,2)}%</div>
-      <div class="s">MR ${fmt(K.mr_ton,1)} ตัน · FG ${fmt(K.ton,1)} ตัน</div></div>
-    <div class="kpi ${+K.unmatched_mr>0?'':'g'} anim d4"><div class="k">Milk Run ที่จับคู่ไม่ได้</div>
-      <div class="v">${fmt(K.unmatched_mr)}</div>
+      <div class="s">Milk Run ${fmt(K.mr_ton,1)} ตัน · FG ${fmt(K.ton,1)} ตัน</div></div>
+    <div class="kpi anim d4"><div class="k">Milk Run ที่จับคู่ไม่ได้</div><div class="v">${fmt(K.unmatched_mr)}</div>
       <div class="s">รายการ · ขนย้ายแล้วแต่ไม่พบใบส่งฝั่ง FG</div></div>
   </div>
 
-  ${sect(2,'เส้นทางขนย้าย','ขนจากโรงไหนไปโรงไหน และปลายทางส่งออกจากคลังใด')}
-  <div class="card anim d1"><h3>น้ำหนักตามเส้นทาง (ตัน)</h3>
-    <div class="chartbox" style="height:${Math.max(260, RT.length*30)}px"><canvas id="mr1"></canvas></div></div>
-  <div class="card anim d2"><h3>รายละเอียดเส้นทาง</h3>` + tableHTML([
+  ${sect(2,'ขนจากไหนไปไหน','ยิ่งสีเข้ม = ปริมาณยิ่งมาก · กดที่ช่องเพื่อดูว่ามีรายการอะไรบ้าง')}
+  <div class="card anim d1"><h3>ตารางความร้อน ต้นทาง × ปลายทาง (ตัน)</h3>${heatHTML}</div>
+
+  ${sect(3,'คอขวดอยู่ตรงไหน','แยกเวลาแต่ละช่วงของรอบขนย้าย','o')}
+  <div class="card anim d1" style="border-left:5px solid var(--bad)">
+    <h3>ช่วงที่กินเวลามากที่สุด</h3>
+    <div class="chartbox" style="height:210px"><canvas id="mr2"></canvas></div>
+    <p class="sm" style="margin-top:10px">ช่วงที่นานที่สุดคือ <b>${esc(worst.k)}</b> เฉลี่ย ${fmt(worst.v)} นาที
+      (${fmt(worst.v/totMin*100,0)}% ของเวลาทั้งรอบ ${fmt(ST.total)} นาที)</p></div>
+  <div class="card anim d2"><h3>เวลาแต่ละช่วง แยกตามเส้นทาง (นาที)</h3>` + tableHTML([
       {h:'เส้นทาง',k:'k'},
-      {h:'น้ำหนัก (ตัน)',k:'v',n:1,f:r=>fmt(r.v,1)},
-      {h:'สัดส่วน',k:'pct',n:1,f:r=>fmt(r.pct,1)+'%'},
-      {h:'รอบขนย้าย',k:'trips',n:1,f:r=>fmt(r.trips)},
-      {h:'เที่ยวรถขาออก',k:'ships',n:1,f:r=>fmt(r.ships)},
-      {h:'เวลาบนถนนเฉลี่ย (นาที)',k:'avg',n:1,f:r=>fmt(r.avg)}
-    ], RT) + `</div>
-  <div class="card anim d3"><h3>ขนไปโรงปลายทางแล้ว จ่ายออกจากคลังไหน</h3>` + tableHTML([
-      {h:'โรงปลายทาง',k:'d'},{h:'คลังที่จ่ายออก',k:'s'},
-      {h:'น้ำหนัก (ตัน)',k:'v',n:1,f:r=>fmt(r.v,1)}
-    ], R.dest_to_sloc||[], 40) + `
-    <p class="sm" style="margin-top:10px">ถ้าโรงปลายทางกับคลังที่จ่ายออกไม่ตรงกัน แปลว่ามีการย้ายต่ออีกทอด</p></div>
+      {h:'รอหยิบของ',k:'wp',n:1,f:r=>fmt(r.wp)},
+      {h:'วิ่ง',k:'tv',n:1,f:r=>fmt(r.tv)},
+      {h:'รอเช็คอิน',k:'wi',n:1,raw:1,f:r=>`<b style="color:${+r.wi>8?'var(--bad)':'inherit'}">${fmt(r.wi)}</b>`},
+      {h:'ลงของ',k:'ul',n:1,f:r=>fmt(r.ul)},
+      {h:'รวม',k:'tt',n:1,raw:1,f:r=>`<b>${fmt(r.tt)}</b>`},
+      {h:'รอบ',k:'tr',n:1,f:r=>fmt(r.tr)}
+    ], SR) + `
+    <p class="sm" style="margin-top:10px">เฉพาะเส้นทางที่มีอย่างน้อย 5 รอบ · เลขแดง = รอเช็คอินเกิน 8 นาที</p></div>
 
-  ${sect(3,'เวลาที่ใช้ในการขนย้าย','แต่ละช่วงกินเวลาเท่าไร และห่างจากวันส่งแค่ไหน','o')}
-  <div class="grid2">
-    <div class="card anim d1"><h3>เวลาแต่ละช่วง (นาทีเฉลี่ยต่อรอบ)</h3>
-      <div class="chartbox" style="height:240px"><canvas id="mr2"></canvas></div>
-      <p class="sm" style="margin-top:10px">รวมทั้งรอบเฉลี่ย ${fmt(ST.total)} นาที</p></div>
-    <div class="card anim d2"><h3>ระยะห่าง วันขนย้าย → วันจ่ายออก</h3>
-      <div class="chartbox" style="height:240px"><canvas id="mr3"></canvas></div></div>
-  </div>
-  <div class="card anim d3"><h3>ปริมาณขนย้ายรายวัน</h3>
-    <div class="chartbox" style="height:280px"><canvas id="mr4"></canvas></div>
-    <p class="sm" style="margin-top:10px">แท่ง = ตัน · เส้น = จำนวนรอบขนย้าย</p></div>
+  ${sect(4,'ของอะไรถูกฝากบ่อย และอะไรไปด้วยกัน','ถ้ารายการไหนถูกขนย้ายซ้ำๆ แปลว่าวางสต็อกผิดโรงตั้งแต่ต้น')}
+  <div class="card anim d1"><h3>รายการที่ถูกฝากบ่อยที่สุด (กดเพื่อดูรายละเอียด)</h3>` + tableHTML([
+      {h:'รหัสสินค้า',k:'k',raw:1,f:r=>`<a href="#" onclick="mrDrillMat('${esc(r.k)}');return false"
+          style="color:var(--org-deep);font-weight:500">${esc(r.k)}</a>`},
+      {h:'กลุ่มขาย',k:'gs'},
+      {h:'จำนวนรอบที่ถูกขน',k:'n',n:1,raw:1,f:r=>`<b>${fmt(r.n)}</b>`},
+      {h:'น้ำหนักรวม (ตัน)',k:'v',n:1,f:r=>fmt(r.v,1)},
+      {h:'ไปพักที่',k:'d'},
+      {h:'สัดส่วนที่ไปที่นั่น',k:'dp',n:1,f:r=>fmt(r.dp)+'%'}
+    ], TI) + `</div>
+  <div class="card anim d2"><h3>คู่สินค้าที่ขึ้นรอบเดียวกันบ่อยที่สุด</h3>
+    ${PR.length ? PR.map(x=>`<div class="pairrow">
+        <span>${esc(x.a)}</span><span class="plus">+</span><span>${esc(x.b)}</span>
+        <span class="n">${fmt(x.n)} รอบ</span></div>`).join('')
+      : '<p class="sm">ไม่พบคู่ที่ขึ้นรอบเดียวกัน</p>'}
+    <p class="sm" style="margin-top:12px">คู่ที่ไปด้วยกันบ่อย มักเป็นของที่ลูกค้าสั่งคู่กัน —
+      ถ้าย้ายไปเก็บโรงเดียวกันตั้งแต่แรก จะตัดรอบขนย้ายได้ทีเดียวสองรายการ</p></div>
 
-  ${sect(4,'สินค้าและลูกค้าที่ทำให้ต้องขนย้าย','ถ้ากลุ่มไหนขนย้ายบ่อย แปลว่าวางสต็อกผิดโรง')}
+  ${sect(5,'สินค้าและลูกค้า','กลุ่มไหนทำให้ต้องขนย้ายมากที่สุด')}
   <div class="grid2">
     <div class="card anim d1"><h3>ตามกลุ่มขาย</h3>
       <div class="chartbox" style="height:${Math.max(240,(R.by_gsale||[]).length*28)}px"><canvas id="mr5"></canvas></div></div>
@@ -7011,10 +7116,10 @@ async function pageMRFG(){
       <div class="chartbox" style="height:260px"><canvas id="mr6"></canvas></div></div>
   </div>
   <div class="grid2">
-    <div class="card anim d3"><h3>ตามชนิดสินค้า</h3>
-      <div class="chartbox" style="height:${Math.max(240,(R.by_ptype||[]).length*28)}px"><canvas id="mr7"></canvas></div></div>
-    <div class="card anim d4"><h3>ลูกค้าที่ทำให้ต้องขนย้ายมากที่สุด</h3>
+    <div class="card anim d3"><h3>ลูกค้าที่ทำให้ต้องขนย้ายมากที่สุด</h3>
       <div class="chartbox" style="height:${Math.max(240,(R.top_customer||[]).length*28)}px"><canvas id="mr8"></canvas></div></div>
+    <div class="card anim d4"><h3>ปริมาณขนย้ายรายวัน</h3>
+      <div class="chartbox" style="height:260px"><canvas id="mr4"></canvas></div></div>
   </div>
   `);
 
@@ -7023,30 +7128,37 @@ async function pageMRFG(){
   const hBar = {indexAxis:'y',layout:{padding:{right:38}},scales:{
       x:{beginAtZero:true,grace:'16%',grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
       y:{grid:{display:false},ticks:axisFont}}};
-  const vBar = {layout:{padding:{top:20}},scales:{
-      y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
-      x:{grid:{display:false},ticks:axisFont}}};
   const cut=(s,n)=>String(s).length>n?String(s).slice(0,n)+'…':String(s);
-
-  chart('mr1','bar',RT.map(x=>cut(x.k,26)),
-    [{label:'ตัน',data:RT.map(x=>+x.v),backgroundColor:'#ff7a18',borderRadius:6}],
-    Object.assign({},hBar,{vl:v=>fmt(v,1),
-      tip:(pts)=>{const r=RT[pts[0].dataIndex];
-        return `<b>${esc(r.k)}</b><br>${fmt(r.v,1)} ตัน (${fmt(r.pct,1)}%)<br>`+
-               `<span style="opacity:.75">${fmt(r.trips)} รอบขนย้าย → ${fmt(r.ships)} เที่ยวรถขาออก<br>`+
-               `เวลาบนถนนเฉลี่ย ${fmt(r.avg)} นาที</span>`;}}));
 
   chart('mr2','bar',stageRows.map(x=>x.k),
     [{label:'นาที',data:stageRows.map(x=>x.v),
-      backgroundColor:stageRows.map((x,i)=>['#e03131','#ff7a18','#1d4f92','#0b2447'][i]||'#5b8fc4'),borderRadius:6}],
-    Object.assign({},hBar,{vl:v=>fmt(v,0)}));
+      backgroundColor:stageRows.map((x,i)=>i===0?'#e03131':i===1?'#ff7a18':'#1d4f92'),borderRadius:6}],
+    Object.assign({},hBar,{vl:v=>fmt(v,0),
+      tip:(pts)=>{const r=stageRows[pts[0].dataIndex];
+        return `<b>${esc(r.k)}</b><br>${fmt(r.v)} นาที (${fmt(r.v/totMin*100,0)}% ของเวลาทั้งรอบ)`;}}));
 
-  const ld=kv(LD), ldTot=ld.reduce((s,x)=>s+x[1],0)||1;
-  chart('mr3','doughnut',ld.map(x=>x[0]),
-    [{data:ld.map(x=>x[1]),backgroundColor:PAL,borderWidth:3,borderColor:'#fff'}],
-    {cutout:'56%', vl:v=>`${fmt(v)}\n${(v/ldTot*100).toFixed(0)}%`,
-     tip:(pts)=>{const i=pts[0].dataIndex;
-       return `<b>${esc(ld[i][0])}</b><br>${fmt(ld[i][1])} รายการ (${fmt(ld[i][1]/ldTot*100,1)}%)`;}});
+  const gs=R.by_gsale||[];
+  chart('mr5','bar',gs.map(x=>cut(x.k,22)),
+    [{label:'ตัน',data:gs.map(x=>+x.v),backgroundColor:'#1d4f92',borderRadius:6}],
+    Object.assign({},hBar,{vl:v=>fmt(v,1),
+      tip:(pts)=>{const r=gs[pts[0].dataIndex];
+        return `<b>${esc(r.k)}</b><br>${fmt(r.v,1)} ตัน (${fmt(r.pct,1)}%)<br>`+
+               `<span style="opacity:.75">${fmt(r.rows)} รายการ</span>`;}}));
+
+  const gp=R.by_group||[];
+  chart('mr6','doughnut',gp.map(x=>cut(x.k,18)),
+    [{data:gp.map(x=>+x.v),backgroundColor:PAL,borderWidth:3,borderColor:'#fff'}],
+    {cutout:'56%', vl:(v,i)=>`${fmt(v,0)} ต\n${fmt(gp[i].pct,0)}%`,
+     tip:(pts)=>{const r=gp[pts[0].dataIndex];
+       return `<b>${esc(r.k)}</b><br>${fmt(r.v,1)} ตัน (${fmt(r.pct,1)}%)`;}});
+
+  const tc=R.top_customer||[];
+  chart('mr8','bar',tc.map(x=>cut(x.k,24)),
+    [{label:'ตัน',data:tc.map(x=>+x.v),backgroundColor:'#0b2447',borderRadius:6}],
+    Object.assign({},hBar,{vl:v=>fmt(v,1),
+      tip:(pts)=>{const r=tc[pts[0].dataIndex];
+        return `<b>${esc(r.k)}</b><br>${fmt(r.v,1)} ตัน (${fmt(r.pct,1)}%)<br>`+
+               `<span style="opacity:.75">เกี่ยวข้อง ${fmt(r.trips)} รอบขนย้าย</span>`;}}));
 
   const D=R.daily||[];
   chart('mr4','bar',D.map(x=>dmy(x.d)),[
@@ -7058,36 +7170,40 @@ async function pageMRFG(){
              y2:{position:'right',beginAtZero:true,grid:{display:false},border:{display:false},ticks:axisFont},
              x:{grid:{display:false},ticks:axisFont}},
      vl:(v,i)=> D.length>18 && i%2 ? null : fmt(v,0)});
+}
 
-  const gs=R.by_gsale||[];
-  chart('mr5','bar',gs.map(x=>cut(x.k,22)),
-    [{label:'ตัน',data:gs.map(x=>+x.v),backgroundColor:'#1d4f92',borderRadius:6}],
-    Object.assign({},hBar,{vl:v=>fmt(v,1),
-      tip:(pts)=>{const r=gs[pts[0].dataIndex];
-        return `<b>${esc(r.k)}</b><br>${fmt(r.v,1)} ตัน (${fmt(r.pct,1)}% ของที่ต้องขนย้าย)<br>`+
-               `<span style="opacity:.75">${fmt(r.rows)} รายการ</span>`;}}));
+/* เก็บผลไว้ใช้ตอนกดดูรายละเอียด */
+let MRFG_DATA = null;
 
-  const gp=R.by_group||[];
-  chart('mr6','doughnut',gp.map(x=>cut(x.k,18)),
-    [{data:gp.map(x=>+x.v),backgroundColor:PAL,borderWidth:3,borderColor:'#fff'}],
-    {cutout:'56%', vl:(v,i)=>`${fmt(v,0)} ต\n${fmt(gp[i].pct,0)}%`,
-     tip:(pts)=>{const r=gp[pts[0].dataIndex];
-       return `<b>${esc(r.k)}</b><br>${fmt(r.v,1)} ตัน (${fmt(r.pct,1)}%)`;}});
+/* กดที่ช่องในตารางความร้อน -> เปิดป๊อปอัปรายการที่ขนเส้นทางนั้น */
+async function mrDrill(o, d){ await mrShowDetail({p_origin:o, p_dest:d}, `${o} → ${d}`); }
+/* กดที่รหัสสินค้า -> เปิดป๊อปอัปว่ารายการนี้ถูกขนไปไหนบ้าง */
+async function mrDrillMat(m){ await mrShowDetail({p_material:m}, `รหัสสินค้า ${m}`); }
 
-  const pt=R.by_ptype||[];
-  chart('mr7','bar',pt.map(x=>cut(x.k,22)),
-    [{label:'ตัน',data:pt.map(x=>+x.v),backgroundColor:'#5b8fc4',borderRadius:6}],
-    Object.assign({},hBar,{vl:v=>fmt(v,1),
-      tip:(pts)=>{const r=pt[pts[0].dataIndex];
-        return `<b>${esc(r.k)}</b><br>${fmt(r.v,1)} ตัน (${fmt(r.pct,1)}%)`;}}));
-
-  const tc=R.top_customer||[];
-  chart('mr8','bar',tc.map(x=>cut(x.k,24)),
-    [{label:'ตัน',data:tc.map(x=>+x.v),backgroundColor:'#0b2447',borderRadius:6}],
-    Object.assign({},hBar,{vl:v=>fmt(v,1),
-      tip:(pts)=>{const r=tc[pts[0].dataIndex];
-        return `<b>${esc(r.k)}</b><br>${fmt(r.v,1)} ตัน (${fmt(r.pct,1)}%)<br>`+
-               `<span style="opacity:.75">เกี่ยวข้อง ${fmt(r.trips)} รอบขนย้าย</span>`;}}));
+async function mrShowDetail(args, title){
+  openModal(title, '<div class="spin"></div>');
+  let D;
+  try{ D = await rpc('app_mrfg_detail', Object.assign({p_months: orNull('months'), p_limit:200}, args)); }
+  catch(ex){ el('modalBody').innerHTML = `<div class="msg err" style="margin:0">${esc(ex.message||'')}</div>`; return; }
+  const rows = D.rows||[];
+  el('modalBody').innerHTML =
+    `<div class="kpis" style="margin-bottom:14px">
+       <div class="kpi o"><div class="k">จำนวนรายการ</div><div class="v">${fmt(D.n)}</div></div>
+       <div class="kpi"><div class="k">น้ำหนักรวม</div><div class="v">${fmt(D.ton,1)}</div><div class="s">ตัน</div></div>
+     </div>` +
+    tableHTML([
+      {h:'วันที่',k:'d',f:r=>dmy(r.d)},
+      {h:'รอบ Milk Run',k:'mr'},
+      {h:'จาก',k:'o'},{h:'ไป',k:'de'},
+      {h:'รหัสสินค้า',k:'mat'},
+      {h:'กลุ่มขาย',k:'gs'},
+      {h:'ลูกค้า',k:'cust'},
+      {h:'ตัน',k:'ton',n:1,f:r=>fmt(r.ton,3)},
+      {h:'เที่ยวรถขาออก',k:'ship'},
+      {h:'จ่ายจากคลัง',k:'sloc'},
+      {h:'เวลาวิ่ง (นาที)',k:'run',n:1,f:r=>fmt(r.run)}
+    ], rows, 200) +
+    (D.n > rows.length ? `<p class="sm">แสดง ${fmt(rows.length)} รายการแรกจากทั้งหมด ${fmt(D.n)}</p>` : '');
 }
 
 /* ====== หน้า DO Preparing + Milk Run — ยกมาจากไฟล์ "Analysis DO" ของผู้ใช้ทั้งหน้า
