@@ -183,6 +183,42 @@ main{flex:1;margin-left:256px;padding:0 26px 26px;max-width:100%;min-width:0}
   color:var(--navy2);font-size:16px;line-height:1;transition:.18s}
 .modalHead button:hover{background:var(--bad);color:#fff}
 .modalBody{padding:20px 22px 22px;overflow-y:auto}
+.modalBox.wide{max-width:1120px}
+
+/* ---------- แถบตัวเลขสรุปแบบกะทัดรัด (ใช้ในป๊อปอัป) ---------- */
+.chips{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:16px}
+.chip2{display:flex;flex-direction:column;gap:1px;padding:9px 14px;border-radius:12px;
+  background:var(--navy-soft);min-width:96px}
+.chip2 .k{font-size:10.5px;color:var(--muted);font-weight:400}
+.chip2 .v{font-size:16px;font-weight:600;color:var(--txt);line-height:1.15}
+.chip2.o{background:var(--org-soft)} .chip2.o .v{color:var(--org-deep)}
+
+/* ---------- แถบสรุปพร้อมหลอด ---------- */
+.mini{margin-bottom:6px}
+.mini .top{display:flex;align-items:baseline;gap:8px;font-size:12.5px;margin-bottom:3px}
+.mini .top .nm{font-weight:500;color:var(--txt);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mini .top .vv{margin-left:auto;font-weight:600;white-space:nowrap}
+.mini .top .pp{color:var(--muted);font-size:11px;white-space:nowrap}
+.mini .tr{height:6px;border-radius:4px;background:var(--line);overflow:hidden}
+.mini .tr i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,var(--org),var(--org-deep))}
+.mini.b .tr i{background:linear-gradient(90deg,var(--navy3),var(--navy))}
+
+/* ---------- รายการแบบการ์ด อ่านง่ายไม่ต้องเลื่อนข้าง ---------- */
+.dlist{display:flex;flex-direction:column;gap:7px}
+.drow{display:flex;align-items:center;gap:12px;padding:10px 13px;border-radius:12px;
+  background:var(--bg);border:1px solid var(--line);transition:.15s}
+.drow:hover{border-color:var(--org);background:#fff;box-shadow:var(--sh)}
+.drow .main{flex:1;min-width:0}
+.drow .l1{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--txt)}
+.drow .l1 .mat{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drow .l2{font-size:11.5px;color:var(--muted);font-weight:300;margin-top:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.drow .ton{text-align:right;white-space:nowrap}
+.drow .ton b{font-size:15px;font-weight:600;color:var(--org-deep);display:block;line-height:1.1}
+.drow .ton span{font-size:10.5px;color:var(--muted)}
+.tag2{display:inline-block;padding:1px 8px;border-radius:99px;font-size:10.5px;font-weight:500;
+  background:var(--navy-soft);color:var(--navy2);white-space:nowrap}
+.tag2.g{background:#e8f7ee;color:var(--ok)}
 
 /* หัวข้อ Part ใหญ่ของหน้า */
 .sect{display:flex;align-items:center;gap:13px;margin:26px 0 15px;animation:fadeUp .4s both}
@@ -4159,7 +4195,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-09.4';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-09.5';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -4603,6 +4639,8 @@ function closeModal(e){
   if(e && e.target && e.target.id !== 'modal') return;
   el('modal').classList.add('hide');
   el('modalBody').innerHTML = '';
+  const bx = document.querySelector('.modalBox');
+  if(bx) bx.classList.remove('wide');   // คืนความกว้างปกติ ไม่ให้ติดไปยังป๊อปอัปอื่น
   document.body.style.overflow = '';
 }
 document.addEventListener('keydown', e=>{ if(e.key === 'Escape') closeModal(); });
@@ -7182,28 +7220,81 @@ async function mrDrillMat(m){ await mrShowDetail({p_material:m}, `รหัส�
 
 async function mrShowDetail(args, title){
   openModal(title, '<div class="spin"></div>');
+  const box = document.querySelector('.modalBox');
+  if(box) box.classList.add('wide');
   let D;
-  try{ D = await rpc('app_mrfg_detail', Object.assign({p_months: orNull('months'), p_limit:200}, args)); }
+  try{ D = await rpc('app_mrfg_detail', Object.assign({p_months: orNull('months'), p_limit:300}, args)); }
   catch(ex){ el('modalBody').innerHTML = `<div class="msg err" style="margin:0">${esc(ex.message||'')}</div>`; return; }
+
   const rows = D.rows||[];
-  el('modalBody').innerHTML =
-    `<div class="kpis" style="margin-bottom:14px">
-       <div class="kpi o"><div class="k">จำนวนรายการ</div><div class="v">${fmt(D.n)}</div></div>
-       <div class="kpi"><div class="k">น้ำหนักรวม</div><div class="v">${fmt(D.ton,1)}</div><div class="s">ตัน</div></div>
-     </div>` +
-    tableHTML([
-      {h:'วันที่',k:'d',f:r=>dmy(r.d)},
-      {h:'รอบ Milk Run',k:'mr'},
-      {h:'จาก',k:'o'},{h:'ไป',k:'de'},
-      {h:'รหัสสินค้า',k:'mat'},
-      {h:'กลุ่มขาย',k:'gs'},
-      {h:'ลูกค้า',k:'cust'},
-      {h:'ตัน',k:'ton',n:1,f:r=>fmt(r.ton,3)},
-      {h:'เที่ยวรถขาออก',k:'ship'},
-      {h:'จ่ายจากคลัง',k:'sloc'},
-      {h:'เวลาวิ่ง (นาที)',k:'run',n:1,f:r=>fmt(r.run)}
-    ], rows, 200) +
-    (D.n > rows.length ? `<p class="sm">แสดง ${fmt(rows.length)} รายการแรกจากทั้งหมด ${fmt(D.n)}</p>` : '');
+  if(!rows.length){ el('modalBody').innerHTML = emptyBox('ไม่พบรายการ'); return; }
+
+  /* ---- สรุปย่อจากรายการที่ได้ ---- */
+  const sum = (arr,f)=>arr.reduce((s,x)=>s+(+f(x)||0),0);
+  const grp = (key, val) => {
+    const m = new Map();
+    rows.forEach(r=>{ const k = r[key] || '(ไม่ระบุ)'; m.set(k,(m.get(k)||0)+(+r[val]||0)); });
+    return [...m.entries()].sort((a,b)=>b[1]-a[1]);
+  };
+  const byMat  = grp('mat','ton').slice(0,6);
+  const byCust = grp('cust','ton').slice(0,6);
+  const byDest = grp('de','ton');
+  const tonShown = sum(rows,r=>r.ton) || 1;
+  const dates = rows.map(r=>r.d).filter(Boolean).sort();
+  const trips = new Set(rows.map(r=>r.mr)).size;
+  const ships = new Set(rows.map(r=>r.ship)).size;
+
+  const miniBar = (list, total, cls='') => list.map(([k,v])=>`
+    <div class="mini ${cls}">
+      <div class="top"><span class="nm">${esc(k)}</span>
+        <span class="vv">${fmt(v,2)} ต.</span>
+        <span class="pp">${fmt(v/total*100,0)}%</span></div>
+      <div class="tr"><i style="width:${Math.max(2,(v/total*100)).toFixed(1)}%"></i></div>
+    </div>`).join('');
+
+  el('modalBody').innerHTML = `
+    <div class="chips">
+      <div class="chip2 o"><span class="k">น้ำหนักรวม</span><span class="v">${fmt(D.ton,1)} ต.</span></div>
+      <div class="chip2"><span class="k">รายการ</span><span class="v">${fmt(D.n)}</span></div>
+      <div class="chip2"><span class="k">รอบขนย้าย</span><span class="v">${fmt(trips)}</span></div>
+      <div class="chip2"><span class="k">เที่ยวรถขาออก</span><span class="v">${fmt(ships)}</span></div>
+      <div class="chip2"><span class="k">รหัสสินค้า</span><span class="v">${fmt(new Set(rows.map(r=>r.mat)).size)}</span></div>
+      <div class="chip2"><span class="k">ช่วงวันที่</span><span class="v" style="font-size:12.5px">${
+        dates.length ? dmy(dates[0])+' – '+dmy(dates[dates.length-1]) : '—'}</span></div>
+    </div>
+
+    <div class="grid2" style="margin-bottom:18px">
+      <div><div class="sm" style="font-weight:500;color:var(--txt);margin-bottom:8px">สินค้าที่ขนมากที่สุด</div>
+        ${miniBar(byMat, tonShown)}</div>
+      <div><div class="sm" style="font-weight:500;color:var(--txt);margin-bottom:8px">ลูกค้าที่เกี่ยวข้องมากที่สุด</div>
+        ${miniBar(byCust, tonShown, 'b')}</div>
+    </div>
+
+    ${byDest.length>1 ? `<div style="margin-bottom:18px">
+      <div class="sm" style="font-weight:500;color:var(--txt);margin-bottom:8px">กระจายไปโรงปลายทาง</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px">${byDest.map(([k,v])=>
+        `<span class="tag2">${esc(k)} · ${fmt(v,1)} ต. (${fmt(v/tonShown*100,0)}%)</span>`).join('')}</div>
+    </div>` : ''}
+
+    <div class="sm" style="font-weight:500;color:var(--txt);margin-bottom:9px">
+      รายการทั้งหมด (เรียงตามน้ำหนักมากไปน้อย)</div>
+    <div class="dlist">${rows.map(r=>`
+      <div class="drow">
+        <div class="main">
+          <div class="l1"><span class="mat">${esc(r.mat||'—')}</span>
+            ${r.gs?`<span class="tag2">${esc(r.gs)}</span>`:''}
+            <span class="tag2 g">${esc(r.o||'?')} → ${esc(r.de||'?')}</span></div>
+          <div class="l2">${dmy(r.d)} · รอบ ${esc(r.mr||'—')} · ${esc(r.cust||'—')}
+            · ออกเที่ยว ${esc(r.ship||'—')} จากคลัง ${esc(r.sloc||'—')}
+            ${r.run!=null?` · วิ่ง ${fmt(r.run)} นาที`:''}</div>
+        </div>
+        <div class="ton"><b>${fmt(r.ton,3)}</b><span>ตัน</span></div>
+      </div>`).join('')}</div>
+
+    <p class="sm" style="margin-top:12px">${
+      D.n > rows.length
+        ? `แสดง ${fmt(rows.length)} รายการที่หนักที่สุด จากทั้งหมด ${fmt(D.n)} รายการ`
+        : `ทั้งหมด ${fmt(rows.length)} รายการ`}</p>`;
 }
 
 /* ====== หน้า DO Preparing + Milk Run — ยกมาจากไฟล์ "Analysis DO" ของผู้ใช้ทั้งหน้า
