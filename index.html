@@ -400,6 +400,23 @@ body.navfold .me button::after{content:'⏻';font-size:15px}
   border:1px solid var(--line);transition:.18s;cursor:pointer}
 .stcard .delx:hover{background:#fdecec;color:#d62828;border-color:#f3b6b6}
 
+/* การ์ดประตูแบบกดได้ */
+.gatecard.clickable{cursor:pointer;transition:.2s}
+.gatecard.clickable:hover{transform:translateY(-3px);box-shadow:var(--sh2);border-color:var(--org)}
+.gatecard.open{border-color:var(--org);box-shadow:0 0 0 2px rgba(255,122,24,.18)}
+.gatecard .gh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.gatecard .rk{font-size:10px;font-weight:400;color:var(--muted);background:var(--bg);
+  padding:2px 8px;border-radius:99px;margin-left:auto}
+.gatecard .jb{font-size:12px;color:var(--muted);font-weight:300;margin-top:8px}
+.gatecard .jb b{font-size:20px;font-weight:700;color:var(--txt);margin-right:3px}
+.gatecard .vs{display:block;font-size:10.5px;margin-top:2px}
+.gatecard .vs.up{color:#d62828} .gatecard .vs.dn{color:#0f9d58}
+.gatecard .jbar{height:5px;background:var(--bg);border-radius:3px;overflow:hidden;margin:9px 0 10px}
+.gatecard .jbar i{display:block;height:100%;border-radius:3px;transition:width .6s}
+.gatecard .more{margin-top:10px;padding-top:9px;border-top:1px dashed var(--line);
+  font-size:11px;color:var(--org-deep);font-weight:400;text-align:center}
+.gdetail{margin-top:17px;padding:17px;border-radius:13px;background:#fbfcfe;border:1px solid var(--line)}
+
 /* แถบวันที่วางข้อมูล */
 .daystrip{display:flex;gap:0;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;overflow:hidden}
 .daystrip .dcell{flex:1;min-width:118px;padding:11px 13px;border-left:1px solid var(--line);
@@ -4508,7 +4525,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-12.6';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-12.7';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -7762,6 +7779,7 @@ async function pageOverview(){
    ========================================================================= */
 let STOCK_FAC = null;   // โรงที่กำลังดู (null = ทุกโรงที่มีข้อมูล)
 let STOCK_V   = 'split'; // กลุ่มผลตรวจที่กำลังแสดง
+let GATE_OPEN = null;    // ประตูที่กางรายละเอียดอยู่
 
 /* คำอธิบายประจำแต่ละกลุ่ม */
 const VNOTE = {
@@ -7864,9 +7882,15 @@ async function pageStock(){
   try{ MV = await rpcCached('app_stock_moves',{ p_factory: STOCK_FAC }); }
   catch(ex){ MV = {days:0, err:ex.message}; }
 
+  let GG = {rows:[],move_out:[],balance:{},tot:{}};
+  try{ GG = await rpcCached('app_stock_gates',
+        { p_factory: STOCK_FAC, p_months: orNull('months') }); }
+  catch(ex){ GG = {rows:[],move_out:[],balance:{},tot:{},err:ex.message}; }
+  const GT = GG.rows||[], MO = GG.move_out||[], BAL = GG.balance||{};
+
   const W = A.win||{};
   const nSnap = (M.rows||[]).reduce((s,r)=>Math.max(s,+r.days||0),0);
-  const F = A.fit||{}, GA = A.gates||[], AB = A.abc||[],
+  const F = A.fit||{}, AB = A.abc||[],
         SPR = A.spread||[], DEAD = A.dead||[];
   const lostJobs = +F.jobs_all - +F.jobs_here;
   const facOpts = (A.factories||[]);
@@ -8088,20 +8112,82 @@ async function pageStock(){
       ], R, 300); })()}
   </div>
 
-  ${sect(3,'ผังประตู','แต่ละประตูเก็บอะไร และรับงานหนักแค่ไหน','o')}
-  <div class="card anim d1"><h3>ประตูทั้งหมด ${fmt(GA.length)} ประตู</h3>
-    <div class="gatebox">
-      ${GA.map((g,i)=>`<div class="gatecard">
-        <div class="g" style="color:${PAL[i%PAL.length]}">${esc(g.k)}</div>
-        <div class="r">
-          <b>${fmt(g.skus)}</b> SKU · <b>${fmt(g.piles)}</b> กอง<br>
-          น้ำหนัก <b>${fmt(g.ton,1)}</b> ตัน<br>
-          หยิบ <b>${fmt(g.picks)}</b> ครั้ง<br>
-          งานเตรียม <b>${fmt(g.jobs)}</b> งาน
-        </div></div>`).join('')}
+  ${sect(3,'ผังประตู','ประตูไหนรับงานหนัก งานกระจุกที่สินค้าตัวไหน และควรกระจายอะไรออก','o')}
+  <div class="card anim d1">
+    <div class="cardhd">
+      <h3>ภาระงานของแต่ละประตู — ${fmt(GT.length)} ประตู</h3>
+      ${BAL.ratio?`<div class="bigbadge" style="background:linear-gradient(135deg,#fff3e8,#ffe6cc);border-color:#ffc999">
+        <div class="k" style="color:#a34f06">ประตูที่งานหนักสุด เทียบเบาสุด</div>
+        <div class="v" style="color:#e8590c">${fmt(BAL.ratio,2)}<small>เท่า</small></div>
+        <div class="s" style="color:#a34f06">${esc(BAL.max_gate)} ${fmt(BAL.max_jobs)} งาน ·
+          ${esc(BAL.min_gate)} ${fmt(BAL.min_jobs)} งาน</div>
+      </div>`:''}
     </div>
-    <div class="chartbox" style="height:${Math.max(220,GA.length*40)}px;margin-top:16px">
+    <p class="sm" style="margin:-2px 0 14px">
+      <b>งานเตรียม</b> คือภาระงานจริงของประตูนั้น (นับใบงานในชีท Prepare ช่วงที่เลือก) ·
+      <b>น้ำหนัก</b> กับ <b>ครั้งที่หยิบ</b> คิดจากยอดจ่ายออกของ SKU ที่เก็บอยู่ประตูนั้น
+      นับ SKU ละครั้งเดียวแม้วางหลายกอง ·
+      <b>คลิกที่การ์ดประตูเพื่อดูรายการทั้งหมด</b></p>
+
+    <div class="gatebox">
+      ${GT.map((g,i)=>`<div class="gatecard clickable ${GATE_OPEN===g.k?'open':''}"
+          onclick="GATE_OPEN='${esc(g.k)}'===GATE_OPEN?null:'${esc(g.k)}';pageStock()">
+        <div class="gh"><span class="g" style="color:${PAL[i%PAL.length]}">${esc(g.k)}</span>
+          <span class="rk">${i===0?'งานหนักสุด':(i===GT.length-1?'เบาสุด':'อันดับ '+(i+1))}</span></div>
+        <div class="jb"><b>${fmt(g.jobs)}</b> งานเตรียม
+          <span class="vs ${+g.vs_avg>0?'up':'dn'}">${+g.vs_avg>0?'+':''}${fmt(g.vs_avg)}% จากค่าเฉลี่ย</span></div>
+        <div class="jbar"><i style="width:${(+g.pct_jobs||0).toFixed(1)}%;background:${PAL[i%PAL.length]}"></i></div>
+        <div class="r">
+          <b>${fmt(g.skus)}</b> SKU (A ${fmt(g.n_a)} ตัว) · <b>${fmt(g.piles)}</b> กอง<br>
+          น้ำหนัก <b>${fmt(g.ton,1)}</b> ตัน (${fmt(g.pct_ton,1)}%)<br>
+          <b>${fmt(g.per_pile)}</b> งาน/กอง · <b>${fmt(g.per_sku,1)}</b> งาน/SKU<br>
+          Top 3 คิดเป็น <b style="color:var(--org-deep)">${fmt(g.top3_pct,1)}%</b> ของงานประตูนี้
+        </div>
+        <div class="more">${GATE_OPEN===g.k?'▲ ซ่อนรายการ':'▼ ดูรายการในประตูนี้'}</div>
+      </div>`).join('')}
+    </div>
+
+    ${(()=>{ const g = GT.find(x=>x.k===GATE_OPEN); if(!g) return '';
+      const T = g.top||[];
+      return `<div class="gdetail anim">
+        <h3 style="margin-bottom:4px">ประตู ${esc(g.k)} — สินค้าที่มีงานเตรียมมากที่สุด</h3>
+        <p class="sm" style="margin-bottom:12px">
+          Top 3 รวมกัน <b style="color:var(--org-deep)">${fmt(g.top3_pct,1)}%</b> ของงานทั้งประตู
+          (${fmt(g.jobs)} งาน) — ${+g.top3_pct>=40
+            ? 'กระจุกตัวสูง ถ้าจัด 3 ตัวนี้ให้อยู่ใกล้ทางออกที่สุด จะได้ผลทันที'
+            : (+g.top3_pct>=25 ? 'กระจุกตัวปานกลาง' : 'งานกระจายค่อนข้างสม่ำเสมอ ไม่มีตัวไหนครองประตู')}</p>
+        ${T.length ? tableHTML([
+          {h:'อันดับ',k:'mat',raw:1,f:(r)=>`<b>${fmt(T.indexOf(r)+1)}</b>`},
+          {h:'รหัสสินค้า',k:'mat',raw:1,f:r=>`<b>${esc(r.mat)}</b>`},
+          {h:'ชั้น',k:'cls',raw:1,f:r=>`<span class="pill ${r.cls==='A'?'o':(r.cls==='B'?'b':'')}">${esc(r.cls)}</span>`},
+          {h:'งานเตรียม',k:'n',n:1,f:r=>fmt(r.n)},
+          {h:'สัดส่วนในประตูนี้',k:'pct',n:1,raw:1,
+           f:r=>`<b style="color:var(--org-deep)">${fmt(r.pct,1)}%</b>`
+              + `<div class="minibar" style="margin-top:4px"><i style="width:${Math.min(100,+r.pct*4).toFixed(0)}%;background:var(--org)"></i></div>`},
+          {h:'น้ำหนักรวม (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)}
+        ], T, 20) : '<div class="msg">ไม่มีงานเตรียมที่ประตูนี้ในช่วงที่เลือก</div>'}
+      </div>`; })()}
+
+    <div class="chartbox" style="height:${Math.max(230,GT.length*44)}px;margin-top:18px">
       <canvas id="stk1"></canvas></div>
+  </div>
+
+  <div class="card anim d2">
+    <h3>ควรกระจายอะไรออกจากประตูที่แน่น — ${fmt(MO.length)} รายการ</h3>
+    <p class="sm" style="margin:-2px 0 12px">
+      คัดเฉพาะสินค้าที่<b>เก็บอยู่ประตูที่งานเกินค่าเฉลี่ย</b> แต่<b>งานเตรียมส่วนใหญ่กลับอยู่ประตูอื่น</b><br>
+      ย้ายออกได้สองต่อ — ประตูที่แน่นได้พื้นที่คืน และคนไม่ต้องเดินข้ามไปเอาของ</p>
+    ${MO.length ? tableHTML([
+      {h:'รหัสสินค้า',k:'mat',raw:1,f:r=>`<b>${esc(r.mat)}</b>`},
+      {h:'ชั้น',k:'cls',raw:1,f:r=>`<span class="pill ${r.cls==='A'?'o':(r.cls==='B'?'b':'')}">${esc(r.cls||'?')}</span>`},
+      {h:'ตอนนี้เก็บที่',k:'from_gate',raw:1,f:r=>`<span class="gchip n">${esc(r.from_gate)}</span>`},
+      {h:'งานที่ประตูนี้',k:'jobs_here',n:1,f:r=>fmt(r.jobs_here)},
+      {h:'ควรย้ายไป',k:'best_gate',raw:1,f:r=>`<span class="gchip y">${esc(r.best_gate)}</span>`},
+      {h:'งานที่ประตูนั้น',k:'jobs_there',n:1,raw:1,
+       f:r=>`<b style="color:#0f9d58">${fmt(r.jobs_there)}</b>`},
+      {h:'เหตุผล',k:'reason',w:1},
+      {h:'น้ำหนัก (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)}
+    ], MO, 100) : `<div class="msg ok">ไม่มีรายการที่ควรกระจายออก — ทุกประตูเก็บของที่ตัวเองใช้งานจริง</div>`}
   </div>
 
   ${sect(4,'การย้ายประตูรายวัน','เทียบข้อมูลที่วางแต่ละวัน ว่ารหัสไหนเปลี่ยนประตูบ้าง (ดูเฉพาะประตู ไม่นับกอง)')}
@@ -8182,23 +8268,24 @@ async function pageStock(){
 
   /* ---------- กราฟประตู ---------- */
   const axisFont = {font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'};
-  chart('stk1','bar',GA.map(g=>g.k),[
-    {label:'น้ำหนัก (ตัน)',data:GA.map(g=>+g.ton||0),
-     backgroundColor:GA.map((g,i)=>PAL[i%PAL.length]),borderRadius:6},
-    {label:'งานเตรียม',data:GA.map(g=>+g.jobs||0),backgroundColor:'#c6d0dd',
-     borderRadius:6,xAxisID:'x2'}
-  ],{indexAxis:'y',layout:{padding:{right:46}},
-     scales:{x:{beginAtZero:true,grace:'16%',grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont,
-                title:{display:true,text:'ตัน',font:{family:'Kanit',size:10}}},
-             x2:{position:'top',beginAtZero:true,grace:'16%',grid:{display:false},
-                 border:{display:false},ticks:axisFont,
-                 title:{display:true,text:'งานเตรียม',font:{family:'Kanit',size:10}}},
+  const avgJobs = +(GG.tot||{}).avg_jobs || 0;
+  chart('stk1','bar',GT.map(g=>g.k),[
+    {label:'งานเตรียม',data:GT.map(g=>+g.jobs||0),
+     backgroundColor:GT.map((g,i)=>PAL[i%PAL.length]),borderRadius:6}
+  ],{indexAxis:'y',layout:{padding:{right:56}},
+     scales:{x:{beginAtZero:true,grace:'18%',grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont,
+                title:{display:true,text:'จำนวนงานเตรียม',font:{family:'Kanit',size:10}}},
              y:{grid:{display:false},ticks:axisFont}},
      vl:v=>fmt(v,0),
-     tip:(pts)=>{const g=GA[pts[0].dataIndex];
-       return `<b>ประตู ${esc(g.k)}</b><br>${fmt(g.skus)} SKU · ${fmt(g.piles)} กอง<br>`+
-              `น้ำหนัก ${fmt(g.ton,1)} ตัน · หยิบ ${fmt(g.picks)} ครั้ง<br>`+
-              `<span style="opacity:.75">งานเตรียมที่ประตูนี้ ${fmt(g.jobs)} งาน</span>`;}});
+     avgLine: avgJobs?{v:avgJobs, txt:`เฉลี่ย ${fmt(avgJobs)} งาน/ประตู`}:null,
+     tip:(pts)=>{const g=GT[pts[0].dataIndex]; const t=(g.top||[])[0];
+       return `<b>ประตู ${esc(g.k)}</b><br>`+
+              `<b>${fmt(g.jobs)}</b> งานเตรียม (${fmt(g.pct_jobs,1)}% ของทั้งโรง)<br>`+
+              `${+g.vs_avg>0?'สูงกว่า':'ต่ำกว่า'}ค่าเฉลี่ย ${fmt(Math.abs(+g.vs_avg))}%<br>`+
+              `${fmt(g.skus)} SKU · ${fmt(g.piles)} กอง · ${fmt(g.per_pile)} งาน/กอง<br>`+
+              `น้ำหนัก ${fmt(g.ton,1)} ตัน<br>`+
+              `<span style="opacity:.75">Top 3 คิดเป็น ${fmt(g.top3_pct,1)}%`+
+              (t?` · สูงสุดคือ ${esc(t.mat)} ${fmt(t.pct,1)}%`:'')+`</span>`;}});
 }
 
 /* =========================================================================
