@@ -4244,7 +4244,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-11.1';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-11.2';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -7085,9 +7085,7 @@ async function pageOverview(){
   const MC = ['#ff7a18','#0b2447','#1d4f92','#5b8fc4'];
   const VR = (V.rows||[]);
   const vCover = +V.ships_all ? (+V.total*100/+V.ships_all) : 0;
-  const vTop = VR.slice(0,6), vRest = VR.slice(6);
-  const vRestN = vRest.reduce((s,x)=>s+ +x.n,0);
-  const vRestP = vRest.reduce((s,x)=>s+ +x.pct,0);
+  const subTxt = r => (r.sub||[]).map(s=>`${esc(s.k)} ${fmt(s.n)}`).join(' · ');
 
   body(bar + `
 
@@ -7148,22 +7146,21 @@ async function pageOverview(){
   ${sect(4,'ประเภทรถ','ใช้รถแบบไหนมากที่สุด และเฉลี่ยวันละกี่คัน')}
   <div class="card anim d1">
     <h3>สัดส่วนตามจำนวนเที่ยว — ใช้รถ ${fmt(V.types)} ประเภท เฉลี่ย ${fmt(V.per_day)} คัน/วัน</h3>
-    <p class="sm" style="margin:-4px 0 12px">ข้อมูลประเภทรถมาจากชีท Shipment ครอบคลุม
-      <b>${fmt(V.total)}</b> เที่ยว จากทั้งหมด ${fmt(V.ships_all)} เที่ยว
-      (<b>${fmt(vCover,1)}%</b>) — สัดส่วนด้านล่างคิดจากเที่ยวที่มีข้อมูลเท่านั้น</p>
-    <div class="pbar">${vTop.map((x,i)=>`<i style="width:${(+x.pct||0).toFixed(1)}%;background:${PAL[i%PAL.length]}"
-      title="${esc(x.k)}">${+x.pct>=7?fmt(x.pct,0)+'%':''}</i>`).join('')}${
-      vRestN?`<i style="width:${vRestP.toFixed(1)}%;background:#c6d0dd;color:var(--txt)">${
-        vRestP>=7?fmt(vRestP,0)+'%':''}</i>`:''}</div>
-    <div class="pleg">${vTop.map((x,i)=>`<span><b style="background:${PAL[i%PAL.length]}"></b>
-      ${esc(x.k)} · ${fmt(x.pct,1)}%</span>`).join('')}${
-      vRestN?`<span><b style="background:#c6d0dd"></b>อื่นๆ ${fmt(vRest.length)} ประเภท · ${fmt(vRestP,1)}%</span>`:''}</div>
+    <p class="sm" style="margin:-4px 0 12px">จัดกลุ่มตามที่กำหนดไว้ (เทรลเลอร์ · 10 ล้อ · 12 ล้อ · 6 ล้อ · 4 ล้อ · กระบะ · พ่วงแม่-ลูก)
+      โดยรวมรุ่นย่อยเช่นเฮี้ยบและจำนวนล้อที่ต่างกันเข้าเป็นกลุ่มเดียว ·
+      ข้อมูลมาจากชีท Shipment ครอบคลุม <b>${fmt(V.total)}</b> เที่ยว จากทั้งหมด ${fmt(V.ships_all)} เที่ยว
+      (<b>${fmt(vCover,1)}%</b>) — สัดส่วนคิดจากเที่ยวที่มีข้อมูลเท่านั้น</p>
+    <div class="pbar">${VR.map((x,i)=>`<i style="width:${(+x.pct||0).toFixed(1)}%;background:${PAL[i%PAL.length]}"
+      title="${esc(x.k)} — ${esc(subTxt(x))}">${+x.pct>=6?fmt(x.pct,0)+'%':''}</i>`).join('')}</div>
+    <div class="pleg">${VR.map((x,i)=>`<span><b style="background:${PAL[i%PAL.length]}"></b>
+      ${esc(x.k)} · ${fmt(x.n)} เที่ยว (${fmt(x.pct,1)}%)</span>`).join('')}</div>
   </div>
   <div class="grid2">
-    <div class="card anim d2"><h3>จำนวนเที่ยวตามประเภทรถ</h3>
-      <div class="chartbox" style="height:${Math.max(250,VR.length*26)}px"><canvas id="ov1"></canvas></div></div>
-    <div class="card anim d3"><h3>รายละเอียดประเภทรถ</h3>` + tableHTML([
-      {h:'ประเภทรถ',k:'k'},
+    <div class="card anim d2"><h3>จำนวนเที่ยวตามกลุ่มรถ</h3>
+      <div class="chartbox" style="height:${Math.max(230,VR.length*34)}px"><canvas id="ov1"></canvas></div></div>
+    <div class="card anim d3"><h3>รายละเอียดกลุ่มรถ</h3>` + tableHTML([
+      {h:'กลุ่มรถ',k:'k',raw:1,f:r=>`<b>${esc(r.k)}</b>`},
+      {h:'รวมรุ่นย่อย',k:'k',raw:1,f:r=>`<span class="sm">${esc(subTxt(r))}</span>`},
       {h:'จำนวนเที่ยว',k:'n',n:1,f:r=>fmt(r.n)},
       {h:'สัดส่วน',k:'pct',n:1,raw:1,f:r=>`<b style="color:var(--org-deep)">${fmt(r.pct,1)}%</b>`},
       {h:'เฉลี่ย/เดือน',k:'per_month',n:1,f:r=>fmt(r.per_month)},
@@ -7198,12 +7195,16 @@ async function pageOverview(){
       y:{grid:{display:false},ticks:axisFont}}};
   const cut=(s,n)=>String(s).length>n?String(s).slice(0,n)+'…':String(s);
 
-  chart('ov1','bar',VR.map(x=>cut(x.k,24)),
-    [{label:'เที่ยว',data:VR.map(x=>+x.n),backgroundColor:'#1d4f92',borderRadius:6}],
+  chart('ov1','bar',VR.map(x=>x.k),
+    [{label:'เที่ยว',data:VR.map(x=>+x.n),
+      backgroundColor:VR.map((x,i)=>PAL[i%PAL.length]),borderRadius:6}],
     Object.assign({},hBar,{vl:v=>fmt(v,0),
       tip:(pts)=>{const r=VR[pts[0].dataIndex];
         return `<b>${esc(r.k)}</b><br>${fmt(r.n)} เที่ยว (${fmt(r.pct,1)}%)<br>`+
-               `<span style="opacity:.75">เฉลี่ย ${fmt(r.per_month)} เที่ยว/เดือน · ${fmt(r.per_day,1)} เที่ยว/วัน</span>`;}}));
+               `<span style="opacity:.75">เฉลี่ย ${fmt(r.per_month)} เที่ยว/เดือน · ${fmt(r.per_day,1)} เที่ยว/วัน</span>`+
+               ((r.sub||[]).length>1
+                 ? `<br><span style="opacity:.75">ประกอบด้วย ${(r.sub||[]).map(s=>esc(s.k)+' '+fmt(s.n)).join(' · ')}</span>`
+                 : '');}}));
 
   const MO = R.monthly||[];
   chart('ov2','bar',MO.map(x=>monthLabel(x.m)),[
