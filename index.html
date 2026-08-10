@@ -320,6 +320,59 @@ body.navfold .me button::after{content:'⏻';font-size:15px}
 .pleg span{display:flex;align-items:center;gap:6px}
 .pleg b{display:block;width:10px;height:10px;border-radius:3px}
 
+/* ---------- หน้าสต็อก & การจัดวาง ---------- */
+.stgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(215px,1fr));gap:14px;margin-bottom:17px}
+.stcard{background:#fff;border-radius:var(--r);border:1px solid var(--line);box-shadow:var(--sh);
+  padding:15px 17px;position:relative;overflow:hidden;min-width:0;transition:.22s}
+.stcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--line)}
+.stcard.on::before{background:var(--ok)} .stcard.off::before{background:#c6d0dd}
+.stcard .nm{font-weight:600;font-size:15px;color:var(--txt)}
+.stcard .st{font-size:11px;font-weight:400;padding:2px 9px;border-radius:99px;float:right}
+.stcard .st.y{background:var(--ok-soft);color:#0b6b3a} .stcard .st.n{background:var(--bg);color:var(--muted)}
+.stcard .mt{font-size:11.5px;color:var(--muted);font-weight:300;margin-top:9px;line-height:1.65}
+.stcard .mt b{color:var(--txt);font-weight:500}
+.stbar{height:6px;background:var(--bg);border-radius:4px;overflow:hidden;margin-top:10px}
+.stbar i{display:block;height:100%;border-radius:4px;background:var(--ok);transition:width .6s}
+.stcard.off .stbar i{background:#c6d0dd}
+.gatebox{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:12px}
+.gatecard{border:1px solid var(--line);border-radius:12px;padding:13px 15px;background:#fff;min-width:0}
+.gatecard .g{font-weight:700;font-size:17px;color:var(--navy)}
+.gatecard .r{font-size:11.5px;color:var(--muted);font-weight:300;margin-top:6px;line-height:1.6}
+.gatecard .r b{color:var(--txt);font-weight:500}
+
+/* เมทริกซ์ ABC x XYZ */
+.mtxwrap{overflow-x:auto;padding-bottom:4px}
+.mtx{display:grid;grid-template-columns:150px repeat(3,minmax(128px,1fr));gap:8px;min-width:600px}
+.mtx .cnr{}
+.mtx .hd{font-size:11.5px;font-weight:400;color:var(--muted);text-align:center;
+  padding:8px 5px;line-height:1.4;align-self:end}
+.mtx .hd b{display:block;font-size:16px;font-weight:700;color:var(--txt)}
+.mtx .hd small{display:block;font-size:10.5px;font-weight:300;opacity:.9;margin-top:2px}
+.mtx .rh{font-size:11.5px;color:var(--muted);font-weight:300;text-align:right;
+  padding:9px 11px 9px 0;line-height:1.45;
+  display:flex;flex-direction:column;justify-content:center;align-items:flex-end}
+.mtx .rh b{font-size:16px;font-weight:700;color:var(--txt)}
+.mtx .cell{border-radius:12px;padding:13px 10px;text-align:center;border:1.5px solid transparent;
+  transition:.2s;min-width:0}
+.mtx .cell:hover{transform:translateY(-2px);box-shadow:var(--sh2)}
+.mtx .cell .n{font-size:24px;font-weight:700;line-height:1}
+.mtx .cell .u{font-size:10.5px;font-weight:300;opacity:.92;margin-top:3px}
+.mtx .cell .p{font-size:12.5px;font-weight:600;margin-top:7px}
+.mtx .cell .a{font-size:10px;font-weight:300;margin-top:5px;opacity:.92;line-height:1.4}
+.mtx .cell.z0{background:#f6f8fb;border-color:var(--line);color:#adb9c9}
+.zonelg{display:grid;grid-template-columns:repeat(auto-fit,minmax(232px,1fr));gap:11px;margin-top:17px}
+.zonelg>div{border-radius:11px;padding:12px 14px;border-left:4px solid;background:#fbfcfe}
+.zonelg .t{font-weight:600;font-size:13.5px;margin-bottom:4px}
+.zonelg .d{font-size:11.5px;font-weight:300;line-height:1.65;color:var(--muted)}
+.defbox{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px;margin-bottom:18px}
+.defbox>div{background:#fbfcfe;border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.defbox h4{font-size:13.5px;font-weight:600;color:var(--txt);margin-bottom:9px}
+.defbox .row{display:flex;gap:10px;font-size:11.5px;font-weight:300;color:var(--muted);
+  line-height:1.55;padding:5px 0;border-top:1px solid var(--line)}
+.defbox .row:first-of-type{border-top:none}
+.defbox .row b{flex:none;width:19px;height:19px;border-radius:6px;color:#fff;font-size:11px;
+  font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px}
+
 /* ---------- แถวกลุ่มสินค้าในหน้า Overview ---------- */
 .gprow{display:grid; grid-template-columns:132px 1fr 118px; align-items:center; gap:14px;
   padding:11px 4px; border-bottom:1px solid var(--line);}
@@ -4304,7 +4357,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-11.7';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-11.8';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -7581,6 +7634,23 @@ async function pageStock(){
        <div><h2>${t}</h2><p>${s}</p></div><div class="ln"></div></div>`;
 
   const CLSCOL = { A:'#0b2447', B:'#1d4f92', C:'#8aa4c4' };
+
+  // โซนตามปริมาณ : ยิ่งขายเยอะยิ่งต้องอยู่ใกล้ประตู
+  const ZONE = {
+    A:{bg:'#fdecec',bd:'#f3b6b6',fg:'#a11d1d',
+       why:'ทุกครั้งที่ย่นระยะเดินได้ จะถูกคูณด้วยจำนวนครั้งที่หยิบซึ่งสูงมาก ผลตอบแทนจากการย้ายสูงสุด'},
+    B:{bg:'#fff3e8',bd:'#ffc999',fg:'#a34f06',
+       why:'ย้ายได้ถ้ามีที่ว่างหลังจัดกลุ่ม A เรียบร้อยแล้ว ไม่ใช่ลำดับแรก'},
+    C:{bg:'#f2f5f9',bd:'#d6dfea',fg:'#4a5f78',
+       why:'อยู่ไกลได้โดยแทบไม่กระทบ เพราะนานๆ หยิบที เอาที่ดีไปให้กลุ่ม A ดีกว่า'}
+  };
+  // รูปแบบตำแหน่งตามความสม่ำเสมอ
+  const SLOT = {
+    X:'ล็อกตำแหน่งตายตัวได้',
+    Y:'ล็อกได้ แต่เผื่อที่ไว้บ้าง',
+    Z:'ใช้ตำแหน่งลอย ไม่ควรล็อก'
+  };
+
   const clsTip = k => ({
     AX:'ของหลัก หมุนเร็ว สม่ำเสมอ — ควรอยู่ใกล้ประตูที่สุด ล็อกตำแหน่งตายตัว',
     AY:'ของหลัก แต่ปริมาณแกว่ง — ใกล้ประตู เผื่อพื้นที่ยืดหยุ่น',
@@ -7662,34 +7732,87 @@ async function pageStock(){
       <canvas id="stk1"></canvas></div>
   </div>
 
-  ${sect(3,'ชั้นความเคลื่อนไหว','ABC ตามน้ำหนัก × XYZ ตามความสม่ำเสมอ — ใช้กำหนดว่าควรอยู่ใกล้ประตูแค่ไหน','o')}
-  <div class="grid2">
-    <div class="card anim d1"><h3>จำนวน SKU ในแต่ละชั้น</h3>
-      <p class="sm" style="margin:-4px 0 12px">A = น้ำหนักรวมสูงสุด 80% แรก · B = 80-95% · C = ที่เหลือ<br>
-        X = ปริมาณสม่ำเสมอ · Y = แกว่งปานกลาง · Z = แกว่งมากหรือนานๆ ขยับ<br>
-        <b>ชี้ที่กล่องเพื่อดูคำแนะนำการจัดวาง</b></p>
-      <div class="clsgrid">
-        ${['A','B','C'].flatMap(a=>['X','Y','Z'].map(x=>{
-          const k=a+x, r=AB.find(v=>v.k===k);
-          const on=!!(r&&+r.skus);
-          return `<div class="clsbox" title="${esc(clsTip(k))}"
-            style="background:${on?CLSCOL[a]:'#f4f7fb'};color:${on?'#fff':'var(--muted)'};
-                   border-color:${on?CLSCOL[a]:'var(--line)'}">
-            <div class="k">${k}</div>
-            <div class="n">${r?fmt(r.skus):'0'}</div>
-            <div class="s">${r?fmt(r.pct_ton,1)+'%':'—'}</div>
-          </div>`;})).join('')}
+  ${sect(3,'ชั้นความเคลื่อนไหว','จัดกลุ่มสินค้าตามพฤติกรรมการขาย เพื่อบอกว่าอะไรควรอยู่ใกล้ประตู','o')}
+  <div class="card anim d1">
+    <h3>สินค้าแต่ละตัวถูกจัดชั้นอย่างไร</h3>
+    <p class="sm" style="margin:-4px 0 15px">ทุก SKU ได้รหัส 2 ตัวอักษร ตัวแรกบอก<b>ปริมาณ</b> ตัวหลังบอก<b>ความสม่ำเสมอ</b>
+      คิดจากยอดจ่ายออกจริงย้อนหลัง ${fmt(A.months||7)} เดือน</p>
+    <div class="defbox">
+      <div>
+        <h4>ตัวแรก — ขายเยอะแค่ไหน <span class="sm" style="font-weight:300">(ABC)</span></h4>
+        <div class="row"><b style="background:#0b2447">A</b>
+          <span>เรียงทุก SKU ตามน้ำหนักจากมากไปน้อย แล้วไล่บวกกัน กลุ่มที่รวมกันได้ <b>80% แรก</b> คือ A
+            — จำนวนตัวน้อยแต่กินงานเกือบทั้งหมด</span></div>
+        <div class="row"><b style="background:#1d4f92">B</b>
+          <span>ถัดมาจนครบ <b>95%</b> — ปริมาณปานกลาง</span></div>
+        <div class="row"><b style="background:#8aa4c4">C</b>
+          <span><b>5% สุดท้าย</b> — จำนวน SKU เยอะแต่รวมกันแล้วน้ำหนักน้อยมาก</span></div>
+      </div>
+      <div>
+        <h4>ตัวหลัง — ขายสม่ำเสมอไหม <span class="sm" style="font-weight:300">(XYZ)</span></h4>
+        <div class="row"><b style="background:#0f9d58">X</b>
+          <span>ยอดแต่ละเดือน<b>ใกล้เคียงกัน</b> คาดเดาได้ · วัดจากส่วนเบี่ยงเบนไม่เกินครึ่งหนึ่งของค่าเฉลี่ย</span></div>
+        <div class="row"><b style="background:#ff7a18">Y</b>
+          <span><b>แกว่งปานกลาง</b> · ส่วนเบี่ยงเบน 0.5–1 เท่าของค่าเฉลี่ย</span></div>
+        <div class="row"><b style="background:#d62828">Z</b>
+          <span><b>แกว่งแรง</b> เกิน 1 เท่า หรือ<b>ขยับไม่ถึง 3 เดือน</b>จาก ${fmt(A.months||7)} เดือน — คาดเดาแทบไม่ได้</span></div>
       </div>
     </div>
-    <div class="card anim d2"><h3>รายละเอียดแต่ละชั้น</h3>` + tableHTML([
-      {h:'ชั้น',k:'k',raw:1,f:r=>`<b title="${esc(clsTip(r.k))}">${esc(r.k)}</b>`},
+
+    <div class="mtxwrap"><div class="mtx">
+      <div class="cnr"></div>
+      ${[['X','สม่ำเสมอ','คาดเดาได้'],['Y','แกว่งปานกลาง','พอคาดเดาได้'],['Z','แกว่งแรง','คาดเดายาก']]
+        .map(([k,t,s])=>`<div class="hd"><b>${k}</b>${esc(t)}<small>${esc(s)}</small></div>`).join('')}
+      ${[['A','ขายเยอะ','80% แรกของน้ำหนัก'],['B','ปานกลาง','80–95%'],['C','ขายน้อย','5% สุดท้าย']]
+        .map(([a,t,s])=>`
+        <div class="rh"><b>${a}</b>${esc(t)}<small>${esc(s)}</small></div>
+        ${['X','Y','Z'].map(x=>{
+          const k=a+x, r=AB.find(v=>v.k===k), on=!!(r&&+r.skus);
+          if(!on) return `<div class="cell z0"><div class="n">0</div>
+             <div class="u">ไม่มีสินค้าในชั้นนี้</div></div>`;
+          const z=ZONE[a];
+          return `<div class="cell" style="background:${z.bg};border-color:${z.bd};color:${z.fg}"
+            title="${esc(clsTip(k))}">
+            <div class="n">${fmt(r.skus)}</div>
+            <div class="u">SKU · ${fmt(r.picks)} ครั้งที่หยิบ</div>
+            <div class="p">${fmt(r.pct_ton,1)}% ของน้ำหนัก</div>
+            <div class="a">${esc(SLOT[x])}</div>
+          </div>`;}).join('')}`).join('')}
+    </div></div>
+
+    <div class="zonelg">
+      ${[['A','#d62828','โซนหน้า — ใกล้ประตูที่สุด'],
+         ['B','#ff7a18','โซนกลาง'],
+         ['C','#7086a3','โซนหลัง']].map(([a,c,t])=>{
+        const rs=AB.filter(v=>v.k[0]===a);
+        const sk=rs.reduce((s,v)=>s+ +v.skus,0), pt=rs.reduce((s,v)=>s+ +v.pct_ton,0),
+              pk=rs.reduce((s,v)=>s+ +v.picks,0);
+        return `<div style="border-left-color:${c}">
+          <div class="t" style="color:${c}">${esc(t)}</div>
+          <div class="d"><b style="color:var(--txt)">${fmt(sk)}</b> SKU ·
+            <b style="color:var(--txt)">${fmt(pt,1)}%</b> ของน้ำหนัก ·
+            ${fmt(pk)} ครั้งที่หยิบ<br>${esc(ZONE[a].why)}</div>
+        </div>`;}).join('')}
+    </div>
+
+    <div class="msg" style="margin-top:15px">
+      <b>อ่านเมทริกซ์ยังไง</b> — <b>แถว</b> (A/B/C) บอกว่าควรอยู่<b>ใกล้ประตูแค่ไหน</b> ยิ่งขายเยอะยิ่งต้องใกล้
+      เพราะประหยัดระยะเดินต่อครั้งคูณจำนวนครั้งที่หยิบ ·
+      <b>คอลัมน์</b> (X/Y/Z) บอกว่าควร<b>ล็อกตำแหน่งตายตัวหรือใช้ตำแหน่งลอย</b>
+      ของที่ยอดนิ่งล็อกที่ได้เพราะรู้ว่าต้องใช้พื้นที่เท่าไร ส่วนของที่แกว่งแรงถ้าล็อกไว้จะเสียที่เปล่าตอนของน้อย
+    </div>
+  </div>
+
+  <div class="card anim d2"><h3>ตารางสรุปแต่ละชั้น</h3>` + tableHTML([
+      {h:'ชั้น',k:'k',raw:1,f:r=>`<b style="font-size:14px">${esc(r.k)}</b>`},
+      {h:'ความหมาย',k:'k',raw:1,w:1,f:r=>`<span class="sm">${esc(clsTip(r.k))}</span>`},
       {h:'SKU',k:'skus',n:1,f:r=>fmt(r.skus)},
       {h:'น้ำหนัก (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)},
       {h:'สัดส่วน',k:'pct_ton',n:1,raw:1,f:r=>`<b style="color:var(--org-deep)">${fmt(r.pct_ton,1)}%</b>`},
       {h:'ครั้งที่หยิบ',k:'picks',n:1,f:r=>fmt(r.picks)},
+      {h:'ตัน/ครั้ง',k:'ton',n:1,raw:1,f:r=>fmt(+r.picks?+r.ton/+r.picks:0,2)},
       {h:'ประตูเฉลี่ย/SKU',k:'gates',n:1,f:r=>fmt(r.gates,2)}
     ], AB) + `</div>
-  </div>
 
   ${sect(4,'ของที่กระจายหลายประตู','ยิ่งกระจาย ยิ่งต้องเดินหา')}
   <div class="card anim d1">
