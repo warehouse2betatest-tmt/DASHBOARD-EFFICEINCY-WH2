@@ -357,6 +357,14 @@ body.navfold .me button::after{content:'⏻';font-size:15px}
   border:1px solid var(--line);transition:.18s;cursor:pointer}
 .stcard .delx:hover{background:#fdecec;color:#d62828;border-color:#f3b6b6}
 
+/* แถบวันที่วางข้อมูล */
+.daystrip{display:flex;gap:0;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.daystrip .dcell{flex:1;min-width:118px;padding:11px 13px;border-left:1px solid var(--line);
+  background:#fff;position:relative}
+.daystrip .dcell.first{border-left:none;background:#fbfcfe}
+.daystrip .dd{font-size:13px;font-weight:600;color:var(--txt)}
+.daystrip .dn{font-size:11px;font-weight:300;color:var(--muted);margin-top:2px}
+
 /* แถบบอกว่าเทียบอะไรกับอะไร */
 .cmpbar{display:flex;align-items:stretch;gap:0;background:#fff;border:1px solid var(--line);
   border-radius:var(--r);box-shadow:var(--sh);margin-bottom:17px;overflow:hidden;flex-wrap:wrap}
@@ -401,11 +409,14 @@ body.navfold .me button::after{content:'⏻';font-size:15px}
 .defbox{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px;margin-bottom:18px}
 .defbox>div{background:#fbfcfe;border:1px solid var(--line);border-radius:12px;padding:14px 16px}
 .defbox h4{font-size:13.5px;font-weight:600;color:var(--txt);margin-bottom:9px}
-.defbox .row{display:flex;gap:10px;font-size:11.5px;font-weight:300;color:var(--muted);
-  line-height:1.55;padding:5px 0;border-top:1px solid var(--line)}
+.defbox .row{display:flex;gap:11px;align-items:flex-start;font-size:12px;font-weight:300;
+  color:var(--muted);line-height:1.65;padding:8px 0;border-top:1px solid var(--line)}
 .defbox .row:first-of-type{border-top:none}
-.defbox .row b{flex:none;width:19px;height:19px;border-radius:6px;color:#fff;font-size:11px;
+/* ป้ายตัวอักษรใช้คลาสเฉพาะ ถ้าเหมาว่า b ทุกตัว ตัวหนาในเนื้อความจะถูกบีบจนข้อความหาย */
+.defbox .row .bx{flex:none;width:21px;height:21px;border-radius:6px;color:#fff;font-size:11.5px;
   font-weight:700;display:flex;align-items:center;justify-content:center;margin-top:1px}
+.defbox .row span{flex:1;min-width:0}
+.defbox .row span b{font-weight:600;color:var(--txt)}
 
 /* ---------- แถวกลุ่มสินค้าในหน้า Overview ---------- */
 .gprow{display:grid; grid-template-columns:132px 1fr 118px; align-items:center; gap:14px;
@@ -4391,7 +4402,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-12.2';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-12.4';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -4686,7 +4697,7 @@ const SHEETS = {
   'Stock': { table:'stock_snapshot', mode:'stock', stock:true,
     label:'สต็อกตามตำแหน่งจัดเก็บ',
     cols:[['Material Code','m',T],['Description',null,T],['Batch',null,T],
-          ['Gate','g',T],['กองที่','pile',N],['จำนวน','qty',N]],
+          ['Gate','g',T],['กองที่','pile',N]],
     req:['m','g','pile'] },
 
   // ชีท Timeout ยังมี 7 คอลัมน์เหมือนเดิม แต่เก็บเข้าฐานข้อมูลแค่ วันที่ / โรง / เวลาเลิก
@@ -7671,8 +7682,8 @@ async function pageStock(){
             ? `SKU ที่รู้ตำแหน่ง <b>${fmt(r.sku_stock)}</b> จาก ${fmt(r.sku_fg)} ตัว<br>
                <b>${fmt(r.gates)}</b> ประตู · <b>${fmt(r.rows_now)}</b> ตำแหน่ง<br>
                ข้อมูลวันที่ <b>${dmy(r.as_of)}</b>${r.days>1?` · เก็บมาแล้ว ${fmt(r.days)} วัน`:''}<br>
-               ${r.with_qty ? `มีจำนวน ${fmt(r.with_qty)} แถว` :
-                 `<span style="color:var(--org-deep)">ยังไม่มีคอลัมน์จำนวน</span>`}`
+               ${r.days>1 ? `<span style="color:#0f9d58">เทียบการย้ายได้ ${fmt(r.days-1)} ช่วง</span>`
+                          : `<span style="color:var(--muted)">วางเพิ่มอีกวันเพื่อดูการย้าย</span>`}`
             : `SKU ที่เคลื่อนไหว ${fmt(r.sku_fg)} ตัว<br><span style="opacity:.7">รอไฟล์สต็อกของโรงนี้</span>`}
         </div>
         <div class="stbar"><i style="width:${r.has?Math.min(100,+r.cover||0).toFixed(1):0}%"></i></div>
@@ -7697,6 +7708,10 @@ async function pageStock(){
   try{ A = await rpcCached('app_stock_analysis',
         { p_factory: STOCK_FAC, p_months: orNull('months') }); }
   catch(ex){ body(mon + errCard(ex.message)); return; }
+
+  let MV = {days:0};
+  try{ MV = await rpcCached('app_stock_moves',{ p_factory: STOCK_FAC }); }
+  catch(ex){ MV = {days:0, err:ex.message}; }
 
   const W = A.win||{};
   const nSnap = (M.rows||[]).reduce((s,r)=>Math.max(s,+r.days||0),0);
@@ -7785,78 +7800,7 @@ async function pageStock(){
       <div class="s">${fmt(F.jobs_here)} จาก ${fmt(F.jobs_all)} งาน</div></div>
   </div>
 
-  ${sect(1,'ตำแหน่งจัดเก็บ เทียบกับ งานเตรียม','สินค้า 1 รหัสเก็บได้หลายที่ จึงวัดที่ความครอบคลุม ไม่ใช่ถูก/ผิด','o')}
-  <div class="card anim d1">
-    <div class="cardhd">
-      <h3>ความครอบคลุมของจุดเก็บ — ${fmt(F.pct_fit,1)}%</h3>
-      ${+F.lost?`<div class="bigbadge">
-        <div class="k">งานที่ต้องเดินไปเอาจากที่อื่น</div>
-        <div class="v">${fmt(F.lost)}<small>งาน</small></div>
-        <div class="s">จาก ${fmt(F.jobs)} งานเตรียม ตั้งแต่ ${dmy(A.cut_date)}</div>
-      </div>`:''}
-    </div>
-    <div class="msg" style="margin-bottom:14px">
-      <b>วัดยังไง</b> — สินค้า 1 รหัสเก็บได้หลายประตูและหลายกอง การถามว่า "เก็บถูกหรือผิด" จึงตอบไม่ได้
-      ต้องถามว่า <b>งานเตรียมกี่ % เกิดขึ้นที่ประตูซึ่งมีของรหัสนั้นเก็บอยู่จริง</b><br>
-      ถ้าเก็บที่ 03-2 กับ 03-4 แล้วหยิบทั้งสองที่ = ครอบคลุม 100% ถือว่าดี ·
-      ถ้าเก็บแค่ 03-2 แต่หยิบที่ 03-4 ด้วย ส่วนที่หยิบ 03-4 คือระยะเดินที่เสียไป<br>
-      <b>ตัวเลขทั้งหมดเป็นเรื่องงานเตรียมเท่านั้น ไม่เกี่ยวกับประตูที่รถเข้าโหลด</b>
-      เพราะชีท Shipment มีแค่ระดับโรง (<code>03</code>)
-    </div>
-
-    <div class="vchips">
-      ${[['split','หยิบหลายประตู เก็บไม่ครบ',F.split,'#d62828','#fdecec'],
-         ['mixed','เก็บหลายที่ แต่ยังไม่ตรง',F.mixed,'#a34f06','#fff3e8'],
-         ['move','ย้ายทั้งกอง',F.move,'#b5179e','#fbeafa'],
-         ['idle','มีจุดเก็บที่ไม่มีคนหยิบ',F.idle,'#1d4f92','#eaf0f9'],
-         ['ok','ดีอยู่แล้ว',F.ok,'#0f9d58','#eaf7f0'],
-         ['nowork','ไม่มีงานช่วงหลัง',F.nowork,'#7086a3','#f2f5f9']]
-        .map(([k,t,n,c,bg])=>`<button class="vchip ${STOCK_V===k?'on':''}"
-          onclick="STOCK_V='${k}';pageStock()" style="--c:${c};--bg:${bg}">
-          <span class="n">${fmt(n||0)}</span><span class="t">${esc(t)}</span></button>`).join('')}
-    </div>
-
-    ${(()=>{ const R=(A.rows||[]).filter(r=>r.verdict===STOCK_V);
-      if(!R.length) return `<div class="msg ok" style="margin-top:14px">ไม่มีสินค้าในกลุ่มนี้</div>`;
-      const chips = r => (r.picks_by_gate||[]).map(g=>
-        `<span class="gchip ${g.has?'y':'n'}" title="${g.has?'มีของเก็บที่ประตูนี้':'ไม่มีของเก็บที่ประตูนี้ ต้องเดินไปเอา'}"
-          >${esc(g.g)}<b>${fmt(g.n)}</b></span>`).join('');
-      return `<div style="margin-top:6px">${VNOTE[STOCK_V]}</div>` + tableHTML([
-        {h:'รหัสสินค้า',k:'mat',raw:1,f:r=>`<b>${esc(r.mat)}</b>`},
-        {h:'ชั้น',k:'cls',raw:1,f:r=>`<span class="pill ${r.cls[0]==='A'?'o':(r.cls[0]==='B'?'b':'')}"
-           title="${esc(clsTip(r.cls))}">${esc(r.cls)}</span>`},
-        {h:'เก็บอยู่ที่',k:'g_store',raw:1,w:1,
-         f:r=>`<b>${esc(r.g_store)}</b><br><span class="sm">${fmt(r.n_store)} ประตู · ${fmt(r.n_pile)} กอง</span>`},
-        {h:'หยิบที่ประตูไหนบ้าง (ช่วงหลัง)',k:'picks_by_gate',raw:1,w:1,
-         f:r=>chips(r)||'<span class="sm">ไม่มีงาน</span>'},
-        {h:'ครอบคลุม',k:'cover',n:1,raw:1,f:r=>r.cover==null?'<span class="sm">—</span>'
-          :`<b style="color:${+r.cover>=95?'#0f9d58':(+r.cover>=70?'var(--org-deep)':'#d62828')}">${fmt(r.cover,1)}%</b>`},
-        {h:'งานที่เดินไปเอา',k:'lost',n:1,raw:1,
-         f:r=>+r.lost>0?`<b style="color:var(--org-deep)">${fmt(r.lost)}</b>`:'<span class="sm">0</span>'},
-        {h:'งานทั้งหมด',k:'n_all',n:1,f:r=>fmt(r.n_all)},
-        {h:'จุดเก็บที่ไม่มีคนหยิบ',k:'g_idle',raw:1,
-         f:r=>+r.n_idle?`<b style="color:#1d4f92">${esc(r.g_idle)}</b>`:'<span class="sm">—</span>'},
-        {h:'น้ำหนัก (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)}
-      ], R, 300); })()}
-  </div>
-
-  ${sect(2,'ผังประตู','แต่ละประตูเก็บอะไร และรับงานหนักแค่ไหน')}
-  <div class="card anim d1"><h3>ประตูทั้งหมด ${fmt(GA.length)} ประตู</h3>
-    <div class="gatebox">
-      ${GA.map((g,i)=>`<div class="gatecard">
-        <div class="g" style="color:${PAL[i%PAL.length]}">${esc(g.k)}</div>
-        <div class="r">
-          <b>${fmt(g.skus)}</b> SKU · <b>${fmt(g.piles)}</b> กอง<br>
-          น้ำหนัก <b>${fmt(g.ton,1)}</b> ตัน<br>
-          หยิบ <b>${fmt(g.picks)}</b> ครั้ง<br>
-          งานเตรียม <b>${fmt(g.jobs)}</b> งาน
-        </div></div>`).join('')}
-    </div>
-    <div class="chartbox" style="height:${Math.max(220,GA.length*40)}px;margin-top:16px">
-      <canvas id="stk1"></canvas></div>
-  </div>
-
-  ${sect(3,'ชั้นความเคลื่อนไหว','จัดกลุ่มสินค้าตามพฤติกรรมการขาย เพื่อบอกว่าอะไรควรอยู่ใกล้ประตู','o')}
+  ${sect(1,'ชั้นความเคลื่อนไหว','จัดกลุ่มสินค้าตามพฤติกรรมการขาย เพื่อบอกว่าอะไรควรอยู่ใกล้ประตู','o')}
   <div class="card anim d1">
     <h3>สินค้าแต่ละตัวถูกจัดชั้นอย่างไร</h3>
     <p class="sm" style="margin:-4px 0 15px">ทุก SKU ได้รหัส 2 ตัวอักษร ตัวแรกบอก<b>ปริมาณ</b> ตัวหลังบอก<b>ความสม่ำเสมอ</b>
@@ -7864,21 +7808,21 @@ async function pageStock(){
     <div class="defbox">
       <div>
         <h4>ตัวแรก — ขายเยอะแค่ไหน <span class="sm" style="font-weight:300">(ABC)</span></h4>
-        <div class="row"><b style="background:#0b2447">A</b>
+        <div class="row"><b class="bx" style="background:#0b2447">A</b>
           <span>เรียงทุก SKU ตามน้ำหนักจากมากไปน้อย แล้วไล่บวกกัน กลุ่มที่รวมกันได้ <b>80% แรก</b> คือ A
             — จำนวนตัวน้อยแต่กินงานเกือบทั้งหมด</span></div>
-        <div class="row"><b style="background:#1d4f92">B</b>
+        <div class="row"><b class="bx" style="background:#1d4f92">B</b>
           <span>ถัดมาจนครบ <b>95%</b> — ปริมาณปานกลาง</span></div>
-        <div class="row"><b style="background:#8aa4c4">C</b>
+        <div class="row"><b class="bx" style="background:#8aa4c4">C</b>
           <span><b>5% สุดท้าย</b> — จำนวน SKU เยอะแต่รวมกันแล้วน้ำหนักน้อยมาก</span></div>
       </div>
       <div>
         <h4>ตัวหลัง — ขายสม่ำเสมอไหม <span class="sm" style="font-weight:300">(XYZ)</span></h4>
-        <div class="row"><b style="background:#0f9d58">X</b>
+        <div class="row"><b class="bx" style="background:#0f9d58">X</b>
           <span>ยอดแต่ละเดือน<b>ใกล้เคียงกัน</b> คาดเดาได้ · วัดจากส่วนเบี่ยงเบนไม่เกินครึ่งหนึ่งของค่าเฉลี่ย</span></div>
-        <div class="row"><b style="background:#ff7a18">Y</b>
+        <div class="row"><b class="bx" style="background:#ff7a18">Y</b>
           <span><b>แกว่งปานกลาง</b> · ส่วนเบี่ยงเบน 0.5–1 เท่าของค่าเฉลี่ย</span></div>
-        <div class="row"><b style="background:#d62828">Z</b>
+        <div class="row"><b class="bx" style="background:#d62828">Z</b>
           <span><b>แกว่งแรง</b> เกิน 1 เท่า หรือ<b>ขยับไม่ถึง 3 เดือน</b>จาก ${fmt(A.months||7)} เดือน — คาดเดาแทบไม่ได้</span></div>
       </div>
     </div>
@@ -7938,7 +7882,126 @@ async function pageStock(){
       {h:'ประตูเฉลี่ย/SKU',k:'gates',n:1,f:r=>fmt(r.gates,2)}
     ], AB) + `</div>
 
-  ${sect(4,'ของที่กระจายหลายประตู','ยิ่งกระจาย ยิ่งต้องเดินหา')}
+  ${sect(2,'ตำแหน่งจัดเก็บ เทียบกับ งานเตรียม','สินค้า 1 รหัสเก็บได้หลายที่ จึงวัดที่ความครอบคลุม ไม่ใช่ถูก/ผิด')}
+  <div class="card anim d1">
+    <div class="cardhd">
+      <h3>ความครอบคลุมของจุดเก็บ — ${fmt(F.pct_fit,1)}%</h3>
+      ${+F.lost?`<div class="bigbadge">
+        <div class="k">งานที่ต้องเดินไปเอาจากที่อื่น</div>
+        <div class="v">${fmt(F.lost)}<small>งาน</small></div>
+        <div class="s">จาก ${fmt(F.jobs)} งานเตรียม ตั้งแต่ ${dmy(A.cut_date)}</div>
+      </div>`:''}
+    </div>
+    <div class="msg" style="margin-bottom:14px">
+      <b>วัดยังไง</b> — สินค้า 1 รหัสเก็บได้หลายประตูและหลายกอง การถามว่า "เก็บถูกหรือผิด" จึงตอบไม่ได้
+      ต้องถามว่า <b>งานเตรียมกี่ % เกิดขึ้นที่ประตูซึ่งมีของรหัสนั้นเก็บอยู่จริง</b><br>
+      ถ้าเก็บที่ 03-2 กับ 03-4 แล้วหยิบทั้งสองที่ = ครอบคลุม 100% ถือว่าดี ·
+      ถ้าเก็บแค่ 03-2 แต่หยิบที่ 03-4 ด้วย ส่วนที่หยิบ 03-4 คือระยะเดินที่เสียไป<br>
+      <b>ตัวเลขทั้งหมดเป็นเรื่องงานเตรียมเท่านั้น ไม่เกี่ยวกับประตูที่รถเข้าโหลด</b>
+      เพราะชีท Shipment มีแค่ระดับโรง (<code>03</code>)
+    </div>
+
+    <div class="vchips">
+      ${[['split','หยิบหลายประตู เก็บไม่ครบ',F.split,'#d62828','#fdecec'],
+         ['mixed','เก็บหลายที่ แต่ยังไม่ตรง',F.mixed,'#a34f06','#fff3e8'],
+         ['move','ย้ายทั้งกอง',F.move,'#b5179e','#fbeafa'],
+         ['idle','มีจุดเก็บที่ไม่มีคนหยิบ',F.idle,'#1d4f92','#eaf0f9'],
+         ['ok','ดีอยู่แล้ว',F.ok,'#0f9d58','#eaf7f0'],
+         ['nowork','ไม่มีงานช่วงหลัง',F.nowork,'#7086a3','#f2f5f9']]
+        .map(([k,t,n,c,bg])=>`<button class="vchip ${STOCK_V===k?'on':''}"
+          onclick="STOCK_V='${k}';pageStock()" style="--c:${c};--bg:${bg}">
+          <span class="n">${fmt(n||0)}</span><span class="t">${esc(t)}</span></button>`).join('')}
+    </div>
+
+    ${(()=>{ const R=(A.rows||[]).filter(r=>r.verdict===STOCK_V);
+      if(!R.length) return `<div class="msg ok" style="margin-top:14px">ไม่มีสินค้าในกลุ่มนี้</div>`;
+      const chips = r => (r.picks_by_gate||[]).map(g=>
+        `<span class="gchip ${g.has?'y':'n'}" title="${g.has?'มีของเก็บที่ประตูนี้':'ไม่มีของเก็บที่ประตูนี้ ต้องเดินไปเอา'}"
+          >${esc(g.g)}<b>${fmt(g.n)}</b></span>`).join('');
+      return `<div style="margin-top:6px">${VNOTE[STOCK_V]}</div>` + tableHTML([
+        {h:'รหัสสินค้า',k:'mat',raw:1,f:r=>`<b>${esc(r.mat)}</b>`},
+        {h:'ชั้น',k:'cls',raw:1,f:r=>`<span class="pill ${r.cls[0]==='A'?'o':(r.cls[0]==='B'?'b':'')}"
+           title="${esc(clsTip(r.cls))}">${esc(r.cls)}</span>`},
+        {h:'เก็บอยู่ที่',k:'g_store',raw:1,w:1,
+         f:r=>`<b>${esc(r.g_store)}</b><br><span class="sm">${fmt(r.n_store)} ประตู · ${fmt(r.n_pile)} กอง</span>`},
+        {h:'หยิบที่ประตูไหนบ้าง (ช่วงหลัง)',k:'picks_by_gate',raw:1,w:1,
+         f:r=>chips(r)||'<span class="sm">ไม่มีงาน</span>'},
+        {h:'ครอบคลุม',k:'cover',n:1,raw:1,f:r=>r.cover==null?'<span class="sm">—</span>'
+          :`<b style="color:${+r.cover>=95?'#0f9d58':(+r.cover>=70?'var(--org-deep)':'#d62828')}">${fmt(r.cover,1)}%</b>`},
+        {h:'งานที่เดินไปเอา',k:'lost',n:1,raw:1,
+         f:r=>+r.lost>0?`<b style="color:var(--org-deep)">${fmt(r.lost)}</b>`:'<span class="sm">0</span>'},
+        {h:'งานทั้งหมด',k:'n_all',n:1,f:r=>fmt(r.n_all)},
+        {h:'จุดเก็บที่ไม่มีคนหยิบ',k:'g_idle',raw:1,
+         f:r=>+r.n_idle?`<b style="color:#1d4f92">${esc(r.g_idle)}</b>`:'<span class="sm">—</span>'},
+        {h:'น้ำหนัก (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)}
+      ], R, 300); })()}
+  </div>
+
+  ${sect(3,'ผังประตู','แต่ละประตูเก็บอะไร และรับงานหนักแค่ไหน','o')}
+  <div class="card anim d1"><h3>ประตูทั้งหมด ${fmt(GA.length)} ประตู</h3>
+    <div class="gatebox">
+      ${GA.map((g,i)=>`<div class="gatecard">
+        <div class="g" style="color:${PAL[i%PAL.length]}">${esc(g.k)}</div>
+        <div class="r">
+          <b>${fmt(g.skus)}</b> SKU · <b>${fmt(g.piles)}</b> กอง<br>
+          น้ำหนัก <b>${fmt(g.ton,1)}</b> ตัน<br>
+          หยิบ <b>${fmt(g.picks)}</b> ครั้ง<br>
+          งานเตรียม <b>${fmt(g.jobs)}</b> งาน
+        </div></div>`).join('')}
+    </div>
+    <div class="chartbox" style="height:${Math.max(220,GA.length*40)}px;margin-top:16px">
+      <canvas id="stk1"></canvas></div>
+  </div>
+
+  ${sect(4,'การย้ายประตูรายวัน','เทียบข้อมูลที่วางแต่ละวัน ว่ารหัสไหนเปลี่ยนประตูบ้าง (ดูเฉพาะประตู ไม่นับกอง)')}
+  <div class="card anim d1">
+    <div class="cardhd">
+      <h3>ผลเทียบระหว่างวันที่วางข้อมูล</h3>
+      ${MV.days>1?`<div class="bigbadge" style="background:linear-gradient(135deg,#eef0fb,#e2e7f8);border-color:#b6c0e8">
+        <div class="k" style="color:#2c3e7a">รหัสที่เคยเปลี่ยนประตู</div>
+        <div class="v" style="color:#1d4f92">${fmt(MV.n_changed)}<small>/ ${fmt(MV.n_sku)} รหัส</small></div>
+        <div class="s" style="color:#2c3e7a">รวม ${fmt(MV.n_changes)} ครั้ง จาก ${fmt(MV.days-1)} ช่วงเทียบ</div>
+      </div>`:''}
+    </div>
+    ${MV.days<2 ? `<div class="msg warn">
+        <b>ยังเทียบไม่ได้ ต้องมีข้อมูลอย่างน้อย 2 วัน</b><br>
+        ตอนนี้มีข้อมูลวันเดียว (${dmy(MV.d0)}) · พอวางข้อมูลของอีกวันเข้ามา
+        ระบบจะเทียบให้อัตโนมัติว่ารหัสไหนย้ายประตู ย้ายจากไหนไปไหน และย้ายวันไหน<br>
+        <span class="sm">วางวันไหนก็ได้ ไม่ต้องต่อเนื่องทุกวัน ระบบเทียบจากวันที่มีข้อมูลติดกัน</span>
+      </div>`
+    : `<p class="sm" style="margin:-2px 0 14px">
+        มีข้อมูล ${fmt(MV.days)} วัน (${dmy(MV.d0)} – ${dmy(MV.d1)}) ·
+        เทียบทีละคู่วันที่ติดกัน · นับเฉพาะการเปลี่ยน<b>ประตู</b> ถ้าย้ายกองภายในประตูเดิมไม่นับ</p>
+
+      <div class="daystrip">
+        ${(MV.day_list||[]).map((d,i)=>{
+          const c=(MV.by_day||[]).find(x=>x.d===d);
+          return `<div class="dcell ${i===0?'first':''}">
+            <div class="dd">${dmy(d)}</div>
+            <div class="dn">${i===0?'วันแรก':(c?fmt(c.n)+' รหัสย้าย':'ไม่มีการย้าย')}</div>
+          </div>`;}).join('')}
+      </div>
+
+      <h3 style="margin-top:18px">รายการย้ายทั้งหมด</h3>
+      ${(MV.moves||[]).length ? tableHTML([
+        {h:'วันที่พบ',k:'d',f:r=>dmy(r.d)},
+        {h:'เทียบกับวันที่',k:'prev_d',f:r=>dmy(r.prev_d)},
+        {h:'รหัสสินค้า',k:'mat',raw:1,f:r=>`<b>${esc(r.mat)}</b>`},
+        {h:'เดิมอยู่ที่',k:'from',raw:1,f:r=>`<span class="gchip n">${esc(r.from)}</span>`},
+        {h:'ย้ายไปที่',k:'to',raw:1,f:r=>`<span class="gchip y">${esc(r.to)}</span>`},
+        {h:'ประตูที่เพิ่มมา',k:'added',raw:1,f:r=>r.added?`<b style="color:#0f9d58">+ ${esc(r.added)}</b>`:'<span class="sm">—</span>'},
+        {h:'ประตูที่หายไป',k:'removed',raw:1,f:r=>r.removed?`<b style="color:#d62828">− ${esc(r.removed)}</b>`:'<span class="sm">—</span>'}
+      ], MV.moves, 300) : `<div class="msg ok">ไม่พบการเปลี่ยนประตูเลยในช่วงที่มีข้อมูล</div>`}
+
+      ${(MV.top||[]).length>1?`<h3 style="margin-top:18px">รหัสที่ย้ายบ่อยที่สุด</h3>`
+        + tableHTML([
+          {h:'รหัสสินค้า',k:'mat',raw:1,f:r=>`<b>${esc(r.mat)}</b>`},
+          {h:'ย้ายกี่ครั้ง',k:'n',n:1,raw:1,f:r=>`<b style="color:var(--org-deep)">${fmt(r.n)}</b>`},
+          {h:'ครั้งล่าสุด',k:'last',f:r=>dmy(r.last)}
+        ], MV.top, 40) : ''}`}
+  </div>
+
+  ${sect(5,'ของที่กระจายหลายประตู','ยิ่งกระจาย ยิ่งต้องเดินหา')}
   <div class="card anim d1">
     <h3>${fmt(SPR.length)} SKU เก็บมากกว่า 1 ประตู
       <span class="sm" style="font-weight:300">(${fmt(A.n_sku?SPR.length*100/A.n_sku:0,1)}% ของ SKU ที่รู้ตำแหน่ง)</span></h3>
@@ -7953,7 +8016,7 @@ async function pageStock(){
     ], SPR) : `<div class="msg ok">ทุก SKU เก็บอยู่ประตูเดียว ไม่มีการกระจาย</div>`}
   </div>
 
-  ${sect(5,'มีของเก็บแต่ไม่เคยขาย','กินพื้นที่โดยไม่สร้างงาน','o')}
+  ${sect(6,'มีของเก็บแต่ไม่เคยขาย','กินพื้นที่โดยไม่สร้างงาน','o')}
   <div class="card anim d1">
     <h3>${fmt(DEAD.length)} SKU ไม่มีรายการจ่ายออกเลยในช่วงข้อมูลที่มี</h3>
     ${DEAD.length ? tableHTML([
@@ -12387,8 +12450,7 @@ async function runImport(){
       if(s.cfg.stock){
         // ส่งเป็น object ต่อแถว เพราะฝั่งฐานข้อมูลใช้ jsonb_to_recordset
         const recs = s.rows.map(r=>({ m:r.m, g:r.g,
-          pile: r.pile==null?null:Math.round(Number(r.pile)),
-          qty:  r.qty==null?null:Number(r.qty) }))
+          pile: r.pile==null?null:Math.round(Number(r.pile)), qty:null }))
           .filter(r=>r.m && r.g && r.pile!=null);
         const rs = await rpc('app_stock_import',{ p_date: STOCK_DATE, p_rows: recs });
         saved = +rs.saved || 0;
