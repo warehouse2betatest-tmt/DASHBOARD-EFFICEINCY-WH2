@@ -1340,6 +1340,7 @@ details summary{cursor:pointer;user-select:none}
       <a href="#" data-p="shipment" onclick="go('shipment',event)"><span class="ic">🚛</span> Shipment Analysis</a>
       <a href="#" data-p="do" onclick="go('do',event)"><span class="ic">⏱️</span> DO Preparing &amp; Milk Run</a>
       <a href="#" data-p="mrfg" onclick="go('mrfg',event)"><span class="ic">🔗</span> Shipment &amp; Milk Run</a>
+      <a href="#" data-p="stock" onclick="go('stock',event)"><span class="ic">📍</span> สต็อก &amp; การจัดวาง</a>
       <a href="#" data-p="ops" onclick="go('ops',event)"><span class="ic">📈</span> สายงาน &amp; ประสิทธิภาพ</a>
       <div class="navlbl">ระบบ</div>
       <a href="#" data-p="import" id="navImport" onclick="go('import',event)"><span class="ic">📥</span> นำเข้าข้อมูล</a>
@@ -4303,7 +4304,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-11.6';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-11.7';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -4593,6 +4594,14 @@ const SHEETS = {
           ['Lost Time Center Process - Shipment Start','lost_center_vs_ship',IV],['Issue','issue',T]],
     req:['shipment','material_desc','gate_name','weight'] },
 
+  // ชีท Stock ไม่มีคอลัมน์วันที่ในไฟล์ ต้องเลือกวันที่ตอนนำเข้า
+  // stock:true = ใช้เส้นทางนำเข้าเฉพาะ (app_stock_import) ไม่ผ่าน app_import_rows
+  'Stock': { table:'stock_snapshot', mode:'stock', stock:true,
+    label:'สต็อกตามตำแหน่งจัดเก็บ',
+    cols:[['Material Code','m',T],['Description',null,T],['Batch',null,T],
+          ['Gate','g',T],['กองที่','pile',N],['จำนวน','qty',N]],
+    req:['m','g','pile'] },
+
   // ชีท Timeout ยังมี 7 คอลัมน์เหมือนเดิม แต่เก็บเข้าฐานข้อมูลแค่ วันที่ / โรง / เวลาเลิก
   // คอลัมน์ที่ตั้งชื่อฟิลด์เป็น null คือ "อ่านผ่าน ไม่ต้องเก็บ"
   'Timeout': { table:'factory_timeout', mode:'upsert', conflict:'work_date,factory',
@@ -4853,6 +4862,7 @@ const PAGES = {
   ov:      {t:'<span class="ac">Overview</span>', s:'ภาพรวมทั้งหมดในหน้าเดียว สำหรับผู้บริหาร', f:pageOverview},
   fg:      {t:'FG <span class="ac">[Outbound &amp; Inbound]</span>', s:'ภาพรวมการรับเข้าและจ่ายออกสินค้าสำเร็จรูป — ข้อมูลทั้งหมด', f:pageFG},
   shipment:{t:'Shipment <span class="ac">Analysis</span>', s:'เจาะลึกเที่ยวรถ เวลาแต่ละขั้น และจุดที่เสียเวลา', f:pageShipment},
+  stock:   {t:'สต็อก <span class="ac">&amp; การจัดวาง</span>', s:'ตำแหน่งจัดเก็บเทียบกับความเคลื่อนไหวจริง', f:pageStock},
   ops:     {t:'สายงาน &amp; <span class="ac">ประสิทธิภาพ</span>', s:'ไล่เวลาตั้งแต่เปิด DO จนรถออก · เวลาเลิกงาน · การใช้พื้นที่รถ', f:pageOps},
   mrfg:    {t:'Shipment &amp; <span class="ac">Milk Run</span>', s:'จับคู่สินค้าที่ขนย้ายระหว่างโรงกับเที่ยวรถที่จ่ายออกจริง ด้วยใบส่ง + เลขรายการ', f:pageMRFG},
   do:      {t:'DO Preparing &amp; <span class="ac">Milk Run</span>', s:'วิเคราะห์เวลาจัดเตรียมสินค้าและการขนส่งระหว่างโรงแบบเจาะลึก', f:pageDO},
@@ -7495,6 +7505,239 @@ async function pageOverview(){
        return `<b>${dmy(r.d)}</b><br>รวม ${fmt(r.t,1)} ตัน<br>`+
               `จ่ายออก ${fmt(r.o,1)} · รับเข้า ${fmt(r.i,1)} ตัน<br>`+
               `<span style="opacity:.75">${fmt(r.s)} เที่ยวรถ</span>`;}});
+}
+
+/* =========================================================================
+   หน้า สต็อก & การจัดวาง
+   ทำงานกับข้อมูลเท่าที่นำเข้ามาแล้ว ไม่ต้องรอครบทุกโรง
+   ========================================================================= */
+let STOCK_FAC = null;   // โรงที่กำลังดู (null = ทุกโรงที่มีข้อมูล)
+
+async function pageStock(){
+  let M;
+  try{ M = await rpcCached('app_stock_monitor',{}); }
+  catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
+
+  const rows = M.rows||[], done = rows.filter(r=>r.has);
+  const covTon = rows.filter(r=>r.has).reduce((s,r)=>s+ +r.pct_ton,0);
+
+  /* ---------- แผงติดตามความคืบหน้า ---------- */
+  const mon = `
+  <div class="card anim d1">
+    <div class="cardhd">
+      <h3>ความคืบหน้าการนำเข้าข้อมูลสต็อก</h3>
+      <div class="bigbadge" style="background:linear-gradient(135deg,#eef7f1,#dff0e6);border-color:#a9d8bd">
+        <div class="k" style="color:#0b6b3a">ครอบคลุมแล้ว</div>
+        <div class="v" style="color:#0f9d58">${fmt(done.length)}<small>/ ${fmt(rows.length)} โรง</small></div>
+        <div class="s" style="color:#0b6b3a">คิดเป็น ${fmt(covTon,1)}% ของน้ำหนักทั้งบริษัท</div>
+      </div>
+    </div>
+    <p class="sm" style="margin:-2px 0 14px">แต่ละใบคือหนึ่งโรงงาน เรียงตามปริมาณงาน ·
+      แถบด้านล่างคือสัดส่วน SKU ที่มีข้อมูลตำแหน่งจัดเก็บแล้ว เทียบกับ SKU ที่เคลื่อนไหวจริงในโรงนั้น
+      ${M.total_rows?`· ตารางสต็อกใช้พื้นที่ <b>${esc(M.size)}</b> จาก ${fmt(M.total_rows)} แถว`:''}</p>
+    <div class="stgrid">
+      ${rows.map(r=>`<div class="stcard ${r.has?'on':'off'}">
+        <span class="st ${r.has?'y':'n'}">${r.has?'มีข้อมูลแล้ว':'ยังไม่มี'}</span>
+        <div class="nm">${esc(r.k)}</div>
+        <div class="mt">
+          ปริมาณงาน <b>${fmt(r.ton,1)}</b> ตัน (${fmt(r.pct_ton,1)}%)<br>
+          ${r.has
+            ? `SKU ที่รู้ตำแหน่ง <b>${fmt(r.sku_stock)}</b> จาก ${fmt(r.sku_fg)} ตัว<br>
+               <b>${fmt(r.gates)}</b> ประตู · <b>${fmt(r.rows_now)}</b> ตำแหน่ง<br>
+               ข้อมูลวันที่ <b>${dmy(r.as_of)}</b>${r.days>1?` · เก็บมาแล้ว ${fmt(r.days)} วัน`:''}<br>
+               ${r.with_qty ? `มีจำนวน ${fmt(r.with_qty)} แถว` :
+                 `<span style="color:var(--org-deep)">ยังไม่มีคอลัมน์จำนวน</span>`}`
+            : `SKU ที่เคลื่อนไหว ${fmt(r.sku_fg)} ตัว<br><span style="opacity:.7">รอไฟล์สต็อกของโรงนี้</span>`}
+        </div>
+        <div class="stbar"><i style="width:${r.has?Math.min(100,+r.cover||0).toFixed(1):0}%"></i></div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+
+  if(!M.has_any){
+    body(mon + `<div class="card anim d2"><div class="empty">
+      <div class="ic">📍</div>
+      <p style="font-weight:500;font-size:16px;color:var(--txt)">ยังไม่มีข้อมูลสต็อกในระบบ</p>
+      <p class="sm" style="margin-top:10px;max-width:520px">
+        ไปที่เมนู <b>นำเข้าข้อมูล</b> แล้วอัปโหลดไฟล์ที่มีชีทชื่อ <code>Stock</code><br>
+        ต้องมีคอลัมน์ <code>Material Code</code> · <code>Gate</code> · <code>กองที่</code>
+        (ใส่คอลัมน์ <code>จำนวน</code> เพิ่มได้ จะปลดล็อกการวิเคราะห์พื้นที่)</p>
+    </div></div>`);
+    return;
+  }
+
+  /* ---------- วิเคราะห์ ---------- */
+  let A;
+  try{ A = await rpcCached('app_stock_analysis',{ p_factory: STOCK_FAC }); }
+  catch(ex){ body(mon + errCard(ex.message)); return; }
+
+  const F = A.fit||{}, MIS = A.misplaced||[], GA = A.gates||[], AB = A.abc||[],
+        SPR = A.spread||[], DEAD = A.dead||[];
+  const lostJobs = +F.jobs_all - +F.jobs_here;
+  const facOpts = (A.factories||[]);
+
+  const sect = (n,t,s,cls='') =>
+    `<div class="sect ${cls}"><div class="no">${n}</div>
+       <div><h2>${t}</h2><p>${s}</p></div><div class="ln"></div></div>`;
+
+  const CLSCOL = { A:'#0b2447', B:'#1d4f92', C:'#8aa4c4' };
+  const clsTip = k => ({
+    AX:'ของหลัก หมุนเร็ว สม่ำเสมอ — ควรอยู่ใกล้ประตูที่สุด ล็อกตำแหน่งตายตัว',
+    AY:'ของหลัก แต่ปริมาณแกว่ง — ใกล้ประตู เผื่อพื้นที่ยืดหยุ่น',
+    AZ:'ของหลัก แต่คาดเดายาก — ใกล้ประตู ใช้ตำแหน่งลอย',
+    BX:'ปานกลาง สม่ำเสมอ — โซนกลาง ล็อกตำแหน่งได้',
+    BY:'ปานกลาง แกว่ง — โซนกลาง ตำแหน่งยืดหยุ่น',
+    BZ:'ปานกลาง คาดเดายาก — โซนกลาง ตำแหน่งลอย',
+    CX:'น้อยแต่สม่ำเสมอ — โซนไกลได้ ไม่กระทบมาก',
+    CY:'น้อยและแกว่ง — โซนไกล',
+    CZ:'น้อยมากและนานๆ ขยับ — หลังสุด หรือพิจารณาเลิกเก็บ'
+  })[k] || '';
+
+  body(mon + `
+  ${facOpts.length>1?`<div class="filters anim">
+    <div class="fld" style="margin:0"><label>โรงงาน</label>
+      <select onchange="STOCK_FAC=this.value||null; clearCache(); pageStock()" style="padding:9px 12px">
+        <option value="">ทุกโรงที่มีข้อมูล</option>
+        ${facOpts.map(f=>`<option value="${esc(f)}" ${STOCK_FAC===f?'selected':''}>โรง ${esc(f)}</option>`).join('')}
+      </select></div>
+    <div style="margin-left:auto;text-align:right"><div class="sm">ข้อมูล ณ วันที่</div>
+      <div style="font-weight:500;font-size:15px">${dmy(A.as_of)}</div></div>
+  </div>`:''}
+
+  <div class="kpis">
+    <div class="kpi anim d1"><div class="k">SKU ที่รู้ตำแหน่ง</div><div class="v">${fmt(A.n_sku)}</div>
+      <div class="s">จับคู่กับยอดขายได้ ${fmt(A.n_matched)} ตัว</div></div>
+    <div class="kpi anim d2"><div class="k">ตำแหน่งจัดเก็บ</div><div class="v">${fmt(A.n_pile)}</div>
+      <div class="s">${fmt(A.n_gate)} ประตู</div></div>
+    <div class="kpi o anim d3"><div class="k">น้ำหนักที่ครอบคลุม</div><div class="v">${fmt(A.ton,1)}</div>
+      <div class="s">ตัน · ${fmt(A.picks)} ครั้งที่หยิบ</div></div>
+    <div class="kpi ${+F.pct_fit>=85?'g':(+F.pct_fit>=70?'o':'r')} anim d4">
+      <div class="k">เตรียมตรงจุดเก็บ</div><div class="v">${fmt(F.pct_fit,1)}%</div>
+      <div class="s">${fmt(F.jobs_here)} จาก ${fmt(F.jobs_all)} งาน</div></div>
+  </div>
+
+  ${sect(1,'ของที่วางผิดที่','เก็บไว้คนละประตูกับที่เตรียมของจริง ใช้เป็นใบสั่งย้ายได้เลย','o')}
+  <div class="card anim d1">
+    <div class="cardhd">
+      <h3>รายการที่ควรย้าย — ${fmt(A.n_misplaced)} รายการ${
+        A.n_misplaced>MIS.length?` <span class="sm" style="font-weight:300">(แสดง ${fmt(MIS.length)} อันดับแรก)</span>`:''}</h3>
+      ${lostJobs>0?`<div class="bigbadge">
+        <div class="k">งานที่ต้องเดินข้ามประตู</div>
+        <div class="v">${fmt(lostJobs)}<small>งาน</small></div>
+        <div class="s">${fmt(100-(+F.pct_fit||0),1)}% ของงานเตรียมทั้งหมด</div>
+      </div>`:''}
+    </div>
+    <p class="sm" style="margin:-2px 0 12px">
+      เทียบ <b>ประตูที่เก็บของ</b> กับ <b>ประตูที่เตรียมของบ่อยที่สุด</b> ของ SKU นั้น
+      (นับเฉพาะงานเตรียมที่ประตูของโรงเดียวกัน) ·
+      คอลัมน์ "งานที่เสีย" คือจำนวนครั้งที่ต้องไปเอาของจากประตูอื่น ·
+      เรียงจากมากไปน้อย ย้ายตัวบนสุดก่อนได้ผลที่สุด</p>
+    ${MIS.length ? tableHTML([
+      {h:'รหัสสินค้า',k:'mat',raw:1,f:r=>`<b>${esc(r.mat)}</b>`},
+      {h:'ชั้น',k:'cls',raw:1,f:r=>`<span class="pill ${r.cls[0]==='A'?'o':(r.cls[0]==='B'?'b':'')}"
+         title="${esc(clsTip(r.cls))}">${esc(r.cls)}</span>`},
+      {h:'เก็บอยู่ที่',k:'stock_gate',raw:1,f:r=>`<b style="color:#d62828">${esc(r.stock_gate)}</b>`},
+      {h:'แต่เตรียมที่',k:'main_gate',raw:1,f:r=>`<b style="color:#0f9d58">${esc(r.main_gate)}</b>`},
+      {h:'งานที่เสีย',k:'lost',n:1,raw:1,f:r=>`<b style="color:var(--org-deep)">${fmt(r.lost)}</b>`},
+      {h:'จากทั้งหมด',k:'n_all',n:1,f:r=>fmt(r.n_all)},
+      {h:'สัดส่วน',k:'pct',n:1,f:r=>fmt(r.pct,1)+'%'},
+      {h:'น้ำหนัก (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)},
+      {h:'ครั้งที่หยิบ',k:'picks',n:1,f:r=>fmt(r.picks)}
+    ], MIS) : `<div class="msg ok">ไม่พบของที่วางผิดที่ — ทุก SKU เก็บตรงกับประตูที่เตรียมของจริง</div>`}
+  </div>
+
+  ${sect(2,'ผังประตู','แต่ละประตูเก็บอะไร และรับงานหนักแค่ไหน')}
+  <div class="card anim d1"><h3>ประตูทั้งหมด ${fmt(GA.length)} ประตู</h3>
+    <div class="gatebox">
+      ${GA.map((g,i)=>`<div class="gatecard">
+        <div class="g" style="color:${PAL[i%PAL.length]}">${esc(g.k)}</div>
+        <div class="r">
+          <b>${fmt(g.skus)}</b> SKU · <b>${fmt(g.piles)}</b> กอง<br>
+          น้ำหนัก <b>${fmt(g.ton,1)}</b> ตัน<br>
+          หยิบ <b>${fmt(g.picks)}</b> ครั้ง<br>
+          งานเตรียม <b>${fmt(g.jobs)}</b> งาน
+        </div></div>`).join('')}
+    </div>
+    <div class="chartbox" style="height:${Math.max(220,GA.length*40)}px;margin-top:16px">
+      <canvas id="stk1"></canvas></div>
+  </div>
+
+  ${sect(3,'ชั้นความเคลื่อนไหว','ABC ตามน้ำหนัก × XYZ ตามความสม่ำเสมอ — ใช้กำหนดว่าควรอยู่ใกล้ประตูแค่ไหน','o')}
+  <div class="grid2">
+    <div class="card anim d1"><h3>จำนวน SKU ในแต่ละชั้น</h3>
+      <p class="sm" style="margin:-4px 0 12px">A = น้ำหนักรวมสูงสุด 80% แรก · B = 80-95% · C = ที่เหลือ<br>
+        X = ปริมาณสม่ำเสมอ · Y = แกว่งปานกลาง · Z = แกว่งมากหรือนานๆ ขยับ<br>
+        <b>ชี้ที่กล่องเพื่อดูคำแนะนำการจัดวาง</b></p>
+      <div class="clsgrid">
+        ${['A','B','C'].flatMap(a=>['X','Y','Z'].map(x=>{
+          const k=a+x, r=AB.find(v=>v.k===k);
+          const on=!!(r&&+r.skus);
+          return `<div class="clsbox" title="${esc(clsTip(k))}"
+            style="background:${on?CLSCOL[a]:'#f4f7fb'};color:${on?'#fff':'var(--muted)'};
+                   border-color:${on?CLSCOL[a]:'var(--line)'}">
+            <div class="k">${k}</div>
+            <div class="n">${r?fmt(r.skus):'0'}</div>
+            <div class="s">${r?fmt(r.pct_ton,1)+'%':'—'}</div>
+          </div>`;})).join('')}
+      </div>
+    </div>
+    <div class="card anim d2"><h3>รายละเอียดแต่ละชั้น</h3>` + tableHTML([
+      {h:'ชั้น',k:'k',raw:1,f:r=>`<b title="${esc(clsTip(r.k))}">${esc(r.k)}</b>`},
+      {h:'SKU',k:'skus',n:1,f:r=>fmt(r.skus)},
+      {h:'น้ำหนัก (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)},
+      {h:'สัดส่วน',k:'pct_ton',n:1,raw:1,f:r=>`<b style="color:var(--org-deep)">${fmt(r.pct_ton,1)}%</b>`},
+      {h:'ครั้งที่หยิบ',k:'picks',n:1,f:r=>fmt(r.picks)},
+      {h:'ประตูเฉลี่ย/SKU',k:'gates',n:1,f:r=>fmt(r.gates,2)}
+    ], AB) + `</div>
+  </div>
+
+  ${sect(4,'ของที่กระจายหลายประตู','ยิ่งกระจาย ยิ่งต้องเดินหา')}
+  <div class="card anim d1">
+    <h3>${fmt(SPR.length)} SKU เก็บมากกว่า 1 ประตู
+      <span class="sm" style="font-weight:300">(${fmt(A.n_sku?SPR.length*100/A.n_sku:0,1)}% ของ SKU ที่รู้ตำแหน่ง)</span></h3>
+    ${SPR.length ? tableHTML([
+      {h:'รหัสสินค้า',k:'mat',raw:1,f:r=>`<b>${esc(r.mat)}</b>`},
+      {h:'ชั้น',k:'cls',raw:1,f:r=>`<span class="pill ${r.cls[0]==='A'?'o':(r.cls[0]==='B'?'b':'')}">${esc(r.cls)}</span>`},
+      {h:'ประตูที่เก็บ',k:'gates',w:1},
+      {h:'จำนวนประตู',k:'n_gate',n:1,raw:1,f:r=>`<b style="color:var(--org-deep)">${fmt(r.n_gate)}</b>`},
+      {h:'จำนวนกอง',k:'n_pile',n:1,f:r=>fmt(r.n_pile)},
+      {h:'น้ำหนัก (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)},
+      {h:'ครั้งที่หยิบ',k:'picks',n:1,f:r=>fmt(r.picks)}
+    ], SPR) : `<div class="msg ok">ทุก SKU เก็บอยู่ประตูเดียว ไม่มีการกระจาย</div>`}
+  </div>
+
+  ${sect(5,'มีของเก็บแต่ไม่เคยขาย','กินพื้นที่โดยไม่สร้างงาน','o')}
+  <div class="card anim d1">
+    <h3>${fmt(DEAD.length)} SKU ไม่มีรายการจ่ายออกเลยในช่วงข้อมูลที่มี</h3>
+    ${DEAD.length ? tableHTML([
+      {h:'รหัสสินค้า',k:'mat',raw:1,f:r=>`<b>${esc(r.mat)}</b>`},
+      {h:'ประตูที่เก็บ',k:'gates',w:1},
+      {h:'จำนวนกอง',k:'n_pile',n:1,f:r=>fmt(r.n_pile)}
+    ], DEAD) : `<div class="msg ok">ทุก SKU ที่เก็บไว้มีการเคลื่อนไหวจริง</div>`}
+    <p class="sm" style="margin-top:11px">ตรวจก่อนย้ายออก — อาจเป็นสินค้าสั่งทำพิเศษ ของสำรอง
+      หรือเพิ่งเข้ามาใหม่หลังช่วงข้อมูลที่มี</p>
+  </div>
+  `);
+
+  /* ---------- กราฟประตู ---------- */
+  const axisFont = {font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'};
+  chart('stk1','bar',GA.map(g=>g.k),[
+    {label:'น้ำหนัก (ตัน)',data:GA.map(g=>+g.ton||0),
+     backgroundColor:GA.map((g,i)=>PAL[i%PAL.length]),borderRadius:6},
+    {label:'งานเตรียม',data:GA.map(g=>+g.jobs||0),backgroundColor:'#c6d0dd',
+     borderRadius:6,xAxisID:'x2'}
+  ],{indexAxis:'y',layout:{padding:{right:46}},
+     scales:{x:{beginAtZero:true,grace:'16%',grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont,
+                title:{display:true,text:'ตัน',font:{family:'Kanit',size:10}}},
+             x2:{position:'top',beginAtZero:true,grace:'16%',grid:{display:false},
+                 border:{display:false},ticks:axisFont,
+                 title:{display:true,text:'งานเตรียม',font:{family:'Kanit',size:10}}},
+             y:{grid:{display:false},ticks:axisFont}},
+     vl:v=>fmt(v,0),
+     tip:(pts)=>{const g=GA[pts[0].dataIndex];
+       return `<b>ประตู ${esc(g.k)}</b><br>${fmt(g.skus)} SKU · ${fmt(g.piles)} กอง<br>`+
+              `น้ำหนัก ${fmt(g.ton,1)} ตัน · หยิบ ${fmt(g.picks)} ครั้ง<br>`+
+              `<span style="opacity:.75">งานเตรียมที่ประตูนี้ ${fmt(g.jobs)} งาน</span>`;}});
 }
 
 /* =========================================================================
@@ -11188,7 +11431,8 @@ function pageImport(){
       <td><span id="arw${gi}" style="color:var(--org);display:inline-block;width:12px">▸</span>
         <code style="font-size:13px;font-weight:500">${esc(name)}</code></td>
       <td>${esc(cfg.label)}</td>
-      <td><span class="pill ${cfg.mode==='replace'?'o':'b'}">${cfg.mode==='replace'?'เขียนทับ':'สะสม'}</span></td>
+      <td><span class="pill ${cfg.stock?'g':(cfg.mode==='replace'?'o':'b')}">${
+        cfg.stock?'ตามวันที่':(cfg.mode==='replace'?'เขียนทับ':'สะสม')}</span></td>
       <td class="num">${cfg.cols.length}${
         cfg.cols.some(c=>c[1]===null)
           ? `<div class="sm">เก็บ ${cfg.cols.filter(c=>c[1]!==null).length}</div>` : ''}</td>
@@ -11216,7 +11460,9 @@ function pageImport(){
     </tr></thead><tbody>${guide}</tbody></table></div>
     <p class="sm" style="margin-top:11px;line-height:1.7">
       <b>เขียนทับ</b> = ล้างข้อมูลเดิมในตารางทิ้งทั้งหมดแล้วใส่ของใหม่<br>
-      <b>สะสม</b> = แถวที่ “คีย์กันซ้ำ” ตรงกับของเดิมจะถูกเขียนทับ ส่วนแถวใหม่จะเพิ่มเข้าไป</p>
+      <b>สะสม</b> = แถวที่ “คีย์กันซ้ำ” ตรงกับของเดิมจะถูกเขียนทับ ส่วนแถวใหม่จะเพิ่มเข้าไป<br>
+      <b>ตามวันที่</b> = ต้องเลือกวันที่ของข้อมูลตอนนำเข้า ระบบจะเก็บเฉพาะแถวที่ต่างจากวันก่อนหน้า
+      เพื่อไม่ให้ฐานข้อมูลบวม (นำเข้าวันเดิมซ้ำได้ ของเก่าจะถูกแทนที่)</p>
   </div>
 
   <div id="preview"></div>
@@ -11649,6 +11895,10 @@ function mapColumns(hdr, cfg){
 
 
 /* ตรวจว่าข้อมูลในไฟล์เคยนำเข้าไปแล้วหรือยัง */
+function todayISO(){ const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+let STOCK_DATE = todayISO();   // วันที่ของสแนปช็อตสต็อกที่กำลังนำเข้า
+
 const SHEET_DATE_COL = { fg_outbound:'load_date', prepare_do:'loading_date',
   milk_run:'run_date', shipment_job:'shipment_date', factory_timeout:'work_date' };
 
@@ -11656,6 +11906,7 @@ async function scanExisting(){
   await Promise.all(allEntries().map(async e=>{
     const s = e.s;
     try{
+      if(s.cfg.stock){ s.scan = {stock:true}; return; }
       const dc = SHEET_DATE_COL[s.cfg.table];
       const dates = dc ? [...new Set(s.rows.map(r=>r[dc]).filter(Boolean))] : null;
       s.scan = await rpc('app_import_scan',{p_table:s.cfg.table, p_dates:dates});
@@ -11670,6 +11921,8 @@ function renderScanCells(){
     const sc = e.s.scan;
     if(!sc){ td.innerHTML = '<span class="sm">…</span>'; return; }
     if(sc.error){ td.innerHTML = `<span class="pill r">ตรวจไม่ได้</span>`; return; }
+    if(sc.stock){ td.innerHTML = `<span class="pill g">ตามวันที่ที่เลือก</span>
+      <div class="sm">เก็บเฉพาะแถวที่ต่างจากวันก่อนหน้า</div>`; return; }
     if(sc.mode === 'replace'){
       td.innerHTML = sc.existing_total > 0
         ? `<span class="pill o">มีอยู่ ${fmt(sc.existing_total)} แถว</span>
@@ -11700,6 +11953,7 @@ function renderPreview(){
   allEntries().forEach(e=>{ if(e.s.cfg.mode==='replace')
     replCount[e.s.name] = (replCount[e.s.name]||0)+1; });
   const dupRepl = Object.keys(replCount).filter(k=>replCount[k]>1);
+  const sel = allEntries();
 
   const fileBlocks = PARSED.files.map((f,fi)=>{
     const warn = (f.warn||[]).length
@@ -11750,6 +12004,13 @@ function renderPreview(){
     ${dupRepl.length ? `<div class="msg warn">ชีท <b>${esc(dupRepl.join(', '))}</b> เป็นโหมดเขียนทับ
       แต่มีอยู่ในหลายไฟล์ — ไฟล์ที่ทำทีหลังจะลบของไฟล์ก่อนหน้าทิ้ง แนะนำให้เลือกแค่ไฟล์เดียว</div>` : ''}
     ${fileBlocks}
+    ${sel.some(e=>e.s.cfg.stock) ? `<div class="msg warn" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div><b>ชีท Stock ต้องระบุวันที่ของข้อมูล</b><br>
+        <span class="sm">ไฟล์ไม่มีคอลัมน์วันที่ ระบบจึงต้องรู้ว่าสต็อกนี้เป็นภาพของวันไหน</span></div>
+      <div class="fld" style="margin:0 0 0 auto"><label>วันที่ของข้อมูลสต็อก</label>
+        <input type="date" id="stockDate" value="${STOCK_DATE}" max="${todayISO()}"
+               onchange="STOCK_DATE=this.value" style="padding:9px 12px"></div>
+    </div>` : ''}
     <div id="impBarWrap" style="display:none">
       <div class="bar"><i id="impBar"></i><span id="impPct">0%</span></div>
       <div class="barInfo"><span id="impLeft">—</span><span id="impRight">—</span></div>
@@ -11876,7 +12137,22 @@ async function runImport(){
     logLine(`▶ ${esc(e.f.fname)} › ${s.name} → ${s.cfg.table} (${fmt(s.rows.length)} แถว, ${cols.length} คอลัมน์)`,'y');
     let saved = 0, err = null;
     try{
-      if(s.cfg.mode==='replace'){
+      if(s.cfg.stock){
+        // ส่งเป็น object ต่อแถว เพราะฝั่งฐานข้อมูลใช้ jsonb_to_recordset
+        const recs = s.rows.map(r=>({ m:r.m, g:r.g,
+          pile: r.pile==null?null:Math.round(Number(r.pile)),
+          qty:  r.qty==null?null:Number(r.qty) }))
+          .filter(r=>r.m && r.g && r.pile!=null);
+        const rs = await rpc('app_stock_import',{ p_date: STOCK_DATE, p_rows: recs });
+        saved = +rs.saved || 0;
+        sentRows += s.rows.length; paint();
+        logLine(`  · วันที่ ${dmy(rs.date)} · อ่าน ${fmt(rs.rows_in)} แถว`
+          + (rs.dup_removed ? ` · ตัดซ้ำ ${fmt(rs.dup_removed)}` : '')
+          + ` · เปลี่ยนแปลง ${fmt(rs.changed)}`
+          + (rs.gone ? ` · หมดจากกอง ${fmt(rs.gone)}` : '')
+          + (rs.prev_date ? ` · เทียบกับ ${dmy(rs.prev_date)} (เหมือนเดิม ${fmt(rs.unchanged)} ไม่ต้องเก็บซ้ำ)`
+                          : ' · เป็นวันแรก ยังไม่มีของเดิมให้เทียบ'),'y');
+      }else if(s.cfg.mode==='replace'){
         saved = await sendChunk(s.cfg.table, 'replace', cols, s.rows.map(toArr));
         sentRows += s.rows.length; paint();
       }else{
@@ -11912,7 +12188,8 @@ async function runImport(){
 
   /* สรุปข้อมูลใหม่หลังนำเข้าเสร็จ — จำเป็น เพราะหน้า Dashboard อ่านจากตารางสรุป
      ถ้าไม่ทำ ข้อมูลที่เพิ่งนำเข้าจะยังไม่ขึ้นบนกราฟ */
-  if(grandTotal > 0){
+  const onlyStock = sel.length && sel.every(e=>e.s.cfg.stock);
+  if(grandTotal > 0 && !onlyStock){
     logLine('กำลังสรุปข้อมูลใหม่เพื่อให้ Dashboard แสดงผลได้เร็ว...','y');
     try{
       const rc = await rpc('app_refresh_cubes');
