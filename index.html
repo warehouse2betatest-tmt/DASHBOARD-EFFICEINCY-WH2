@@ -4292,7 +4292,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-11.4';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-11.5';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -7313,9 +7313,14 @@ async function pageOverview(){
       <div class="chartbox" style="height:${Math.max(230,FAR.length*34)}px"><canvas id="ov6"></canvas></div></div>
   </div>
 
-  ${sect(7,'แนวโน้ม','รายเดือนและรายวัน · พร้อมเวลาเลิกงานเฉลี่ย','o')}
-  <div class="card anim d1"><h3>ปริมาณรายเดือน</h3>
+  ${sect(7,'แนวโน้ม','ปริมาณงานรายเดือน · เวลาเลิกงาน · รายวัน','o')}
+  <div class="card anim d1"><h3>ปริมาณรายเดือน — น้ำหนักและจำนวนเที่ยวรถ</h3>
     <div class="chartbox" style="height:290px"><canvas id="ov2"></canvas></div></div>
+  <div class="card anim d1"><h3>เวลาเลิกงานเฉลี่ยรายเดือน</h3>
+    <p class="sm" style="margin:-4px 0 12px">แต่ละวันใช้ <b>เวลาเลิกงานที่ช้าที่สุดในบรรดาโรงงานทั้งหมด</b>
+      (คือเวลาที่ทั้งไซต์ปิดงานจริง) แล้วนำค่าของทุกวันในเดือนมาเฉลี่ยกัน ·
+      แถบอ่อนคือช่วงระหว่างวันที่เลิกเร็วสุดถึงช้าสุดของเดือนนั้น</p>
+    <div class="chartbox" id="ov7box" style="height:270px"><canvas id="ov7"></canvas></div></div>
   <div class="card anim d2"><h3>สรุปรายเดือน</h3>` + tableHTML([
       {h:'เดือน',k:'m',f:r=>monthLabel(r.m)},
       {h:'วันทำงาน',k:'days',n:1,f:r=>fmt(r.days)},
@@ -7327,8 +7332,9 @@ async function pageOverview(){
       {h:'เที่ยว/วัน',k:'ship_day',n:1,f:r=>fmt(r.ship_day)},
       {h:'ใบส่งของ',k:'dlv',n:1,f:r=>fmt(r.dlv)},
       {h:'รายการ',k:'lines',n:1,f:r=>fmt(r.lines)},
-      {h:'เวลาเลิกงานเฉลี่ย',k:'close_h',n:1,raw:1,
-       f:r=>r.close_h==null?'—':`<b style="color:${+r.close_h>=19.5?'#e03131':(+r.close_h<19?'#0f9d58':'var(--org-deep)')}">${hhmm(r.close_h)}</b>`}
+      {h:'เลิกงานเฉลี่ย (ช้าสุด/วัน)',k:'close_h',n:1,raw:1,
+       f:r=>r.close_h==null?'—':`<b style="color:${+r.close_h>=20.5?'#e03131':(+r.close_h<20?'#0f9d58':'var(--org-deep)')}">${hhmm(r.close_h)}</b>`
+             + `<br><span class="sm">${hhmm(r.close_min)} – ${hhmm(r.close_max)}</span>`}
     ], R.monthly||[]) + `</div>
   <div class="card anim d3"><h3>ปริมาณรายวัน</h3>
     <div class="chartbox" style="height:300px"><canvas id="ov3"></canvas></div>
@@ -7359,25 +7365,19 @@ async function pageOverview(){
     {label:'รับเข้า',data:MO.map(x=>+x.in),backgroundColor:'#0f9d58',borderRadius:6},
     {type:'line',label:'เที่ยวรถ',data:MO.map(x=>+x.ships),borderColor:'#0b2447',backgroundColor:'#0b2447',
      borderWidth:2.5,tension:.3,pointRadius:4,yAxisID:'y2'},
-    {type:'line',label:'เวลาเลิกงานเฉลี่ย',data:MO.map(x=>x.close_h==null?null:+x.close_h),
-     borderColor:'#e03131',backgroundColor:'#e03131',borderWidth:2.5,borderDash:[6,4],
-     tension:.3,pointStyle:'rectRot',pointRadius:5,yAxisID:'y3',spanGaps:true,
-     vlFmt:1}
   ],{layout:{padding:{top:22}},
      scales:{y:{stacked:true,beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont,
                 title:{display:true,text:'ตัน',font:{family:'Kanit',size:10}}},
              y2:{position:'right',beginAtZero:true,grid:{display:false},border:{display:false},ticks:axisFont,
                 title:{display:true,text:'เที่ยว',font:{family:'Kanit',size:10}}},
-             // แกนเวลาเลิกงานซ่อนไว้ ไม่งั้นกราฟรกเกินไป — ดูค่าที่ป้ายบนเส้นและใน Tooltip
-             y3:{position:'right',display:false,suggestedMin:17,suggestedMax:21},
              x:{stacked:true,grid:{display:false},ticks:axisFont}},
-     vl:(v,i,ds)=> ds && ds.vlFmt ? hhmm(v) : fmt(v,0),
+     vl:v=>fmt(v,0),
      tip:(pts)=>{const r=MO[pts[0].dataIndex];
        return `<b>${monthLabel(r.m)}</b><br>รวม ${fmt(r.ton,1)} ตัน · ${fmt(r.days)} วันทำงาน<br>`+
               `จ่ายออก ${fmt(r.out,1)} · รับเข้า ${fmt(r.in,1)} ตัน<br>`+
               `<span style="opacity:.75">${fmt(r.ships)} เที่ยว (${fmt(r.ship_day)}/วัน) · `+
               `${fmt(r.dlv)} ใบส่ง · ${fmt(r.lines)} รายการ</span>`+
-              (r.close_h!=null?`<br>เวลาเลิกงานเฉลี่ย <b>${hhmm(r.close_h)}</b>`:'');}});
+              (r.close_h!=null?`<br>เลิกงานเฉลี่ย <b>${hhmm(r.close_h)}</b>`:'');}});
 
   const facTip = (pts)=>{ const r=FAR[pts[0].dataIndex];
     return `<b>${esc(r.k)}</b><br>${fmt(r.ton,1)} ตัน (${fmt(r.pct,1)}% ของน้ำหนักรวม)<br>`+
@@ -7404,6 +7404,31 @@ async function pageOverview(){
        return `<b>${esc(r.k)}</b><br>${fmt(r.ton,1)} ตัน (${fmt(r.pct,1)}%)<br>`+
               `จ่ายออก ${fmt(r.out,1)} · รับเข้า ${fmt(r.in,1)} ตัน<br>`+
               `<span style="opacity:.75">${fmt(r.lines)} รายการ · เฉลี่ย ${fmt(r.per_day,1)} ตัน/วัน</span>`;}});
+
+  // กราฟเวลาเลิกงาน : แถบช่วงเร็วสุด-ช้าสุด + เส้นค่าเฉลี่ย
+  const MC2 = MO.filter(x=>x.close_h!=null);
+  if(MC2.length){
+    const lo = Math.floor(Math.min(...MC2.map(x=>+x.close_min))*2)/2 - .25;
+    const hi = Math.ceil (Math.max(...MC2.map(x=>+x.close_max))*2)/2 + .25;
+    chart('ov7','bar',MO.map(x=>monthLabel(x.m)),[
+      {label:'ช่วงเร็วสุด–ช้าสุดของเดือน',
+       data:MO.map(x=>x.close_h==null?null:[+x.close_min,+x.close_max]),
+       backgroundColor:'rgba(224,49,49,.16)',borderRadius:6,barPercentage:.55,noLabel:true},
+      {type:'line',label:'เฉลี่ยของเดือน',data:MO.map(x=>x.close_h==null?null:+x.close_h),
+       borderColor:'#e03131',backgroundColor:'#e03131',borderWidth:2.5,
+       tension:.3,pointStyle:'rectRot',pointRadius:6,spanGaps:true}
+    ],{layout:{padding:{top:24}},
+       scales:{y:{min:lo,max:hi,grid:{color:'#eef2f8'},border:{display:false},
+                  ticks:Object.assign({},axisFont,{stepSize:.5,callback:v=>hhmm(v)}),
+                  title:{display:true,text:'เวลา (นาฬิกา)',font:{family:'Kanit',size:10}}},
+               x:{grid:{display:false},ticks:axisFont}},
+       vl:v=>Array.isArray(v)?null:hhmm(v),
+       tip:(pts)=>{const r=MO[pts[0].dataIndex]; if(r.close_h==null) return '';
+         return `<b>${monthLabel(r.m)}</b><br>เลิกงานเฉลี่ย <b>${hhmm(r.close_h)}</b><br>`+
+                `เร็วสุด ${hhmm(r.close_min)} · ช้าสุด ${hhmm(r.close_max)}<br>`+
+                `<span style="opacity:.75">จาก ${fmt(r.close_days)} วันทำงาน · `+
+                `เดือนนี้ ${fmt(r.ton,1)} ตัน (${fmt(r.ton_day,1)} ตัน/วัน)</span>`;}});
+  } else { emptyState('ov7box','ไม่มีข้อมูลเวลาเลิกงานในช่วงที่เลือก'); }
 
   const D = R.daily||[];
   chart('ov3','bar',D.map(x=>dmy(x.d)),[
