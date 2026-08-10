@@ -254,6 +254,48 @@ main{flex:1;margin-left:256px;padding:0 26px 26px;max-width:100%;min-width:0}
 .kpi.o .v{color:var(--org)}
 .kpi .s{font-size:11px;color:var(--muted);position:relative;z-index:1;font-weight:300}
 
+/* ---------- หน้าภาพรวมผู้บริหาร ---------- */
+.ovhero{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 55%,var(--navy3) 100%);
+  border-radius:var(--r);padding:26px 28px;color:#fff;margin-bottom:18px;position:relative;overflow:hidden}
+.ovhero::after{content:'';position:absolute;right:-60px;top:-60px;width:220px;height:220px;
+  border-radius:50%;background:rgba(255,122,24,.16)}
+.ovhero h2{font-size:15px;font-weight:400;opacity:.85;margin:0 0 4px;position:relative;z-index:1}
+.ovhero .big{font-size:44px;font-weight:700;letter-spacing:-1.5px;line-height:1.05;position:relative;z-index:1}
+.ovhero .big small{font-size:17px;font-weight:300;opacity:.8;margin-left:6px}
+.ovhero .sub{font-size:12.5px;font-weight:300;opacity:.8;margin-top:6px;position:relative;z-index:1}
+.ovsplit{display:flex;gap:26px;margin-top:18px;flex-wrap:wrap;position:relative;z-index:1}
+.ovsplit>div{flex:1;min-width:150px}
+.ovsplit .lbl{font-size:11.5px;opacity:.75;font-weight:300}
+.ovsplit .val{font-size:23px;font-weight:600;margin-top:2px}
+.ovsplit .val small{font-size:12px;font-weight:300;opacity:.8;margin-left:4px}
+.ovsplit .barw{height:6px;border-radius:4px;background:rgba(255,255,255,.18);margin-top:8px;overflow:hidden}
+.ovsplit .barw i{display:block;height:100%;border-radius:4px;background:var(--org2)}
+
+/* การ์ดตัวเลข 3 ระดับ: รวม / ต่อเดือน / ต่อวัน */
+.ovcard{background:#fff;border-radius:var(--r);border:1px solid var(--line);box-shadow:var(--sh);
+  padding:18px 20px;position:relative;overflow:hidden;transition:.2s}
+.ovcard:hover{transform:translateY(-3px);box-shadow:var(--sh2)}
+.ovcard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--navy3)}
+.ovcard.o::before{background:var(--org)} .ovcard.g::before{background:var(--ok)}
+.ovcard .ttl{font-size:12px;color:var(--muted);font-weight:400;margin-bottom:10px}
+.ovcard .tot{font-size:30px;font-weight:700;letter-spacing:-.8px;line-height:1.05;color:var(--txt)}
+.ovcard.o .tot{color:var(--org-deep)}
+.ovcard .unit{font-size:12px;font-weight:300;color:var(--muted);margin-left:5px}
+.ovrow{display:flex;gap:0;margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.ovrow>div{flex:1;text-align:center;border-left:1px solid var(--line)}
+.ovrow>div:first-child{border-left:none}
+.ovrow .k{font-size:10.5px;color:var(--muted);font-weight:300}
+.ovrow .v{font-size:16px;font-weight:600;margin-top:2px;color:var(--txt)}
+.ovgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:15px;margin-bottom:17px}
+
+/* แถบสัดส่วนแนวนอน */
+.pbar{display:flex;height:34px;border-radius:10px;overflow:hidden;margin:10px 0 8px}
+.pbar i{display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;
+  white-space:nowrap;transition:.2s}
+.pleg{display:flex;flex-wrap:wrap;gap:14px;font-size:12px;color:var(--muted)}
+.pleg span{display:flex;align-items:center;gap:6px}
+.pleg b{display:block;width:10px;height:10px;border-radius:3px}
+
 /* ---------- ตารางความร้อน (Heat map) ---------- */
 .heat{border-collapse:separate;border-spacing:3px;width:100%}
 /* สไตล์ th ของระบบพื้นเป็นน้ำเงินเข้มอยู่แล้ว ตัวอักษรจึงต้องเป็นสีขาว
@@ -1235,6 +1277,7 @@ details summary{cursor:pointer;user-select:none}
     </div>
     <nav>
       <div class="navlbl">Dashboard</div>
+      <a href="#" data-p="ov"      onclick="go('ov',event)"><span class="ic">🏠</span> Overview</a>
       <a href="#" data-p="fg"      onclick="go('fg',event)"><span class="ic">📦</span> FG [Outbound &amp; Inbound]</a>
       <a href="#" data-p="shipment" onclick="go('shipment',event)"><span class="ic">🚛</span> Shipment Analysis</a>
       <a href="#" data-p="do" onclick="go('do',event)"><span class="ic">⏱️</span> DO Preparing &amp; Milk Run</a>
@@ -4201,7 +4244,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-10.2';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-11.1';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -4295,6 +4338,15 @@ async function rpc(fn, args = {}){
 function hardLogout(){ store.clear(); TOKEN = null; ME = null; location.reload(); }
 
 /* เซสชันหมดอายุระหว่างใช้งาน — ไม่เด้งทันที ให้ผู้ใช้เห็นว่าเกิดอะไรขึ้น */
+/* การ์ดแจ้งข้อผิดพลาด — ถูกเรียกใช้หลายหน้าแต่เดิมยังไม่มีตัวฟังก์ชัน */
+function errCard(msg){
+  return `<div class="card anim"><div class="empty">
+    <div class="ic">⚠️</div>
+    <p style="font-weight:500;font-size:16px;color:var(--txt)">โหลดข้อมูลไม่สำเร็จ</p>
+    <p class="sm" style="margin:8px 0 16px;max-width:520px">${esc(msg||'เกิดข้อผิดพลาดที่ไม่ทราบสาเหตุ')}</p>
+    <button class="btn alt" style="max-width:240px;margin:0 auto" onclick="location.reload()">ลองใหม่อีกครั้ง</button>
+  </div></div>`;
+}
 function sessionExpiredCard(){
   return `<div class="card anim"><div class="empty">
     <div class="ic">⏱️</div>
@@ -4627,7 +4679,7 @@ async function boot(){
   el('navImport').classList.toggle('hide',!adm);
   el('navUsers').classList.toggle('hide',!adm);
   show('appView');
-  go('fg');
+  go('ov');   // เปิดที่หน้าภาพรวมก่อน
 }
 function show(id){ ['authView','pendView','appView'].forEach(v=>el(v).classList.toggle('hide', v!==id)); }
 
@@ -4719,6 +4771,7 @@ document.addEventListener('click', ()=>{
    ROUTER
    ========================================================================= */
 const PAGES = {
+  ov:      {t:'<span class="ac">Overview</span>', s:'ภาพรวมทั้งหมดในหน้าเดียว สำหรับผู้บริหาร', f:pageOverview},
   fg:      {t:'FG <span class="ac">[Outbound &amp; Inbound]</span>', s:'ภาพรวมการรับเข้าและจ่ายออกสินค้าสำเร็จรูป — ข้อมูลทั้งหมด', f:pageFG},
   shipment:{t:'Shipment <span class="ac">Analysis</span>', s:'เจาะลึกเที่ยวรถ เวลาแต่ละขั้น และจุดที่เสียเวลา', f:pageShipment},
   ops:     {t:'สายงาน &amp; <span class="ac">ประสิทธิภาพ</span>', s:'ไล่เวลาตั้งแต่เปิด DO จนรถออก · เวลาเลิกงาน · การใช้พื้นที่รถ', f:pageOps},
@@ -4903,10 +4956,24 @@ function valueLabelPlugin(vl){
   };
 }
 
+/* แปลง Tooltip ของ Chart.js ให้ไปแสดงในกล่อง .chart-tooltip เดียวกับหน้าอื่น */
+function externalTip(fn){
+  return function(ctx){
+    const t = ctx.tooltip;
+    if(typeof showTip !== 'function') return;
+    if(!t || !t.opacity){ hideTip(); return; }
+    let html = '';
+    try{ html = fn(t.dataPoints || [], ctx.chart) || ''; }catch(e){ html = ''; }
+    if(!html){ hideTip(); return; }
+    const r = ctx.chart.canvas.getBoundingClientRect();
+    showTip({clientX:r.left + t.caretX, clientY:r.top + t.caretY}, html);
+  };
+}
 function chart(id,type,labels,datasets,opts={},plugins=[]){
   const cv = el(id); if(!cv) return;
   if(CHARTS[id]) CHARTS[id].destroy();
   const vl = opts.vl; if(vl){ plugins = plugins.concat(valueLabelPlugin(vl)); delete opts.vl; }
+  const tipFn = opts.tip; if(tipFn) delete opts.tip;   // Tooltip แบบ HTML
   CHARTS[id] = new Chart(cv,{ type, data:{labels,datasets}, plugins,
     options:Object.assign({
       responsive:true, maintainAspectRatio:false,
@@ -4914,9 +4981,11 @@ function chart(id,type,labels,datasets,opts={},plugins=[]){
       plugins:{
         legend:{ display:datasets.length>1||type==='doughnut'||type==='pie', position:'bottom',
                  labels:{font:{family:'Kanit',size:11,weight:'300'},boxWidth:12,padding:14} },
-        tooltip:{ backgroundColor:'#0b2447', titleFont:{family:'Kanit',size:12,weight:'500'},
-                  bodyFont:{family:'Kanit',size:12,weight:'300'}, padding:11, cornerRadius:9,
-                  borderColor:'#ff7a18', borderWidth:1.5 }
+        tooltip: tipFn
+          ? { enabled:false, external:externalTip(tipFn) }
+          : { backgroundColor:'#0b2447', titleFont:{family:'Kanit',size:12,weight:'500'},
+              bodyFont:{family:'Kanit',size:12,weight:'300'}, padding:11, cornerRadius:9,
+              borderColor:'#ff7a18', borderWidth:1.5 }
       },
       scales:(type==='doughnut'||type==='pie')?{}:{
         y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},
@@ -6970,6 +7039,207 @@ window.initNavPolish = function () {
 };
 
 
+
+
+/* =========================================================================
+   หน้า Overview — ภาพรวมสำหรับผู้บริหาร
+   "ต่อวัน" คิดจากวันที่มีงานจริง ไม่นับวันหยุดที่ไม่มีข้อมูล
+   ========================================================================= */
+async function pageOverview(){
+  let R;
+  try{ R = await rpcCached('app_dash_overview',{ p_months: orNull('months') }); }
+  catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
+
+  const T = R.ton||{}, C = R.cnt||{}, V = R.veh||{}, M = R.mode||{};
+  const A = T.all||{}, O = T.out||{}, I = T.in||{};
+  const sect = (n,t,s,cls='') =>
+    `<div class="sect ${cls}"><div class="no">${n}</div>
+       <div><h2>${t}</h2><p>${s}</p></div><div class="ln"></div></div>`;
+
+  const bar = `<div class="filters anim">
+    ${msRender('months','เดือน',R.all_months||[],FILTERS.months,'pageOverview',monthLabel)}
+    <button class="fbtn alt" onclick="resetFilters('pageOverview')">ล้างตัวกรอง</button>
+    <button class="fbtn alt" onclick="pageOverview()">↻ โหลดใหม่</button>
+    <div style="margin-left:auto;text-align:right">
+      <div class="sm">ช่วงข้อมูล</div>
+      <div style="font-weight:500;font-size:15px">${fmt(R.months)} เดือน
+        <span class="sm" style="font-weight:300">· ${fmt(R.days)} วันทำงาน</span></div>
+    </div></div>`;
+
+  if(!+R.days){ body(bar + emptyBox('ไม่พบข้อมูลตามตัวกรองที่เลือก')); return; }
+
+  /* การ์ดตัวเลข 3 ระดับ */
+  const ovc = (cls,ttl,tot,unit,pm,pd,mx,mxlbl) => `
+    <div class="ovcard ${cls} anim">
+      <div class="ttl">${ttl}</div>
+      <div class="tot">${tot}<span class="unit">${unit}</span></div>
+      <div class="ovrow">
+        <div><div class="k">เฉลี่ย/เดือน</div><div class="v">${pm}</div></div>
+        <div><div class="k">เฉลี่ย/วัน</div><div class="v">${pd}</div></div>
+        ${mx!==undefined?`<div><div class="k">${mxlbl||'สูงสุด/วัน'}</div><div class="v">${mx}</div></div>`:''}
+      </div>
+    </div>`;
+
+  const MODE = M.rows||[];
+  const modeTot = MODE.reduce((s,x)=>s+ +x.ton,0)||1;
+  const MC = ['#ff7a18','#0b2447','#1d4f92','#5b8fc4'];
+  const VR = (V.rows||[]);
+  const vCover = +V.ships_all ? (+V.total*100/+V.ships_all) : 0;
+  const vTop = VR.slice(0,6), vRest = VR.slice(6);
+  const vRestN = vRest.reduce((s,x)=>s+ +x.n,0);
+  const vRestP = vRest.reduce((s,x)=>s+ +x.pct,0);
+
+  body(bar + `
+
+  <div class="ovhero anim">
+    <h2>น้ำหนักรวมทั้งหมด</h2>
+    <div class="big">${fmt(A.total,1)}<small>ตัน</small></div>
+    <div class="sub">${fmt(R.months)} เดือน · ${fmt(R.days)} วันทำงาน ·
+      เฉลี่ย ${fmt(A.per_month,1)} ตัน/เดือน · ${fmt(A.per_day,1)} ตัน/วัน ·
+      สูงสุด ${fmt(A.max_day,1)} ตัน เมื่อ ${dmy(A.max_date)}</div>
+    <div class="ovsplit">
+      <div><div class="lbl">จ่ายออก (Outbound)</div>
+        <div class="val">${fmt(O.total,1)}<small>ตัน · ${fmt(O.pct,1)}%</small></div>
+        <div class="barw"><i style="width:${(+O.pct||0).toFixed(1)}%"></i></div>
+        <div class="lbl" style="margin-top:6px">${fmt(O.per_day,1)} ตัน/วัน · สูงสุด ${fmt(O.max_day,1)}</div></div>
+      <div><div class="lbl">รับเข้า (Inbound)</div>
+        <div class="val">${fmt(I.total,1)}<small>ตัน · ${fmt(I.pct,1)}%</small></div>
+        <div class="barw"><i style="width:${(+I.pct||0).toFixed(1)}%;background:#7fd1a8"></i></div>
+        <div class="lbl" style="margin-top:6px">${fmt(I.per_day,1)} ตัน/วัน · สูงสุด ${fmt(I.max_day,1)}</div></div>
+    </div>
+  </div>
+
+  ${sect(1,'น้ำหนัก (Loading Tons)','รวม · จ่ายออก · รับเข้า','o')}
+  <div class="ovgrid">
+    ${ovc('o','น้ำหนักรวมทั้งหมด',fmt(A.total,1),'ตัน',fmt(A.per_month,1),fmt(A.per_day,1),fmt(A.max_day,1))}
+    ${ovc('','จ่ายออก (Outbound)',fmt(O.total,1),'ตัน',fmt(O.per_month,1),fmt(O.per_day,1),fmt(O.max_day,1))}
+    ${ovc('g','รับเข้า (Inbound)',fmt(I.total,1),'ตัน',fmt(I.per_month,1),fmt(I.per_day,1),fmt(I.max_day,1))}
+  </div>
+
+  ${sect(2,'ปริมาณงาน','เที่ยวรถ · ใบส่งของ · รายการสินค้า')}
+  <div class="ovgrid">
+    ${ovc('o','จำนวนเที่ยวรถ (Shipment)',fmt((C.ships||{}).total),'เที่ยว',
+          fmt((C.ships||{}).per_month),fmt((C.ships||{}).per_day),fmt((C.ships||{}).max_day))}
+    ${ovc('','จำนวนใบส่งของ (Delivery)',fmt((C.dlv||{}).total),'ใบ',
+          fmt((C.dlv||{}).per_month),fmt((C.dlv||{}).per_day),fmt((C.dlv||{}).max_day))}
+    ${ovc('','จำนวนรายการสินค้า',fmt((C.lines||{}).total),'รายการ',
+          fmt((C.lines||{}).per_month),fmt((C.lines||{}).per_day),fmt((C.lines||{}).max_day))}
+  </div>
+
+  ${sect(3,'รูปแบบการส่ง','จัดส่งให้ลูกค้า เทียบกับ ลูกค้ามารับเอง','o')}
+  <div class="card anim d1">
+    <h3>สัดส่วนตามน้ำหนัก (เฉพาะขาออก)</h3>
+    <div class="pbar">${MODE.map((x,i)=>`<i style="width:${(+x.ton/modeTot*100).toFixed(1)}%;background:${MC[i%MC.length]}"
+      title="${esc(x.k)}">${(+x.ton/modeTot*100)>=8?fmt(x.pct_ton,1)+'%':''}</i>`).join('')}</div>
+    <div class="pleg">${MODE.map((x,i)=>`<span><b style="background:${MC[i%MC.length]}"></b>
+      ${esc(x.k)} · ${fmt(x.ton,1)} ตัน (${fmt(x.pct_ton,1)}%)</span>`).join('')}</div>
+  </div>
+  <div class="card anim d2"><h3>รายละเอียดรูปแบบการส่ง</h3>` + tableHTML([
+      {h:'รูปแบบ',k:'k',raw:1,f:r=>`<b>${esc(r.k)}</b>`},
+      {h:'น้ำหนักรวม (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)},
+      {h:'สัดส่วน',k:'pct_ton',n:1,raw:1,f:r=>`<b style="color:var(--org-deep)">${fmt(r.pct_ton,1)}%</b>`},
+      {h:'เฉลี่ย/เดือน (ตัน)',k:'per_month_ton',n:1,f:r=>fmt(r.per_month_ton,1)},
+      {h:'เฉลี่ย/วัน (ตัน)',k:'per_day_ton',n:1,f:r=>fmt(r.per_day_ton,1)},
+      {h:'เที่ยวรถ',k:'ships',n:1,f:r=>fmt(r.ships)},
+      {h:'เที่ยว/วัน',k:'per_day_ships',n:1,f:r=>fmt(r.per_day_ships)},
+      {h:'รายการ',k:'lines',n:1,f:r=>fmt(r.lines)}
+    ], MODE) + `</div>
+
+  ${sect(4,'ประเภทรถ','ใช้รถแบบไหนมากที่สุด และเฉลี่ยวันละกี่คัน')}
+  <div class="card anim d1">
+    <h3>สัดส่วนตามจำนวนเที่ยว — ใช้รถ ${fmt(V.types)} ประเภท เฉลี่ย ${fmt(V.per_day)} คัน/วัน</h3>
+    <p class="sm" style="margin:-4px 0 12px">ข้อมูลประเภทรถมาจากชีท Shipment ครอบคลุม
+      <b>${fmt(V.total)}</b> เที่ยว จากทั้งหมด ${fmt(V.ships_all)} เที่ยว
+      (<b>${fmt(vCover,1)}%</b>) — สัดส่วนด้านล่างคิดจากเที่ยวที่มีข้อมูลเท่านั้น</p>
+    <div class="pbar">${vTop.map((x,i)=>`<i style="width:${(+x.pct||0).toFixed(1)}%;background:${PAL[i%PAL.length]}"
+      title="${esc(x.k)}">${+x.pct>=7?fmt(x.pct,0)+'%':''}</i>`).join('')}${
+      vRestN?`<i style="width:${vRestP.toFixed(1)}%;background:#c6d0dd;color:var(--txt)">${
+        vRestP>=7?fmt(vRestP,0)+'%':''}</i>`:''}</div>
+    <div class="pleg">${vTop.map((x,i)=>`<span><b style="background:${PAL[i%PAL.length]}"></b>
+      ${esc(x.k)} · ${fmt(x.pct,1)}%</span>`).join('')}${
+      vRestN?`<span><b style="background:#c6d0dd"></b>อื่นๆ ${fmt(vRest.length)} ประเภท · ${fmt(vRestP,1)}%</span>`:''}</div>
+  </div>
+  <div class="grid2">
+    <div class="card anim d2"><h3>จำนวนเที่ยวตามประเภทรถ</h3>
+      <div class="chartbox" style="height:${Math.max(250,VR.length*26)}px"><canvas id="ov1"></canvas></div></div>
+    <div class="card anim d3"><h3>รายละเอียดประเภทรถ</h3>` + tableHTML([
+      {h:'ประเภทรถ',k:'k'},
+      {h:'จำนวนเที่ยว',k:'n',n:1,f:r=>fmt(r.n)},
+      {h:'สัดส่วน',k:'pct',n:1,raw:1,f:r=>`<b style="color:var(--org-deep)">${fmt(r.pct,1)}%</b>`},
+      {h:'เฉลี่ย/เดือน',k:'per_month',n:1,f:r=>fmt(r.per_month)},
+      {h:'เฉลี่ย/วัน',k:'per_day',n:1,f:r=>fmt(r.per_day,1)}
+    ], VR) + `</div>
+  </div>
+
+  ${sect(5,'แนวโน้ม','รายเดือนและรายวัน','o')}
+  <div class="card anim d1"><h3>ปริมาณรายเดือน</h3>
+    <div class="chartbox" style="height:290px"><canvas id="ov2"></canvas></div></div>
+  <div class="card anim d2"><h3>สรุปรายเดือน</h3>` + tableHTML([
+      {h:'เดือน',k:'m',f:r=>monthLabel(r.m)},
+      {h:'วันทำงาน',k:'days',n:1,f:r=>fmt(r.days)},
+      {h:'น้ำหนักรวม (ตัน)',k:'ton',n:1,raw:1,f:r=>`<b>${fmt(r.ton,1)}</b>`},
+      {h:'จ่ายออก',k:'out',n:1,f:r=>fmt(r.out,1)},
+      {h:'รับเข้า',k:'in',n:1,f:r=>fmt(r.in,1)},
+      {h:'ตัน/วัน',k:'ton_day',n:1,f:r=>fmt(r.ton_day,1)},
+      {h:'เที่ยวรถ',k:'ships',n:1,f:r=>fmt(r.ships)},
+      {h:'เที่ยว/วัน',k:'ship_day',n:1,f:r=>fmt(r.ship_day)},
+      {h:'ใบส่งของ',k:'dlv',n:1,f:r=>fmt(r.dlv)},
+      {h:'รายการ',k:'lines',n:1,f:r=>fmt(r.lines)}
+    ], R.monthly||[]) + `</div>
+  <div class="card anim d3"><h3>ปริมาณรายวัน</h3>
+    <div class="chartbox" style="height:300px"><canvas id="ov3"></canvas></div>
+    <p class="sm" style="margin-top:10px">แท่ง = ตันต่อวัน (จ่ายออก/รับเข้า) · เส้น = จำนวนเที่ยวรถ</p></div>
+  `);
+
+  /* ---------------- วาดกราฟ ---------------- */
+  const axisFont = {font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'};
+  const hBar = {indexAxis:'y',layout:{padding:{right:40}},scales:{
+      x:{beginAtZero:true,grace:'16%',grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+      y:{grid:{display:false},ticks:axisFont}}};
+  const cut=(s,n)=>String(s).length>n?String(s).slice(0,n)+'…':String(s);
+
+  chart('ov1','bar',VR.map(x=>cut(x.k,24)),
+    [{label:'เที่ยว',data:VR.map(x=>+x.n),backgroundColor:'#1d4f92',borderRadius:6}],
+    Object.assign({},hBar,{vl:v=>fmt(v,0),
+      tip:(pts)=>{const r=VR[pts[0].dataIndex];
+        return `<b>${esc(r.k)}</b><br>${fmt(r.n)} เที่ยว (${fmt(r.pct,1)}%)<br>`+
+               `<span style="opacity:.75">เฉลี่ย ${fmt(r.per_month)} เที่ยว/เดือน · ${fmt(r.per_day,1)} เที่ยว/วัน</span>`;}}));
+
+  const MO = R.monthly||[];
+  chart('ov2','bar',MO.map(x=>monthLabel(x.m)),[
+    {label:'จ่ายออก',data:MO.map(x=>+x.out),backgroundColor:'#ff7a18',borderRadius:6},
+    {label:'รับเข้า',data:MO.map(x=>+x.in),backgroundColor:'#0f9d58',borderRadius:6},
+    {type:'line',label:'เที่ยวรถ',data:MO.map(x=>+x.ships),borderColor:'#0b2447',backgroundColor:'#0b2447',
+     borderWidth:2.5,tension:.3,pointRadius:4,yAxisID:'y2'}
+  ],{layout:{padding:{top:22}},
+     scales:{y:{stacked:true,beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont,
+                title:{display:true,text:'ตัน',font:{family:'Kanit',size:10}}},
+             y2:{position:'right',beginAtZero:true,grid:{display:false},border:{display:false},ticks:axisFont,
+                title:{display:true,text:'เที่ยว',font:{family:'Kanit',size:10}}},
+             x:{stacked:true,grid:{display:false},ticks:axisFont}},
+     vl:v=>fmt(v,0),
+     tip:(pts)=>{const r=MO[pts[0].dataIndex];
+       return `<b>${monthLabel(r.m)}</b><br>รวม ${fmt(r.ton,1)} ตัน · ${fmt(r.days)} วันทำงาน<br>`+
+              `จ่ายออก ${fmt(r.out,1)} · รับเข้า ${fmt(r.in,1)} ตัน<br>`+
+              `<span style="opacity:.75">${fmt(r.ships)} เที่ยว (${fmt(r.ship_day)}/วัน) · `+
+              `${fmt(r.dlv)} ใบส่ง · ${fmt(r.lines)} รายการ</span>`;}});
+
+  const D = R.daily||[];
+  chart('ov3','bar',D.map(x=>dmy(x.d)),[
+    {label:'จ่ายออก',data:D.map(x=>+x.o),backgroundColor:'#ff7a18',borderRadius:4},
+    {label:'รับเข้า',data:D.map(x=>+x.i),backgroundColor:'#0f9d58',borderRadius:4},
+    {type:'line',label:'เที่ยวรถ',data:D.map(x=>+x.s),borderColor:'#0b2447',backgroundColor:'#0b2447',
+     borderWidth:2,tension:.35,pointRadius:2,yAxisID:'y2'}
+  ],{layout:{padding:{top:20}},
+     scales:{y:{stacked:true,beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+             y2:{position:'right',beginAtZero:true,grid:{display:false},border:{display:false},ticks:axisFont},
+             x:{stacked:true,grid:{display:false},ticks:axisFont}},
+     vl:(v,i)=> D.length>20 ? null : fmt(v,0),
+     tip:(pts)=>{const r=D[pts[0].dataIndex];
+       return `<b>${dmy(r.d)}</b><br>รวม ${fmt(r.t,1)} ตัน<br>`+
+              `จ่ายออก ${fmt(r.o,1)} · รับเข้า ${fmt(r.i,1)} ตัน<br>`+
+              `<span style="opacity:.75">${fmt(r.s)} เที่ยวรถ</span>`;}});
+}
 
 /* =========================================================================
    หน้า สายงาน & ประสิทธิภาพ — 3 ส่วน
