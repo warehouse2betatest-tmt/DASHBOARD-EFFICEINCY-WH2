@@ -58,19 +58,62 @@ input,select{font-family:inherit;font-size:14px;font-weight:300}
 .blob.b2{width:380px;height:380px;background:rgba(29,79,146,.55);bottom:-120px;left:-100px;animation:float2 18s ease-in-out infinite}
 .blob.b3{width:250px;height:250px;background:rgba(255,153,69,.2);top:52%;left:12%;animation:float1 21s ease-in-out infinite}
 
-.authbox{background:rgba(255,255,255,.98);border-radius:22px;padding:38px 34px;width:100%;max-width:430px;
-  box-shadow:0 28px 70px rgba(0,0,0,.42);position:relative;z-index:2;
-  animation:pop .5s cubic-bezier(.2,.8,.3,1) both;border-top:5px solid var(--org)}
-.logo{display:flex;align-items:center;gap:12px;margin-bottom:22px}
-.logo .mk{width:48px;height:48px;border-radius:13px;flex:none;position:relative;
-  background:linear-gradient(135deg,var(--navy) 0%,var(--navy3) 100%);
-  display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px rgba(11,36,71,.3)}
-.logo .mk::after{content:'';position:absolute;inset:auto 8px 8px auto;width:13px;height:13px;
-  border-radius:4px;background:var(--org);box-shadow:0 0 12px rgba(255,122,24,.85)}
-.logo .mk span{color:#fff;font-weight:700;font-size:17px;letter-spacing:-.5px;margin-right:6px}
-.logo h1{font-size:17px;font-weight:600;line-height:1.25}
+/* ---------- หน้าเข้าสู่ระบบ : สองฝั่ง ซ้ายแบรนด์ ขวาแบบฟอร์ม ---------- */
+.authwrap{position:relative;z-index:2;width:100%;max-width:940px;display:grid;
+  grid-template-columns:1.05fr .95fr;border-radius:24px;overflow:hidden;
+  box-shadow:0 34px 90px rgba(0,0,0,.5);animation:pop .5s cubic-bezier(.2,.8,.3,1) both}
+
+/* ฝั่งซ้าย */
+.authside{padding:44px 40px;color:#dce7f5;position:relative;overflow:hidden;
+  background:linear-gradient(158deg,#0a234 0%,#0b2447 48%,#123straight 100%);
+  background:linear-gradient(158deg,#081b36 0%,#0b2447 50%,#12376b 100%);
+  display:flex;flex-direction:column}
+.authside::before{content:'';position:absolute;right:-70px;top:-70px;width:240px;height:240px;
+  border-radius:50%;background:radial-gradient(circle,rgba(255,122,24,.34) 0%,transparent 70%)}
+.authside::after{content:'';position:absolute;left:-40px;bottom:-60px;width:220px;height:220px;
+  border-radius:50%;background:radial-gradient(circle,rgba(91,143,196,.3) 0%,transparent 70%)}
+.authside>*{position:relative;z-index:1}
+.authside .ttl{font-size:25px;font-weight:700;color:#fff;line-height:1.28;letter-spacing:-.4px;margin-top:26px}
+.authside .ttl b{color:var(--org);font-weight:700}
+.authside .sub{font-size:13px;font-weight:300;opacity:.82;margin-top:9px;line-height:1.65}
+.feat{margin-top:auto;padding-top:28px;display:flex;flex-direction:column;gap:13px}
+.feat .f{display:flex;gap:12px;align-items:flex-start;font-size:12.5px;font-weight:300;line-height:1.55}
+.feat .f i{flex:none;width:31px;height:31px;border-radius:9px;display:flex;align-items:center;
+  justify-content:center;font-size:15px;font-style:normal;background:rgba(255,255,255,.1);
+  border:1px solid rgba(255,255,255,.14)}
+.feat .f b{display:block;color:#fff;font-weight:500;font-size:13px;margin-bottom:1px}
+.feat .f span{opacity:.72}
+
+/* ฝั่งขวา */
+.authbox{background:#fff;padding:42px 40px;position:relative;display:flex;flex-direction:column;
+  justify-content:center;min-width:0}
+.authbox .hd{margin-bottom:20px}
+.authbox .hd h2{font-size:21px;font-weight:600;color:var(--txt);letter-spacing:-.3px}
+.authbox .hd p{font-size:12.5px;color:var(--muted);font-weight:300;margin-top:4px}
+
+.logo{display:flex;align-items:center;gap:12px}
+.logo .mk{width:50px;height:50px;border-radius:14px;flex:none;position:relative;
+  background:linear-gradient(135deg,var(--org) 0%,#ff5f00 100%);
+  display:flex;align-items:center;justify-content:center;box-shadow:0 8px 22px rgba(255,122,24,.4)}
+.logo .mk span{color:#fff;font-weight:700;font-size:17px;letter-spacing:-.5px}
+.logo h1{font-size:15px;font-weight:600;line-height:1.3;color:#fff;letter-spacing:.3px}
 .logo h1 b{color:var(--org);font-weight:700}
-.logo p{font-size:11px;color:var(--muted);font-weight:300}
+.logo p{font-size:11px;color:#7d9ac0;font-weight:300;margin-top:2px}
+
+/* ช่องกรอกแบบมีไอคอน */
+.ifld{position:relative}
+.ifld>.ic{position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:15px;
+  opacity:.5;pointer-events:none;line-height:1}
+.ifld input{padding-left:42px !important}
+.ifld .eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);width:32px;height:32px;
+  border-radius:8px;background:transparent;border:none;cursor:pointer;font-size:15px;opacity:.55;
+  display:flex;align-items:center;justify-content:center;transition:.18s;font-family:inherit}
+.ifld .eye:hover{opacity:1;background:var(--navy-soft)}
+.ifld input[type=password],.ifld input.pin{letter-spacing:.34em;font-weight:500}
+.pindots{display:flex;gap:6px;margin-top:8px;align-items:center}
+.pindots i{width:9px;height:9px;border-radius:50%;background:var(--line);transition:.2s}
+.pindots i.on{background:var(--org);transform:scale(1.15)}
+.pindots span{margin-left:auto;font-size:11px;color:var(--muted);font-weight:300}
 
 .tabs{display:flex;background:var(--navy-soft);border-radius:11px;padding:4px;margin-bottom:20px}
 .tabs button{flex:1;padding:10px;border-radius:8px;background:transparent;color:var(--muted);
@@ -544,6 +587,13 @@ details summary{cursor:pointer;user-select:none}
   background:linear-gradient(90deg,#eef2f8 25%,#f7f9fc 50%,#eef2f8 75%);
   background-size:900px 100%;animation:shimmer 1.3s infinite linear}
 
+@media(max-width:900px){
+  .authwrap{grid-template-columns:1fr;max-width:460px}
+  .authside{padding:30px 28px 26px}
+  .authside .ttl{font-size:21px;margin-top:20px}
+  .authside .feat{display:none}          /* จอเล็กเน้นให้เห็นแบบฟอร์มเร็วที่สุด */
+  .authbox{padding:30px 28px 34px}
+}
 @media(max-width:960px){
   .grid2,.grid3{grid-template-columns:1fr}
   aside{transform:translateX(-100%);box-shadow:0 0 44px rgba(0,0,0,.42)}
@@ -1368,44 +1418,100 @@ details summary{cursor:pointer;user-select:none}
 <!-- ==================== LOGIN / SIGNUP ==================== -->
 <div id="authView">
   <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
-  <div class="authbox">
-    <div class="logo">
-      <div class="mk"><span>WH2</span></div>
-      <div><h1>EFFICIENCY<br><b>DASHBOARD</b> WH2</h1>
-        <p>ระบบรายงานประสิทธิภาพคลังสินค้า · <span id="verTag"></span></p></div>
-    </div>
-    <div class="tabs">
-      <button id="tabLogin" class="on" onclick="switchTab('login')">เข้าสู่ระบบ</button>
-      <button id="tabSignup" onclick="switchTab('signup')">สมัครสมาชิก</button>
-    </div>
-    <div id="authMsg"></div>
 
-    <form id="loginForm" onsubmit="doLogin(event)">
-      <div class="fld"><label>รหัสพนักงาน</label>
-        <input id="li_emp" required inputmode="numeric" autocomplete="username" placeholder="เช่น 66040027"></div>
-      <div class="fld"><label>รหัสผ่าน</label>
-        <input type="password" id="li_pass" required inputmode="numeric" maxlength="6"
-               pattern="[0-9]{6}" autocomplete="current-password" placeholder="ตัวเลข 6 หลัก"></div>
-      <button type="submit" class="btn" id="li_btn">เข้าสู่ระบบ</button>
-      <button type="button" class="btn ghost" style="margin-top:10px" onclick="runDiag()">
-        เข้าไม่ได้? กดตรวจสอบระบบ</button>
-    </form>
-    <div id="diagBox"></div>
+  <div class="authwrap">
+    <!-- ฝั่งซ้าย : แบรนด์ -->
+    <div class="authside">
+      <div class="logo">
+        <div class="mk"><span>WH2</span></div>
+        <div><h1>EFFICIENCY <b>DASHBOARD</b></h1>
+          <p>ระบบรายงานประสิทธิภาพคลังสินค้า</p></div>
+      </div>
 
-    <form id="signupForm" class="hide" onsubmit="doSignup(event)">
-      <div class="fld"><label>รหัสพนักงาน</label>
-        <input id="su_emp" required inputmode="numeric" autocomplete="username" placeholder="เช่น 66040027"></div>
-      <div class="fld"><label>รหัสผ่าน</label>
-        <input type="password" id="su_pass" required inputmode="numeric" maxlength="6"
-               pattern="[0-9]{6}" autocomplete="new-password" placeholder="ตัวเลข 6 หลัก">
-        <div class="hint">ตัวเลขล้วน 6 หลักเท่านั้น (ห้ามมีตัวอักษร)</div></div>
-      <div class="fld"><label>ยืนยันรหัสผ่าน</label>
-        <input type="password" id="su_pass2" required inputmode="numeric" maxlength="6"
-               pattern="[0-9]{6}" autocomplete="new-password" placeholder="ตัวเลข 6 หลัก"></div>
-      <button type="submit" class="btn" id="su_btn">สมัครสมาชิก</button>
-      <p class="sm" style="margin-top:14px;text-align:center;line-height:1.6">
-        ชื่อ-นามสกุลดึงจากทะเบียนพนักงานอัตโนมัติ<br>สมัครแล้วรอผู้ดูแลระบบอนุมัติก่อนเข้าใช้งาน</p>
-    </form>
+      <div class="ttl">เห็นภาพคลังทั้งหมด<br><b>ในหน้าเดียว</b></div>
+      <div class="sub">รวมข้อมูลรับเข้า จ่ายออก การเตรียมของ และรอบรถขนส่ง
+        มาวิเคราะห์ให้พร้อมใช้ ไม่ต้องเปิดหลายไฟล์</div>
+
+      <div class="feat">
+        <div class="f"><i>📦</i><div><b>ติดตามงานประจำวัน</b>
+          <span>น้ำหนัก เที่ยวรถ ใบส่งของ และเวลาเลิกงานรายโรง</span></div></div>
+        <div class="f"><i>⏱️</i><div><b>หาคอขวดได้ตรงจุด</b>
+          <span>ดูตั้งแต่เปิด DO จนรถออก ว่าเสียเวลาช่วงไหนมากที่สุด</span></div></div>
+        <div class="f"><i>📍</i><div><b>จัดวางสินค้าให้ถูกที่</b>
+          <span>เทียบตำแหน่งจัดเก็บกับงานเตรียมจริง ลดระยะเดิน</span></div></div>
+      </div>
+    </div>
+
+    <!-- ฝั่งขวา : แบบฟอร์ม -->
+    <div class="authbox">
+      <div class="hd">
+        <h2 id="authTitle">ยินดีต้อนรับกลับ</h2>
+        <p id="authSubtitle">กรอกรหัสพนักงานและรหัสผ่านเพื่อเข้าใช้งาน</p>
+      </div>
+
+      <div class="tabs">
+        <button id="tabLogin" class="on" onclick="switchTab('login')">เข้าสู่ระบบ</button>
+        <button id="tabSignup" onclick="switchTab('signup')">สมัครสมาชิก</button>
+      </div>
+      <div id="authMsg"></div>
+
+      <form id="loginForm" onsubmit="doLogin(event)">
+        <div class="fld"><label for="li_emp">รหัสพนักงาน</label>
+          <div class="ifld"><span class="ic">👤</span>
+            <input id="li_emp" required inputmode="numeric" autocomplete="username"
+                   placeholder="เช่น 66040027"></div></div>
+
+        <div class="fld"><label for="li_pass">รหัสผ่าน</label>
+          <div class="ifld"><span class="ic">🔒</span>
+            <input type="password" id="li_pass" class="pin" required inputmode="numeric" maxlength="6"
+                   pattern="[0-9]{6}" autocomplete="current-password" placeholder="••••••"
+                   oninput="pinDots('li_pass','li_dots')">
+            <button type="button" class="eye" tabindex="-1"
+                    onclick="togglePass('li_pass',this)" title="แสดง / ซ่อนรหัสผ่าน">👁</button></div>
+          <div class="pindots" id="li_dots">
+            <i></i><i></i><i></i><i></i><i></i><i></i><span>ตัวเลข 6 หลัก</span></div></div>
+
+        <button type="submit" class="btn" id="li_btn">เข้าสู่ระบบ</button>
+        <button type="button" class="btn ghost" style="margin-top:10px" onclick="runDiag()">
+          เข้าไม่ได้? กดตรวจสอบระบบ</button>
+      </form>
+      <div id="diagBox"></div>
+
+      <form id="signupForm" class="hide" onsubmit="doSignup(event)">
+        <div class="fld"><label for="su_emp">รหัสพนักงาน</label>
+          <div class="ifld"><span class="ic">👤</span>
+            <input id="su_emp" required inputmode="numeric" autocomplete="username"
+                   placeholder="เช่น 66040027"></div>
+          <div class="hint">ชื่อ-นามสกุลจะดึงจากทะเบียนพนักงานให้อัตโนมัติ</div></div>
+
+        <div class="fld"><label for="su_pass">ตั้งรหัสผ่าน</label>
+          <div class="ifld"><span class="ic">🔒</span>
+            <input type="password" id="su_pass" class="pin" required inputmode="numeric" maxlength="6"
+                   pattern="[0-9]{6}" autocomplete="new-password" placeholder="••••••"
+                   oninput="pinDots('su_pass','su_dots')">
+            <button type="button" class="eye" tabindex="-1"
+                    onclick="togglePass('su_pass',this)" title="แสดง / ซ่อนรหัสผ่าน">👁</button></div>
+          <div class="pindots" id="su_dots">
+            <i></i><i></i><i></i><i></i><i></i><i></i><span>ตัวเลขล้วน 6 หลัก</span></div></div>
+
+        <div class="fld"><label for="su_pass2">ยืนยันรหัสผ่าน</label>
+          <div class="ifld"><span class="ic">🔁</span>
+            <input type="password" id="su_pass2" class="pin" required inputmode="numeric" maxlength="6"
+                   pattern="[0-9]{6}" autocomplete="new-password" placeholder="••••••"
+                   oninput="pinDots('su_pass2','su_dots2')">
+            <button type="button" class="eye" tabindex="-1"
+                    onclick="togglePass('su_pass2',this)" title="แสดง / ซ่อนรหัสผ่าน">👁</button></div>
+          <div class="pindots" id="su_dots2">
+            <i></i><i></i><i></i><i></i><i></i><i></i><span id="su_match">พิมพ์ให้ตรงกับด้านบน</span></div></div>
+
+        <button type="submit" class="btn" id="su_btn">สมัครสมาชิก</button>
+        <p class="sm" style="margin-top:14px;text-align:center;line-height:1.6">
+          สมัครแล้วรอผู้ดูแลระบบอนุมัติก่อนเข้าใช้งาน</p>
+      </form>
+
+      <p class="sm" style="margin-top:18px;text-align:center;opacity:.7">
+        <span id="verTag"></span></p>
+    </div>
   </div>
 </div>
 
@@ -4402,7 +4508,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-12.5';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-12.6';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -4720,6 +4826,49 @@ function switchTab(t){
   el('loginForm').classList.toggle('hide',!lg);
   el('signupForm').classList.toggle('hide',lg);
   el('authMsg').innerHTML='';
+  const ti = el('authTitle'), sb2 = el('authSubtitle');
+  if(ti) ti.textContent  = lg ? 'ยินดีต้อนรับกลับ' : 'สร้างบัญชีใหม่';
+  if(sb2) sb2.textContent = lg ? 'กรอกรหัสพนักงานและรหัสผ่านเพื่อเข้าใช้งาน'
+                               : 'ใช้รหัสพนักงานของคุณ แล้วตั้งรหัสผ่านตัวเลข 6 หลัก';
+  setTimeout(()=>{ const f = el(lg ? 'li_emp' : 'su_emp');
+    if(f && !f.value) f.focus(); }, 60);
+}
+
+/* จุดบอกจำนวนหลักที่พิมพ์ไปแล้ว — รหัสผ่านเป็นตัวเลข 6 หลักเสมอ */
+function pinDots(inputId, dotsId){
+  const inp = el(inputId), box = el(dotsId);
+  if(!inp || !box) return;
+  const v = (inp.value||'').replace(/\D/g,'').slice(0,6);
+  if(inp.value !== v) inp.value = v;            // กันตัวอักษรหลุดเข้ามา
+  box.querySelectorAll('i').forEach((d,i)=>d.classList.toggle('on', i < v.length));
+  if(dotsId === 'su_dots2'){
+    const a = (el('su_pass')||{}).value || '', lbl = el('su_match');
+    if(lbl){
+      if(!v.length){ lbl.textContent = 'พิมพ์ให้ตรงกับด้านบน'; lbl.style.color = ''; }
+      else if(v === a && v.length === 6){ lbl.textContent = 'ตรงกันแล้ว'; lbl.style.color = 'var(--ok)'; }
+      else if(a.startsWith(v)){ lbl.textContent = 'กำลังพิมพ์…'; lbl.style.color = ''; }
+      else { lbl.textContent = 'ยังไม่ตรงกัน'; lbl.style.color = 'var(--bad)'; }
+    }
+  }
+}
+
+/* ปุ่มแสดง/ซ่อนรหัสผ่าน */
+function togglePass(inputId, btn){
+  const inp = el(inputId); if(!inp) return;
+  const show = inp.type === 'password';
+  inp.type = show ? 'text' : 'password';
+  btn.textContent = show ? '🙈' : '👁';
+  btn.title = show ? 'ซ่อนรหัสผ่าน' : 'แสดงรหัสผ่าน';
+  inp.focus();
+}
+
+/* จำรหัสพนักงานไว้ ครั้งหน้าพิมพ์แค่รหัสผ่าน */
+const EMP_KEY = 'wh2_emp';
+function restoreEmp(){
+  let v = ''; try{ v = localStorage.getItem(EMP_KEY) || ''; }catch(e){}
+  const inp = el('li_emp');
+  if(inp && v){ inp.value = v; const pw = el('li_pass'); if(pw) setTimeout(()=>pw.focus(),80); }
+  else if(inp) setTimeout(()=>inp.focus(),80);
 }
 function authMsg(t,k){ el('authMsg').innerHTML = `<div class="msg ${k}">${t}</div>`; }
 
@@ -4732,6 +4881,7 @@ async function doLogin(e){
     if(error) throw error;
     if(!data.ok){ authMsg(esc(data.error), data.locked?'warn':'err'); return; }
     TOKEN = data.token;
+    try{ localStorage.setItem(EMP_KEY, el('li_emp').value.trim()); }catch(e){}
     store.set(TOKEN);                       // ถ้า localStorage ถูกบล็อกจะเก็บไว้ในหน่วยความจำแทน
     ME = data.user;
     await boot();
@@ -4757,6 +4907,7 @@ async function doSignup(e){
     if(error) throw error;
     if(!data.ok){ authMsg(esc(data.error),'err'); return; }
     el('li_emp').value = emp; el('li_pass').value = '';
+    pinDots('li_pass','li_dots');
     switchTab('login');
     authMsg(data.is_approved
       ? 'สมัครเรียบร้อย และได้สิทธิ์ผู้ดูแลระบบ — เข้าสู่ระบบได้เลย'
@@ -4831,12 +4982,12 @@ async function runDiag(){
    ========================================================================= */
 async function boot(){
   TOKEN = TOKEN || store.get();
-  if(!TOKEN){ show('authView'); return; }
+  if(!TOKEN){ show('authView'); restoreEmp(); return; }
 
   let me;
   try{ me = await rpc('app_me'); }
   catch(ex){
-    show('authView');
+    show('authView'); restoreEmp();
     if(ex.session){
       // เซสชันหมดอายุจริง — ล้าง token ทิ้งได้
       store.clear(); TOKEN = null;
