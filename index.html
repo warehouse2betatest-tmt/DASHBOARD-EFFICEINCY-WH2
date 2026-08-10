@@ -340,6 +340,17 @@ body.navfold .me button::after{content:'⏻';font-size:15px}
 .gatecard .r{font-size:11.5px;color:var(--muted);font-weight:300;margin-top:6px;line-height:1.6}
 .gatecard .r b{color:var(--txt);font-weight:500}
 
+/* ปุ่มเลือกกลุ่มผลตรวจ */
+.vchips{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 2px}
+.vchip{display:flex;flex-direction:column;align-items:flex-start;gap:1px;
+  padding:10px 16px;border-radius:12px;border:1.5px solid var(--line);background:#fff;
+  font-family:inherit;cursor:pointer;transition:.2s;min-width:108px;text-align:left}
+.vchip:hover{transform:translateY(-2px);box-shadow:var(--sh)}
+.vchip .n{font-size:21px;font-weight:700;color:var(--c);line-height:1.05}
+.vchip .t{font-size:11.5px;font-weight:300;color:var(--muted)}
+.vchip.on{background:var(--bg);border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c)}
+.vchip.on .t{color:var(--txt);font-weight:400}
+
 /* เมทริกซ์ ABC x XYZ */
 .mtxwrap{overflow-x:auto;padding-bottom:4px}
 .mtx{display:grid;grid-template-columns:150px repeat(3,minmax(128px,1fr));gap:8px;min-width:600px}
@@ -4357,7 +4368,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-11.8';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-11.9';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -7565,6 +7576,22 @@ async function pageOverview(){
    ทำงานกับข้อมูลเท่าที่นำเข้ามาแล้ว ไม่ต้องรอครบทุกโรง
    ========================================================================= */
 let STOCK_FAC = null;   // โรงที่กำลังดู (null = ทุกโรงที่มีข้อมูล)
+let STOCK_V   = 'move'; // กลุ่มผลตรวจที่กำลังแสดง
+
+/* คำอธิบายประจำแต่ละกลุ่มผลตรวจ */
+const VNOTE = {
+  move:  `<div class="msg warn"><b>ควรย้าย</b> — ช่วงหลังของถูกเตรียมที่ประตูอื่นเป็นหลัก
+    แต่ยังเก็บไว้ที่เดิม ทุกครั้งที่เตรียมต้องเดินข้ามไปเอา ·
+    เรียงตามจำนวนงานที่เดินข้ามมากไปน้อย ย้ายตัวบนสุดก่อนคุ้มที่สุด</div>`,
+  ok:    `<div class="msg ok"><b>ดีอยู่แล้ว</b> — ประตูที่เก็บตรงกับประตูที่เตรียมของจริง
+    ทั้งช่วงหลังและตลอดประวัติ ไม่ต้องทำอะไร</div>`,
+  moved: `<div class="msg ok"><b>เพิ่งย้ายมาถูกแล้ว</b> — ถ้าดูประวัติทั้งหมดจะเหมือนวางผิด
+    แต่ช่วงหลังตรงกันแล้ว แปลว่าย้ายไปเรียบร้อย <b>ไม่ต้องย้ายซ้ำ</b></div>`,
+  stale: `<div class="msg warn"><b>ไม่มีงานช่วงหลัง</b> — เคยมีงานเตรียมแต่ช่วงหลังไม่มีเลย
+    ของยังกินพื้นที่อยู่ ควรตรวจว่าเลิกขายแล้วหรือแค่ชะลอ ถ้าเลิกแล้วย้ายไปโซนหลังได้</div>`,
+  none:  `<div class="msg"><b>ไม่เคยมีงานเตรียม</b> — มีของเก็บอยู่แต่ไม่พบรายการเตรียมที่ประตูของโรงนี้เลย
+    อาจเป็นของสำรอง สินค้าสั่งทำ หรือเตรียมที่โรงอื่น</div>`
+};
 
 async function pageStock(){
   let M;
@@ -7624,7 +7651,7 @@ async function pageStock(){
   try{ A = await rpcCached('app_stock_analysis',{ p_factory: STOCK_FAC }); }
   catch(ex){ body(mon + errCard(ex.message)); return; }
 
-  const F = A.fit||{}, MIS = A.misplaced||[], GA = A.gates||[], AB = A.abc||[],
+  const F = A.fit||{}, GA = A.gates||[], AB = A.abc||[],
         SPR = A.spread||[], DEAD = A.dead||[];
   const lostJobs = +F.jobs_all - +F.jobs_here;
   const facOpts = (A.factories||[]);
@@ -7686,34 +7713,53 @@ async function pageStock(){
       <div class="s">${fmt(F.jobs_here)} จาก ${fmt(F.jobs_all)} งาน</div></div>
   </div>
 
-  ${sect(1,'ของที่วางผิดที่','เก็บไว้คนละประตูกับที่เตรียมของจริง ใช้เป็นใบสั่งย้ายได้เลย','o')}
+  ${sect(1,'ตำแหน่งจัดเก็บ เทียบกับ งานเตรียม','อะไรวางดีอยู่แล้ว อะไรควรย้าย — ดูจากงานเตรียมของจริง','o')}
   <div class="card anim d1">
     <div class="cardhd">
-      <h3>รายการที่ควรย้าย — ${fmt(A.n_misplaced)} รายการ${
-        A.n_misplaced>MIS.length?` <span class="sm" style="font-weight:300">(แสดง ${fmt(MIS.length)} อันดับแรก)</span>`:''}</h3>
-      ${lostJobs>0?`<div class="bigbadge">
-        <div class="k">งานที่ต้องเดินข้ามประตู</div>
-        <div class="v">${fmt(lostJobs)}<small>งาน</small></div>
-        <div class="s">${fmt(100-(+F.pct_fit||0),1)}% ของงานเตรียมทั้งหมด</div>
+      <h3>สรุปผลตรวจ ${fmt(F.pairs)} คู่ (สินค้า × ประตูที่เก็บ)</h3>
+      ${F.move?`<div class="bigbadge">
+        <div class="k">ถ้าย้ายตามนี้ ประหยัดได้</div>
+        <div class="v">${fmt(F.lost_rec)}<small>เที่ยวเดิน</small></div>
+        <div class="s">นับเฉพาะงานตั้งแต่ ${dmy(A.cut_date)} เป็นต้นมา</div>
       </div>`:''}
     </div>
-    <p class="sm" style="margin:-2px 0 12px">
-      เทียบ <b>ประตูที่เก็บของ</b> กับ <b>ประตูที่เตรียมของบ่อยที่สุด</b> ของ SKU นั้น
-      (นับเฉพาะงานเตรียมที่ประตูของโรงเดียวกัน) ·
-      คอลัมน์ "งานที่เสีย" คือจำนวนครั้งที่ต้องไปเอาของจากประตูอื่น ·
-      เรียงจากมากไปน้อย ย้ายตัวบนสุดก่อนได้ผลที่สุด</p>
-    ${MIS.length ? tableHTML([
-      {h:'รหัสสินค้า',k:'mat',raw:1,f:r=>`<b>${esc(r.mat)}</b>`},
-      {h:'ชั้น',k:'cls',raw:1,f:r=>`<span class="pill ${r.cls[0]==='A'?'o':(r.cls[0]==='B'?'b':'')}"
-         title="${esc(clsTip(r.cls))}">${esc(r.cls)}</span>`},
-      {h:'เก็บอยู่ที่',k:'stock_gate',raw:1,f:r=>`<b style="color:#d62828">${esc(r.stock_gate)}</b>`},
-      {h:'แต่เตรียมที่',k:'main_gate',raw:1,f:r=>`<b style="color:#0f9d58">${esc(r.main_gate)}</b>`},
-      {h:'งานที่เสีย',k:'lost',n:1,raw:1,f:r=>`<b style="color:var(--org-deep)">${fmt(r.lost)}</b>`},
-      {h:'จากทั้งหมด',k:'n_all',n:1,f:r=>fmt(r.n_all)},
-      {h:'สัดส่วน',k:'pct',n:1,f:r=>fmt(r.pct,1)+'%'},
-      {h:'น้ำหนัก (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)},
-      {h:'ครั้งที่หยิบ',k:'picks',n:1,f:r=>fmt(r.picks)}
-    ], MIS) : `<div class="msg ok">ไม่พบของที่วางผิดที่ — ทุก SKU เก็บตรงกับประตูที่เตรียมของจริง</div>`}
+    <p class="sm" style="margin:-2px 0 14px">
+      เทียบ <b>ประตูที่เก็บของ</b> กับ <b>ประตูที่พนักงานไปเตรียมของจริง</b> (คอลัมน์ User Gate ในชีท Prepare)<br>
+      <b>ข้อมูลนี้เป็นเรื่องงานเตรียมล้วนๆ ไม่เกี่ยวกับประตูที่รถเข้าไปโหลด</b> เพราะชีท Shipment
+      บันทึกแค่ระดับโรง (<code>03</code>) ไม่มีประตูย่อย จึงยังตอบเรื่องรถไม่ได้<br>
+      สต็อกเป็นภาพ ณ วันที่ ${dmy(A.as_of)} จึงตัดสินจาก<b>งานเตรียมตั้งแต่ ${dmy(A.cut_date)}</b>
+      เป็นหลัก ไม่ใช่ประวัติทั้งหมด ไม่งั้นของที่เพิ่งย้ายไปถูกแล้วจะถูกฟ้องซ้ำ</p>
+
+    <div class="vchips">
+      ${[['move','ควรย้าย',F.move,'#d62828','#fdecec'],
+         ['ok','ดีอยู่แล้ว',F.ok,'#0f9d58','#eaf7f0'],
+         ['moved','เพิ่งย้ายมาถูกแล้ว',F.moved,'#1d4f92','#eaf0f9'],
+         ['stale','ไม่มีงานช่วงหลัง',F.stale,'#a34f06','#fff3e8'],
+         ['none','ไม่เคยมีงานเตรียม',F.no_prep,'#7086a3','#f2f5f9']]
+        .map(([k,t,n,c,bg])=>`<button class="vchip ${STOCK_V===k?'on':''}"
+          onclick="STOCK_V='${k}';pageStock()"
+          style="--c:${c};--bg:${bg}">
+          <span class="n">${fmt(n||0)}</span><span class="t">${esc(t)}</span></button>`).join('')}
+    </div>
+
+    ${(()=>{ const R=(A.rows||[]).filter(r=>r.verdict===STOCK_V);
+      if(!R.length) return `<div class="msg ok" style="margin-top:14px">ไม่มีรายการในกลุ่มนี้</div>`;
+      return `<div style="margin-top:6px">${VNOTE[STOCK_V]}</div>` + tableHTML([
+        {h:'รหัสสินค้า',k:'mat',raw:1,f:r=>`<b>${esc(r.mat)}</b>`},
+        {h:'ชั้น',k:'cls',raw:1,f:r=>`<span class="pill ${r.cls[0]==='A'?'o':(r.cls[0]==='B'?'b':'')}"
+           title="${esc(clsTip(r.cls))}">${esc(r.cls)}</span>`},
+        {h:'เก็บอยู่ที่',k:'stock_gate',raw:1,
+         f:r=>`<b style="color:${r.verdict==='ok'||r.verdict==='moved'?'#0f9d58':'#d62828'}">${esc(r.stock_gate)}</b>`},
+        {h:'เตรียมจริงที่ (ช่วงหลัง)',k:'rec_gate',raw:1,
+         f:r=>r.rec_gate?`<b style="color:#0f9d58">${esc(r.rec_gate)}</b>`:'<span class="sm">—</span>'},
+        {h:'ตลอดประวัติ',k:'main_gate',raw:1,f:r=>`<span class="sm">${esc(r.main_gate||'—')}</span>`},
+        {h:'งานช่วงหลังที่เดินข้าม',k:'lost_rec',n:1,raw:1,
+         f:r=>+r.lost_rec>0?`<b style="color:var(--org-deep)">${fmt(r.lost_rec)}</b>`:`<span class="sm">0</span>`},
+        {h:'งานช่วงหลังทั้งหมด',k:'n_rec',n:1,f:r=>fmt(r.n_rec||0)},
+        {h:'งานทั้งประวัติ',k:'n_all',n:1,f:r=>fmt(r.n_all||0)},
+        {h:'น้ำหนัก (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)},
+        {h:'ครั้งที่หยิบ',k:'picks',n:1,f:r=>fmt(r.picks)}
+      ], R, 300); })()}
   </div>
 
   ${sect(2,'ผังประตู','แต่ละประตูเก็บอะไร และรับงานหนักแค่ไหน')}
