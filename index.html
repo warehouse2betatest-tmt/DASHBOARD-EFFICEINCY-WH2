@@ -351,6 +351,22 @@ body.navfold .me button::after{content:'⏻';font-size:15px}
 .vchip.on{background:var(--bg);border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c)}
 .vchip.on .t{color:var(--txt);font-weight:400}
 
+/* ปุ่มลบข้อมูลสต็อกรายโรง */
+.stcard .delx{position:absolute;right:9px;bottom:9px;padding:3px 11px;border-radius:8px;
+  font-size:11px;font-family:inherit;font-weight:400;background:#fff;color:var(--muted);
+  border:1px solid var(--line);transition:.18s;cursor:pointer}
+.stcard .delx:hover{background:#fdecec;color:#d62828;border-color:#f3b6b6}
+
+/* แถบบอกว่าเทียบอะไรกับอะไร */
+.cmpbar{display:flex;align-items:stretch;gap:0;background:#fff;border:1px solid var(--line);
+  border-radius:var(--r);box-shadow:var(--sh);margin-bottom:17px;overflow:hidden;flex-wrap:wrap}
+.cmpbar>div{padding:13px 18px;flex:1;min-width:190px}
+.cmpbar .lb{display:block;font-size:11px;color:var(--muted);font-weight:400;margin-bottom:3px}
+.cmpbar b{display:block;font-size:15px;font-weight:600;color:var(--txt);line-height:1.3}
+.cmpbar .sm{display:block;margin-top:2px}
+.cmpbar .ar{flex:none;min-width:0;display:flex;align-items:center;justify-content:center;
+  background:var(--navy-soft);color:var(--navy2);font-size:12px;font-weight:500;padding:13px 16px}
+
 /* ป้ายประตูที่หยิบ */
 .gchip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:99px;
   font-size:11px;font-weight:400;margin:2px 4px 2px 0;white-space:nowrap;border:1px solid}
@@ -4375,7 +4391,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-12.1';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-12.2';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -7607,6 +7623,19 @@ const VNOTE = {
     ตรวจว่าเลิกขายแล้วหรือแค่ชะลอ ถ้าเลิกแล้วย้ายไปโซนหลังเพื่อคืนที่ดีให้ของที่หมุนเร็ว</div>`
 };
 
+/* ลบข้อมูลสต็อกทั้งโรง — ใช้ตอนอยากล้างแล้วลองอีกโรง */
+async function delStock(fac, label){
+  if(!confirm(`ลบข้อมูลสต็อกของ ${label} ทิ้งทั้งหมด?\n\n`
+    + `ข้อมูลตำแหน่งจัดเก็บทุกวันของโรงนี้จะถูกลบ\n`
+    + `ข้อมูล FG / Prepare / Shipment ไม่ได้รับผลกระทบ`)) return;
+  try{
+    const r = await rpc('app_stock_delete',{ p_factory: fac, p_all: false });
+    clearCache();
+    alert(`ลบแล้ว ${fmt(r.deleted)} แถว · เหลือในระบบ ${fmt(r.remaining)} แถว`);
+    pageStock();
+  }catch(ex){ alert('ลบไม่สำเร็จ: ' + (ex.message||ex)); }
+}
+
 async function pageStock(){
   let M;
   try{ M = await rpcCached('app_stock_monitor',{}); }
@@ -7631,6 +7660,9 @@ async function pageStock(){
       ${M.total_rows?`· ตารางสต็อกใช้พื้นที่ <b>${esc(M.size)}</b> จาก ${fmt(M.total_rows)} แถว`:''}</p>
     <div class="stgrid">
       ${rows.map(r=>`<div class="stcard ${r.has?'on':'off'}">
+        ${r.has && ME.role==='admin' ? `<button class="delx"
+          onclick="delStock('${esc(r.k).replace(/^Fac\./,'')}','${esc(r.k)}')"
+          title="ลบข้อมูลสต็อกของโรงนี้ทิ้ง">ลบ</button>` : ''}
         <span class="st ${r.has?'y':'n'}">${r.has?'มีข้อมูลแล้ว':'ยังไม่มี'}</span>
         <div class="nm">${esc(r.k)}</div>
         <div class="mt">
@@ -7662,9 +7694,12 @@ async function pageStock(){
 
   /* ---------- วิเคราะห์ ---------- */
   let A;
-  try{ A = await rpcCached('app_stock_analysis',{ p_factory: STOCK_FAC }); }
+  try{ A = await rpcCached('app_stock_analysis',
+        { p_factory: STOCK_FAC, p_months: orNull('months') }); }
   catch(ex){ body(mon + errCard(ex.message)); return; }
 
+  const W = A.win||{};
+  const nSnap = (M.rows||[]).reduce((s,r)=>Math.max(s,+r.days||0),0);
   const F = A.fit||{}, GA = A.gates||[], AB = A.abc||[],
         SPR = A.spread||[], DEAD = A.dead||[];
   const lostJobs = +F.jobs_all - +F.jobs_here;
@@ -7705,14 +7740,37 @@ async function pageStock(){
   })[k] || '';
 
   body(mon + `
-  ${facOpts.length>1?`<div class="filters anim">
-    <div class="fld" style="margin:0"><label>โรงงาน</label>
+  <div class="filters anim">
+    ${msRender('months','เดือนของงานเตรียมที่ใช้เทียบ',A.all_months||[],FILTERS.months,'pageStock',monthLabel)}
+    ${facOpts.length>1?`<div class="fld" style="margin:0"><label>โรงงาน</label>
       <select onchange="STOCK_FAC=this.value||null; clearCache(); pageStock()" style="padding:9px 12px">
         <option value="">ทุกโรงที่มีข้อมูล</option>
         ${facOpts.map(f=>`<option value="${esc(f)}" ${STOCK_FAC===f?'selected':''}>โรง ${esc(f)}</option>`).join('')}
-      </select></div>
-    <div style="margin-left:auto;text-align:right"><div class="sm">ข้อมูล ณ วันที่</div>
-      <div style="font-weight:500;font-size:15px">${dmy(A.as_of)}</div></div>
+      </select></div>`:''}
+    <button class="fbtn alt" onclick="resetFilters('pageStock')">ล้างตัวกรอง</button>
+    <div style="margin-left:auto;text-align:right">
+      <div class="sm">สต็อก ณ วันที่</div>
+      <div style="font-weight:500;font-size:15px">${dmy(A.as_of)}</div>
+    </div>
+  </div>
+
+  <div class="cmpbar anim">
+    <div><span class="lb">ตำแหน่งจัดเก็บ</span>
+      <b>${dmy(A.as_of)}</b><span class="sm">ภาพสต็อก ${fmt(nSnap)} วัน</span></div>
+    <div class="ar">เทียบกับ</div>
+    <div><span class="lb">งานเตรียม</span>
+      <b>${W.d0?dmy(W.d0)+' – '+dmy(W.d1):'ไม่มีข้อมูล'}</b>
+      <span class="sm">${fmt(W.days||0)} วันทำงาน · ${fmt(F.jobs||0)} งาน${
+        W.is_default?' · ค่าตั้งต้น 60 วันล่าสุด':' · ตามเดือนที่เลือก'}</span></div>
+  </div>
+
+  ${nSnap<2?`<div class="msg warn anim">
+    <b>ตอนนี้มีภาพสต็อกแค่วันเดียว ตัวเลขจึงเป็นการประมาณ</b> —
+    ระบบเอาตำแหน่งของ ณ วันที่ ${dmy(A.as_of)} ไปเทียบกับงานเตรียมย้อนหลัง
+    ซึ่งจริงๆ ของอาจถูกย้ายไปมาระหว่างช่วงนั้น<br>
+    พอป้อนสต็อกสะสมได้หลายวัน ระบบจะจับคู่งานเตรียมแต่ละใบกับตำแหน่งของ ณ วันนั้นจริงๆ
+    ตัวเลขจะแม่นขึ้นเองโดยไม่ต้องแก้อะไร ·
+    ระหว่างนี้แนะนำให้เลือกเดือนที่ใกล้กับวันที่ป้อนสต็อกที่สุด
   </div>`:''}
 
   <div class="kpis">
