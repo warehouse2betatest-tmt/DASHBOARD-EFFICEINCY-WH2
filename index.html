@@ -4402,7 +4402,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-12.4';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-12.5';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -7681,7 +7681,7 @@ async function pageStock(){
           ${r.has
             ? `SKU ที่รู้ตำแหน่ง <b>${fmt(r.sku_stock)}</b> จาก ${fmt(r.sku_fg)} ตัว<br>
                <b>${fmt(r.gates)}</b> ประตู · <b>${fmt(r.rows_now)}</b> ตำแหน่ง<br>
-               ข้อมูลวันที่ <b>${dmy(r.as_of)}</b>${r.days>1?` · เก็บมาแล้ว ${fmt(r.days)} วัน`:''}<br>
+               วางข้อมูลแล้ว <b>${fmt(r.days)}</b> วัน · ล่าสุด <b>${dmy(r.as_of)}</b><br>
                ${r.days>1 ? `<span style="color:#0f9d58">เทียบการย้ายได้ ${fmt(r.days-1)} ช่วง</span>`
                           : `<span style="color:var(--muted)">วางเพิ่มอีกวันเพื่อดูการย้าย</span>`}`
             : `SKU ที่เคลื่อนไหว ${fmt(r.sku_fg)} ตัว<br><span style="opacity:.7">รอไฟล์สต็อกของโรงนี้</span>`}
@@ -12418,7 +12418,7 @@ async function runImport(){
     }
   }
   const totalRows = sel.reduce((a,x)=>a+x.s.rows.length,0);
-  let sentRows = 0, okAll = true, grandTotal = 0;
+  let sentRows = 0, okAll = true, grandTotal = 0, stockOK = 0;
   const t0 = performance.now();
 
   const paint = ()=>{
@@ -12454,13 +12454,26 @@ async function runImport(){
           .filter(r=>r.m && r.g && r.pile!=null);
         const rs = await rpc('app_stock_import',{ p_date: STOCK_DATE, p_rows: recs });
         saved = +rs.saved || 0;
+        stockOK++;
         sentRows += s.rows.length; paint();
         logLine(`  · วันที่ ${dmy(rs.date)} · อ่าน ${fmt(rs.rows_in)} แถว`
           + (rs.dup_removed ? ` · ตัดซ้ำ ${fmt(rs.dup_removed)}` : '')
-          + ` · เปลี่ยนแปลง ${fmt(rs.changed)}`
-          + (rs.gone ? ` · หมดจากกอง ${fmt(rs.gone)}` : '')
-          + (rs.prev_date ? ` · เทียบกับ ${dmy(rs.prev_date)} (เหมือนเดิม ${fmt(rs.unchanged)} ไม่ต้องเก็บซ้ำ)`
-                          : ' · เป็นวันแรก ยังไม่มีของเดิมให้เทียบ'),'y');
+          + ` · เหลือ ${fmt(rs.rows_clean)} ตำแหน่ง`,'y');
+        if(!rs.prev_date){
+          logLine(`  ✔ บันทึกเป็นวันแรก ${fmt(rs.changed)} ตำแหน่ง`,'g');
+        }else if(saved === 0){
+          logLine(`  ✔ นำเข้าสำเร็จ — ไม่มีอะไรเปลี่ยนจาก ${dmy(rs.prev_date)} เลย`
+            + ` ทั้ง ${fmt(rs.rows_clean)} ตำแหน่งเหมือนเดิม`,'g');
+          logLine(`     ระบบเก็บเฉพาะส่วนที่ต่าง จึงไม่ต้องบันทึกแถวใหม่ `
+            + `แต่ยังนับว่าวันนี้มีข้อมูลแล้ว`,'');
+        }else{
+          logLine(`  ✔ เทียบกับ ${dmy(rs.prev_date)} — เปลี่ยน ${fmt(rs.changed)} ตำแหน่ง`
+            + (rs.gone ? ` · หายไป ${fmt(rs.gone)}` : '')
+            + ` · เหมือนเดิม ${fmt(rs.unchanged)} ไม่ต้องเก็บซ้ำ`,'g');
+        }
+        if(rs.out_of_order)
+          logLine(`  ⚠ วันที่นี้เก่ากว่าข้อมูลที่มีอยู่แล้ว (${dmy(rs.next_date)}) — `
+            + `ต้องนำเข้าไฟล์ของ ${dmy(rs.next_date)} ซ้ำอีกครั้ง ไม่งั้นสถานะวันหลังจะเพี้ยน`,'r');
       }else if(s.cfg.mode==='replace'){
         saved = await sendChunk(s.cfg.table, 'replace', cols, s.rows.map(toArr));
         sentRows += s.rows.length; paint();
@@ -12477,7 +12490,8 @@ async function runImport(){
       }
       grandTotal += saved;
       const sec1 = (performance.now()-t1)/1000;
-      logLine(`  ✔ บันทึก ${fmt(saved)} แถว ใน ${sec1.toFixed(1)} วิ (${fmt(saved/Math.max(sec1,.01),0)} แถว/วินาที)`,'g');
+      if(!s.cfg.stock)
+        logLine(`  ✔ บันทึก ${fmt(saved)} แถว ใน ${sec1.toFixed(1)} วิ (${fmt(saved/Math.max(sec1,.01),0)} แถว/วินาที)`,'g');
     }catch(ex){
       okAll = false; err = ex;
       sentRows += s.rows.length - (saved||0); paint();
@@ -12492,7 +12506,9 @@ async function runImport(){
 
   const secs = ((performance.now()-t0)/1000).toFixed(1);
   sentRows = totalRows; paint();
-  logLine(`รวม ${fmt(grandTotal)} แถว ใช้เวลา ${secs} วินาที`,'y');
+  logLine(stockOK && !grandTotal
+    ? `เสร็จใน ${secs} วินาที — ไม่มีแถวใหม่ต้องบันทึก เพราะข้อมูลไม่ต่างจากวันก่อนหน้า`
+    : `รวม ${fmt(grandTotal)} แถว ใช้เวลา ${secs} วินาที`,'y');
   clearCache();
 
   /* สรุปข้อมูลใหม่หลังนำเข้าเสร็จ — จำเป็น เพราะหน้า Dashboard อ่านจากตารางสรุป
