@@ -139,6 +139,30 @@ main{flex:1;margin-left:256px;padding:0 26px 26px;max-width:100%;min-width:0}
   border-bottom:1px solid transparent;transition:border-color .2s,box-shadow .2s}
 .topbar.stuck{border-bottom-color:var(--line);box-shadow:0 6px 18px -12px rgba(11,36,71,.5)}
 #burger{display:none;padding:10px 13px;background:#fff;border-radius:11px;box-shadow:var(--sh);font-size:17px;color:var(--navy)}
+
+/* ---------- ปุ่มพับเมนูด้านซ้าย (จอใหญ่) ---------- */
+#foldBtn{padding:9px 12px;background:#fff;border-radius:11px;box-shadow:var(--sh);border:1px solid var(--line);
+  font-size:16px;color:var(--navy2);line-height:1;transition:.2s;flex:none}
+#foldBtn:hover{background:var(--navy-soft);color:var(--navy);transform:translateY(-1px)}
+aside,main{transition:width .26s cubic-bezier(.2,.8,.3,1),margin-left .26s cubic-bezier(.2,.8,.3,1)}
+body.navfold aside{width:66px}
+body.navfold main{margin-left:66px}
+/* ซ่อนข้อความด้วย font-size:0 แล้วคืนขนาดให้เฉพาะไอคอน จะได้ไม่ต้องแก้โครง HTML */
+body.navfold .brand{padding:20px 0;justify-content:center;gap:0}
+body.navfold .brand>div:last-child{display:none}
+body.navfold .navlbl{font-size:0;padding:12px 0 6px;height:1px;overflow:hidden;
+  border-top:1px solid rgba(255,255,255,.09);margin:6px 8px}
+body.navfold nav{padding:10px 8px}
+body.navfold nav a{font-size:0;gap:0;justify-content:center;padding:12px 0;margin-bottom:5px}
+body.navfold nav a .ic{font-size:18px;width:auto}
+body.navfold nav a:hover{transform:none}
+body.navfold .me{padding:14px 8px;text-align:center}
+body.navfold .me .av{float:none;margin:0 auto 10px}
+body.navfold .me .nm,body.navfold .me .rl{display:none}
+body.navfold .me button{font-size:0;padding:10px 0;margin-top:0}
+body.navfold .me button::after{content:'⏻';font-size:15px}
+@media(max-width:960px){ #foldBtn{display:none}
+  body.navfold aside{width:256px} body.navfold main{margin-left:0} }
 .topbar h1{font-size:22px;font-weight:600;line-height:1.2}
 .topbar h1 .ac{color:var(--org)}
 .topbar p{color:var(--muted);font-size:12.5px;font-weight:300}
@@ -296,6 +320,22 @@ main{flex:1;margin-left:256px;padding:0 26px 26px;max-width:100%;min-width:0}
 .pleg span{display:flex;align-items:center;gap:6px}
 .pleg b{display:block;width:10px;height:10px;border-radius:3px}
 
+/* ---------- แถวกลุ่มสินค้าในหน้า Overview ---------- */
+.gprow{display:grid; grid-template-columns:132px 1fr 118px; align-items:center; gap:14px;
+  padding:11px 4px; border-bottom:1px solid var(--line);}
+.gprow:last-child{border-bottom:0}
+.gprow .nm{font-weight:500; font-size:14px; color:var(--txt); text-align:right; line-height:1.3}
+.gprow .nm small{display:block; font-weight:300; font-size:11px; color:var(--muted)}
+.gprow .tr{position:relative; height:26px; background:var(--bg); border-radius:7px; overflow:hidden}
+.gprow .tr i{position:absolute; left:0; top:0; height:100%; border-radius:7px;
+  transition:width .6s cubic-bezier(.22,1,.36,1)}
+.gprow .tr .o{background:linear-gradient(90deg,#ff7a18,#ff9945); z-index:2}
+.gprow .tr .i{background:#0f9d58; opacity:.85}
+.gprow .amt{text-align:right; line-height:1.25}
+.gprow .amt b{font-size:15px; font-weight:600; color:var(--navy)}
+.gprow .amt small{display:block; font-size:11px; font-weight:300; color:var(--muted)}
+.gprow.dim .nm,.gprow.dim .amt b{color:var(--muted)}
+
 /* ---------- ตารางความร้อน (Heat map) ---------- */
 .heat{border-collapse:separate;border-spacing:3px;width:100%}
 /* สไตล์ th ของระบบพื้นเป็นน้ำเงินเข้มอยู่แล้ว ตัวอักษรจึงต้องเป็นสีขาว
@@ -321,6 +361,10 @@ main{flex:1;margin-left:256px;padding:0 26px 26px;max-width:100%;min-width:0}
 .pairrow .plus{color:var(--org);font-weight:700}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:17px}
 .grid3{display:grid;grid-template-columns:2fr 1fr;gap:17px}
+/* กันเนื้อหากว้าง (เช่นตาราง nowrap) ดันคอลัมน์กริดจนทะลุกรอบหน้าจอ
+   ต้องใส่ min-width:0 เพราะลูกของ grid/flex มีค่าเริ่มต้นเป็น auto */
+.grid2>*,.grid3>*,.ovgrid>*{min-width:0}
+.card,.ovcard{min-width:0;max-width:100%}
 .chartbox{position:relative;height:296px}
 
 /* ตัวกรองล็อกไว้ใต้หัวข้อตอนเลื่อนหน้า */
@@ -337,7 +381,8 @@ main{flex:1;margin-left:256px;padding:0 26px 26px;max-width:100%;min-width:0}
 .fbtn.navy{background:linear-gradient(135deg,var(--navy2),var(--navy));box-shadow:0 3px 11px rgba(11,36,71,.26)}
 .fbtn.red{background:linear-gradient(135deg,#e03131,#b91c1c);box-shadow:0 3px 11px rgba(224,49,49,.26)}
 
-.tw{overflow:auto;max-height:452px;border-radius:11px;border:1px solid var(--line)}
+.tw{overflow:auto;max-height:452px;border-radius:11px;border:1px solid var(--line);max-width:100%}
+td.wrap,th.wrap{white-space:normal;min-width:150px;max-width:280px;line-height:1.45}
 table{width:100%;border-collapse:collapse;font-size:12.5px;white-space:nowrap}
 th{background:var(--navy);color:#fff;padding:11px 13px;text-align:left;font-weight:400;
   position:sticky;top:0;font-size:11.5px;z-index:2}
@@ -1298,6 +1343,7 @@ details summary{cursor:pointer;user-select:none}
   <main>
     <div class="topbar" id="topbar">
       <button id="burger" onclick="document.getElementById('side').classList.toggle('open')">☰</button>
+      <button id="foldBtn" onclick="toggleNav()" title="พับ / เปิดเมนู">☰</button>
       <div><h1 id="pgTitle">—</h1><p id="pgSub">—</p></div>
       <div id="pgActions"></div>
     </div>
@@ -4244,7 +4290,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-11.2';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-11.3';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -4347,6 +4393,25 @@ function errCard(msg){
     <button class="btn alt" style="max-width:240px;margin:0 auto" onclick="location.reload()">ลองใหม่อีกครั้ง</button>
   </div></div>`;
 }
+/* พับ/เปิดเมนูด้านซ้าย — จำค่าไว้ในเครื่องผู้ใช้ */
+function applyNavFold(on){
+  document.body.classList.toggle('navfold', !!on);
+  const b = el('foldBtn');
+  if(b){ b.textContent = on ? '☰' : '⇤';
+         b.title = on ? 'เปิดเมนู' : 'พับเมนู'; }
+  // กราฟต้องคำนวณความกว้างใหม่หลังพื้นที่เปลี่ยน
+  setTimeout(()=>{ try{ Object.keys(CHARTS).forEach(k=>CHARTS[k] && CHARTS[k].resize()); }catch(e){} }, 300);
+}
+function toggleNav(){
+  const on = !document.body.classList.contains('navfold');
+  try{ localStorage.setItem('wh2_navfold', on ? '1' : '0'); }catch(e){}
+  applyNavFold(on);
+}
+function restoreNavFold(){
+  let v = '0'; try{ v = localStorage.getItem('wh2_navfold') || '0'; }catch(e){}
+  applyNavFold(v === '1');
+}
+
 function sessionExpiredCard(){
   return `<div class="card anim"><div class="empty">
     <div class="ic">⏱️</div>
@@ -4679,6 +4744,7 @@ async function boot(){
   el('navImport').classList.toggle('hide',!adm);
   el('navUsers').classList.toggle('hide',!adm);
   show('appView');
+  restoreNavFold();
   go('ov');   // เปิดที่หน้าภาพรวมก่อน
 }
 function show(id){ ['authView','pendView','appView'].forEach(v=>el(v).classList.toggle('hide', v!==id)); }
@@ -5021,10 +5087,11 @@ function emptyBox(msg){
   </div></div>`;
 }
 function tableHTML(cols,rows,limit=200){
-  const head = cols.map(c=>`<th${c.n?' class="num"':''}>${esc(c.h)}</th>`).join('');
+  const cls = c => c.n ? ' class="num"' : (c.w ? ' class="wrap"' : '');
+  const head = cols.map(c=>`<th${cls(c)}>${esc(c.h)}</th>`).join('');
   const tb = rows.slice(0,limit).map(r=>'<tr>'+cols.map(c=>{
     const v = c.f? c.f(r) : r[c.k];
-    return `<td${c.n?' class="num"':''}>${c.raw? (v??'—') : esc(v??'—')}</td>`;
+    return `<td${cls(c)}>${c.raw? (v??'—') : esc(v??'—')}</td>`;
   }).join('')+'</tr>').join('');
   return `<div class="tw"><table><thead><tr>${head}</tr></thead><tbody>${tb}</tbody></table></div>
     <p class="sm" style="margin-top:10px">${rows.length>limit
@@ -7087,6 +7154,11 @@ async function pageOverview(){
   const vCover = +V.ships_all ? (+V.total*100/+V.ships_all) : 0;
   const subTxt = r => (r.sub||[]).map(s=>`${esc(s.k)} ${fmt(s.n)}`).join(' · ');
 
+  const GP = R.gp||{}, GPR = GP.rows||[];
+  // แถวสุดท้ายรวมกลุ่มที่เหลือ เพื่อให้ยอดรวมยังเท่ากับน้ำหนักทั้งหมด
+  const GPALL = GP.rest ? GPR.concat([Object.assign({_rest:1}, GP.rest)]) : GPR;
+  const gpMax = Math.max(1, ...GPALL.map(r=>+r.ton||0));
+
   body(bar + `
 
   <div class="ovhero anim">
@@ -7160,7 +7232,7 @@ async function pageOverview(){
       <div class="chartbox" style="height:${Math.max(230,VR.length*34)}px"><canvas id="ov1"></canvas></div></div>
     <div class="card anim d3"><h3>รายละเอียดกลุ่มรถ</h3>` + tableHTML([
       {h:'กลุ่มรถ',k:'k',raw:1,f:r=>`<b>${esc(r.k)}</b>`},
-      {h:'รวมรุ่นย่อย',k:'k',raw:1,f:r=>`<span class="sm">${esc(subTxt(r))}</span>`},
+      {h:'รวมรุ่นย่อย',k:'k',raw:1,w:1,f:r=>`<span class="sm">${esc(subTxt(r))}</span>`},
       {h:'จำนวนเที่ยว',k:'n',n:1,f:r=>fmt(r.n)},
       {h:'สัดส่วน',k:'pct',n:1,raw:1,f:r=>`<b style="color:var(--org-deep)">${fmt(r.pct,1)}%</b>`},
       {h:'เฉลี่ย/เดือน',k:'per_month',n:1,f:r=>fmt(r.per_month)},
@@ -7168,7 +7240,39 @@ async function pageOverview(){
     ], VR) + `</div>
   </div>
 
-  ${sect(5,'แนวโน้ม','รายเดือนและรายวัน','o')}
+  ${sect(6,'กลุ่มสินค้า','กลุ่มไหนมีน้ำหนักมากที่สุด (group_product จาก Master Material)')}
+  <div class="card anim d1">
+    <h3>Top ${fmt(GPR.length)} กลุ่มสินค้า ตามน้ำหนักรวม${GP.groups>GPR.length?` (จากทั้งหมด ${fmt(GP.groups)} กลุ่ม)`:''}</h3>
+    <p class="sm" style="margin:-4px 0 14px">
+      <b style="color:#ff7a18">■</b> จ่ายออก &nbsp; <b style="color:#0f9d58">■</b> รับเข้า
+      &nbsp;·&nbsp; ความยาวแท่งเทียบกับกลุ่มที่มากที่สุด</p>
+    ${GPALL.map(r=>{
+      const t=+r.ton, ou=+r.out||0, inn=+r.in||0;
+      return `<div class="gprow${r._rest?' dim':''}">
+        <div class="nm">${esc(r.k)}<small>${fmt(r.lines)} รายการ</small></div>
+        <div class="tr" title="${esc(r.k)} — จ่ายออก ${fmt(ou,1)} ตัน · รับเข้า ${fmt(inn,1)} ตัน">
+          <i class="i" style="width:${(t/gpMax*100).toFixed(1)}%"></i>
+          <i class="o" style="width:${(ou/gpMax*100).toFixed(1)}%"></i>
+        </div>
+        <div class="amt"><b>${fmt(r.ton,1)}</b><small>${fmt(r.pct,1)}% · ${fmt(r.per_day,1)} ตัน/วัน</small></div>
+      </div>`;}).join('')}
+  </div>
+  <div class="grid2">
+    <div class="card anim d2"><h3>สัดส่วนน้ำหนักตามกลุ่มสินค้า</h3>
+      <div class="chartbox" style="height:300px"><canvas id="ov4"></canvas></div></div>
+    <div class="card anim d3"><h3>รายละเอียดกลุ่มสินค้า</h3>` + tableHTML([
+      {h:'กลุ่มสินค้า',k:'k',raw:1,f:r=>`<b>${esc(r.k)}</b>`},
+      {h:'น้ำหนักรวม (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)},
+      {h:'สัดส่วน',k:'pct',n:1,raw:1,f:r=>`<b style="color:var(--org-deep)">${fmt(r.pct,1)}%</b>`},
+      {h:'จ่ายออก',k:'out',n:1,f:r=>fmt(r.out,1)},
+      {h:'รับเข้า',k:'in',n:1,f:r=>fmt(r.in,1)},
+      {h:'เฉลี่ย/เดือน',k:'per_month',n:1,f:r=>fmt(r.per_month,1)},
+      {h:'เฉลี่ย/วัน',k:'per_day',n:1,f:r=>fmt(r.per_day,1)},
+      {h:'รายการ',k:'lines',n:1,f:r=>fmt(r.lines)}
+    ], GPALL) + `</div>
+  </div>
+
+  ${sect(7,'แนวโน้ม','รายเดือนและรายวัน','o')}
   <div class="card anim d1"><h3>ปริมาณรายเดือน</h3>
     <div class="chartbox" style="height:290px"><canvas id="ov2"></canvas></div></div>
   <div class="card anim d2"><h3>สรุปรายเดือน</h3>` + tableHTML([
@@ -7224,6 +7328,16 @@ async function pageOverview(){
               `จ่ายออก ${fmt(r.out,1)} · รับเข้า ${fmt(r.in,1)} ตัน<br>`+
               `<span style="opacity:.75">${fmt(r.ships)} เที่ยว (${fmt(r.ship_day)}/วัน) · `+
               `${fmt(r.dlv)} ใบส่ง · ${fmt(r.lines)} รายการ</span>`;}});
+
+  chart('ov4','doughnut',GPALL.map(x=>x.k),
+    [{data:GPALL.map(x=>+x.ton),
+      backgroundColor:GPALL.map((x,i)=>x._rest?'#c6d0dd':PAL[i%PAL.length]),
+      borderWidth:2, borderColor:'#fff'}],
+    {cutout:'56%', vl:(v,i)=>{ const r=GPALL[i]; return +r.pct>=4 ? fmt(r.pct,0)+'%' : null; },
+     tip:(pts)=>{const r=GPALL[pts[0].dataIndex];
+       return `<b>${esc(r.k)}</b><br>${fmt(r.ton,1)} ตัน (${fmt(r.pct,1)}%)<br>`+
+              `จ่ายออก ${fmt(r.out,1)} · รับเข้า ${fmt(r.in,1)} ตัน<br>`+
+              `<span style="opacity:.75">${fmt(r.lines)} รายการ · เฉลี่ย ${fmt(r.per_day,1)} ตัน/วัน</span>`;}});
 
   const D = R.daily||[];
   chart('ov3','bar',D.map(x=>dmy(x.d)),[
