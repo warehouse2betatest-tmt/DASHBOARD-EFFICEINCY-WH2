@@ -351,6 +351,13 @@ body.navfold .me button::after{content:'⏻';font-size:15px}
 .vchip.on{background:var(--bg);border-color:var(--c);box-shadow:inset 0 0 0 1px var(--c)}
 .vchip.on .t{color:var(--txt);font-weight:400}
 
+/* ป้ายประตูที่หยิบ */
+.gchip{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:99px;
+  font-size:11px;font-weight:400;margin:2px 4px 2px 0;white-space:nowrap;border:1px solid}
+.gchip b{font-weight:700;font-size:11.5px}
+.gchip.y{background:#eaf7f0;border-color:#a9d8bd;color:#0b6b3a}
+.gchip.n{background:#fdecec;border-color:#f3b6b6;color:#a11d1d}
+
 /* เมทริกซ์ ABC x XYZ */
 .mtxwrap{overflow-x:auto;padding-bottom:4px}
 .mtx{display:grid;grid-template-columns:150px repeat(3,minmax(128px,1fr));gap:8px;min-width:600px}
@@ -4368,7 +4375,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-11.9';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-12.1';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -7576,21 +7583,28 @@ async function pageOverview(){
    ทำงานกับข้อมูลเท่าที่นำเข้ามาแล้ว ไม่ต้องรอครบทุกโรง
    ========================================================================= */
 let STOCK_FAC = null;   // โรงที่กำลังดู (null = ทุกโรงที่มีข้อมูล)
-let STOCK_V   = 'move'; // กลุ่มผลตรวจที่กำลังแสดง
+let STOCK_V   = 'split'; // กลุ่มผลตรวจที่กำลังแสดง
 
-/* คำอธิบายประจำแต่ละกลุ่มผลตรวจ */
+/* คำอธิบายประจำแต่ละกลุ่ม */
 const VNOTE = {
-  move:  `<div class="msg warn"><b>ควรย้าย</b> — ช่วงหลังของถูกเตรียมที่ประตูอื่นเป็นหลัก
-    แต่ยังเก็บไว้ที่เดิม ทุกครั้งที่เตรียมต้องเดินข้ามไปเอา ·
-    เรียงตามจำนวนงานที่เดินข้ามมากไปน้อย ย้ายตัวบนสุดก่อนคุ้มที่สุด</div>`,
-  ok:    `<div class="msg ok"><b>ดีอยู่แล้ว</b> — ประตูที่เก็บตรงกับประตูที่เตรียมของจริง
-    ทั้งช่วงหลังและตลอดประวัติ ไม่ต้องทำอะไร</div>`,
-  moved: `<div class="msg ok"><b>เพิ่งย้ายมาถูกแล้ว</b> — ถ้าดูประวัติทั้งหมดจะเหมือนวางผิด
-    แต่ช่วงหลังตรงกันแล้ว แปลว่าย้ายไปเรียบร้อย <b>ไม่ต้องย้ายซ้ำ</b></div>`,
-  stale: `<div class="msg warn"><b>ไม่มีงานช่วงหลัง</b> — เคยมีงานเตรียมแต่ช่วงหลังไม่มีเลย
-    ของยังกินพื้นที่อยู่ ควรตรวจว่าเลิกขายแล้วหรือแค่ชะลอ ถ้าเลิกแล้วย้ายไปโซนหลังได้</div>`,
-  none:  `<div class="msg"><b>ไม่เคยมีงานเตรียม</b> — มีของเก็บอยู่แต่ไม่พบรายการเตรียมที่ประตูของโรงนี้เลย
-    อาจเป็นของสำรอง สินค้าสั่งทำ หรือเตรียมที่โรงอื่น</div>`
+  split: `<div class="msg warn"><b>หยิบหลายประตู แต่เก็บไม่ครบทุกประตูที่หยิบ</b> —
+    กลุ่มนี้เสียระยะเดินมากที่สุด แก้ได้ 2 ทาง เลือกตามความเหมาะสมหน้างาน<br>
+    <b>ทางที่ 1</b> เพิ่มจุดเก็บที่ประตูซึ่งหยิบบ่อยแต่ไม่มีของ (ดูคอลัมน์ประตูที่เป็นสีแดง) —
+    เหมาะกับของที่หยิบเยอะทั้งสองฝั่ง แต่ต้องมีที่ว่างพอ<br>
+    <b>ทางที่ 2</b> รวมงานเตรียมให้ไปอยู่ประตูเดียวกับที่เก็บ — เหมาะกับของที่ฝั่งหนึ่งหยิบน้อย
+    ไม่คุ้มจะแบ่งของไปวาง</div>`,
+  mixed: `<div class="msg warn"><b>เก็บหลายที่แล้ว แต่ยังไม่ตรงกับที่หยิบ</b> —
+    มีจุดเก็บกระจายอยู่ แต่ประตูที่หยิบจริงกลับเป็นคนละที่ ควรดูรายตัวว่าจุดเก็บไหนควรยุบ
+    และควรย้ายไปไว้ประตูไหนแทน</div>`,
+  move:  `<div class="msg warn"><b>ย้ายทั้งกอง</b> — เก็บที่เดียว หยิบที่เดียว แต่คนละประตูกัน
+    เป็นกรณีที่ตรงไปตรงมาที่สุด ย้ายไปประตูที่หยิบได้เลย</div>`,
+  idle:  `<div class="msg"><b>มีจุดเก็บที่ไม่มีใครมาหยิบ</b> —
+    งานเตรียมครอบคลุมดีอยู่แล้ว แต่ยังมีของค้างอยู่ในบางกองที่ไม่มีการหยิบเลยในช่วงหลัง
+    ยุบรวมได้เพื่อคืนพื้นที่ ไม่กระทบระยะเดิน</div>`,
+  ok:    `<div class="msg ok"><b>ดีอยู่แล้ว</b> — งานเตรียมตั้งแต่ 95% ขึ้นไปเกิดที่ประตูซึ่งมีของเก็บอยู่จริง
+    และไม่มีจุดเก็บที่ถูกทิ้งร้าง ไม่ต้องทำอะไร</div>`,
+  nowork:`<div class="msg"><b>ไม่มีงานเตรียมช่วงหลัง</b> — ของยังกินพื้นที่อยู่แต่ไม่มีการหยิบเลย
+    ตรวจว่าเลิกขายแล้วหรือแค่ชะลอ ถ้าเลิกแล้วย้ายไปโซนหลังเพื่อคืนที่ดีให้ของที่หมุนเร็ว</div>`
 };
 
 async function pageStock(){
@@ -7713,52 +7727,58 @@ async function pageStock(){
       <div class="s">${fmt(F.jobs_here)} จาก ${fmt(F.jobs_all)} งาน</div></div>
   </div>
 
-  ${sect(1,'ตำแหน่งจัดเก็บ เทียบกับ งานเตรียม','อะไรวางดีอยู่แล้ว อะไรควรย้าย — ดูจากงานเตรียมของจริง','o')}
+  ${sect(1,'ตำแหน่งจัดเก็บ เทียบกับ งานเตรียม','สินค้า 1 รหัสเก็บได้หลายที่ จึงวัดที่ความครอบคลุม ไม่ใช่ถูก/ผิด','o')}
   <div class="card anim d1">
     <div class="cardhd">
-      <h3>สรุปผลตรวจ ${fmt(F.pairs)} คู่ (สินค้า × ประตูที่เก็บ)</h3>
-      ${F.move?`<div class="bigbadge">
-        <div class="k">ถ้าย้ายตามนี้ ประหยัดได้</div>
-        <div class="v">${fmt(F.lost_rec)}<small>เที่ยวเดิน</small></div>
-        <div class="s">นับเฉพาะงานตั้งแต่ ${dmy(A.cut_date)} เป็นต้นมา</div>
+      <h3>ความครอบคลุมของจุดเก็บ — ${fmt(F.pct_fit,1)}%</h3>
+      ${+F.lost?`<div class="bigbadge">
+        <div class="k">งานที่ต้องเดินไปเอาจากที่อื่น</div>
+        <div class="v">${fmt(F.lost)}<small>งาน</small></div>
+        <div class="s">จาก ${fmt(F.jobs)} งานเตรียม ตั้งแต่ ${dmy(A.cut_date)}</div>
       </div>`:''}
     </div>
-    <p class="sm" style="margin:-2px 0 14px">
-      เทียบ <b>ประตูที่เก็บของ</b> กับ <b>ประตูที่พนักงานไปเตรียมของจริง</b> (คอลัมน์ User Gate ในชีท Prepare)<br>
-      <b>ข้อมูลนี้เป็นเรื่องงานเตรียมล้วนๆ ไม่เกี่ยวกับประตูที่รถเข้าไปโหลด</b> เพราะชีท Shipment
-      บันทึกแค่ระดับโรง (<code>03</code>) ไม่มีประตูย่อย จึงยังตอบเรื่องรถไม่ได้<br>
-      สต็อกเป็นภาพ ณ วันที่ ${dmy(A.as_of)} จึงตัดสินจาก<b>งานเตรียมตั้งแต่ ${dmy(A.cut_date)}</b>
-      เป็นหลัก ไม่ใช่ประวัติทั้งหมด ไม่งั้นของที่เพิ่งย้ายไปถูกแล้วจะถูกฟ้องซ้ำ</p>
+    <div class="msg" style="margin-bottom:14px">
+      <b>วัดยังไง</b> — สินค้า 1 รหัสเก็บได้หลายประตูและหลายกอง การถามว่า "เก็บถูกหรือผิด" จึงตอบไม่ได้
+      ต้องถามว่า <b>งานเตรียมกี่ % เกิดขึ้นที่ประตูซึ่งมีของรหัสนั้นเก็บอยู่จริง</b><br>
+      ถ้าเก็บที่ 03-2 กับ 03-4 แล้วหยิบทั้งสองที่ = ครอบคลุม 100% ถือว่าดี ·
+      ถ้าเก็บแค่ 03-2 แต่หยิบที่ 03-4 ด้วย ส่วนที่หยิบ 03-4 คือระยะเดินที่เสียไป<br>
+      <b>ตัวเลขทั้งหมดเป็นเรื่องงานเตรียมเท่านั้น ไม่เกี่ยวกับประตูที่รถเข้าโหลด</b>
+      เพราะชีท Shipment มีแค่ระดับโรง (<code>03</code>)
+    </div>
 
     <div class="vchips">
-      ${[['move','ควรย้าย',F.move,'#d62828','#fdecec'],
+      ${[['split','หยิบหลายประตู เก็บไม่ครบ',F.split,'#d62828','#fdecec'],
+         ['mixed','เก็บหลายที่ แต่ยังไม่ตรง',F.mixed,'#a34f06','#fff3e8'],
+         ['move','ย้ายทั้งกอง',F.move,'#b5179e','#fbeafa'],
+         ['idle','มีจุดเก็บที่ไม่มีคนหยิบ',F.idle,'#1d4f92','#eaf0f9'],
          ['ok','ดีอยู่แล้ว',F.ok,'#0f9d58','#eaf7f0'],
-         ['moved','เพิ่งย้ายมาถูกแล้ว',F.moved,'#1d4f92','#eaf0f9'],
-         ['stale','ไม่มีงานช่วงหลัง',F.stale,'#a34f06','#fff3e8'],
-         ['none','ไม่เคยมีงานเตรียม',F.no_prep,'#7086a3','#f2f5f9']]
+         ['nowork','ไม่มีงานช่วงหลัง',F.nowork,'#7086a3','#f2f5f9']]
         .map(([k,t,n,c,bg])=>`<button class="vchip ${STOCK_V===k?'on':''}"
-          onclick="STOCK_V='${k}';pageStock()"
-          style="--c:${c};--bg:${bg}">
+          onclick="STOCK_V='${k}';pageStock()" style="--c:${c};--bg:${bg}">
           <span class="n">${fmt(n||0)}</span><span class="t">${esc(t)}</span></button>`).join('')}
     </div>
 
     ${(()=>{ const R=(A.rows||[]).filter(r=>r.verdict===STOCK_V);
-      if(!R.length) return `<div class="msg ok" style="margin-top:14px">ไม่มีรายการในกลุ่มนี้</div>`;
+      if(!R.length) return `<div class="msg ok" style="margin-top:14px">ไม่มีสินค้าในกลุ่มนี้</div>`;
+      const chips = r => (r.picks_by_gate||[]).map(g=>
+        `<span class="gchip ${g.has?'y':'n'}" title="${g.has?'มีของเก็บที่ประตูนี้':'ไม่มีของเก็บที่ประตูนี้ ต้องเดินไปเอา'}"
+          >${esc(g.g)}<b>${fmt(g.n)}</b></span>`).join('');
       return `<div style="margin-top:6px">${VNOTE[STOCK_V]}</div>` + tableHTML([
         {h:'รหัสสินค้า',k:'mat',raw:1,f:r=>`<b>${esc(r.mat)}</b>`},
         {h:'ชั้น',k:'cls',raw:1,f:r=>`<span class="pill ${r.cls[0]==='A'?'o':(r.cls[0]==='B'?'b':'')}"
            title="${esc(clsTip(r.cls))}">${esc(r.cls)}</span>`},
-        {h:'เก็บอยู่ที่',k:'stock_gate',raw:1,
-         f:r=>`<b style="color:${r.verdict==='ok'||r.verdict==='moved'?'#0f9d58':'#d62828'}">${esc(r.stock_gate)}</b>`},
-        {h:'เตรียมจริงที่ (ช่วงหลัง)',k:'rec_gate',raw:1,
-         f:r=>r.rec_gate?`<b style="color:#0f9d58">${esc(r.rec_gate)}</b>`:'<span class="sm">—</span>'},
-        {h:'ตลอดประวัติ',k:'main_gate',raw:1,f:r=>`<span class="sm">${esc(r.main_gate||'—')}</span>`},
-        {h:'งานช่วงหลังที่เดินข้าม',k:'lost_rec',n:1,raw:1,
-         f:r=>+r.lost_rec>0?`<b style="color:var(--org-deep)">${fmt(r.lost_rec)}</b>`:`<span class="sm">0</span>`},
-        {h:'งานช่วงหลังทั้งหมด',k:'n_rec',n:1,f:r=>fmt(r.n_rec||0)},
-        {h:'งานทั้งประวัติ',k:'n_all',n:1,f:r=>fmt(r.n_all||0)},
-        {h:'น้ำหนัก (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)},
-        {h:'ครั้งที่หยิบ',k:'picks',n:1,f:r=>fmt(r.picks)}
+        {h:'เก็บอยู่ที่',k:'g_store',raw:1,w:1,
+         f:r=>`<b>${esc(r.g_store)}</b><br><span class="sm">${fmt(r.n_store)} ประตู · ${fmt(r.n_pile)} กอง</span>`},
+        {h:'หยิบที่ประตูไหนบ้าง (ช่วงหลัง)',k:'picks_by_gate',raw:1,w:1,
+         f:r=>chips(r)||'<span class="sm">ไม่มีงาน</span>'},
+        {h:'ครอบคลุม',k:'cover',n:1,raw:1,f:r=>r.cover==null?'<span class="sm">—</span>'
+          :`<b style="color:${+r.cover>=95?'#0f9d58':(+r.cover>=70?'var(--org-deep)':'#d62828')}">${fmt(r.cover,1)}%</b>`},
+        {h:'งานที่เดินไปเอา',k:'lost',n:1,raw:1,
+         f:r=>+r.lost>0?`<b style="color:var(--org-deep)">${fmt(r.lost)}</b>`:'<span class="sm">0</span>'},
+        {h:'งานทั้งหมด',k:'n_all',n:1,f:r=>fmt(r.n_all)},
+        {h:'จุดเก็บที่ไม่มีคนหยิบ',k:'g_idle',raw:1,
+         f:r=>+r.n_idle?`<b style="color:#1d4f92">${esc(r.g_idle)}</b>`:'<span class="sm">—</span>'},
+        {h:'น้ำหนัก (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)}
       ], R, 300); })()}
   </div>
 
