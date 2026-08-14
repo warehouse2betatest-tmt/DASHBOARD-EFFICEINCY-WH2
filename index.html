@@ -4525,7 +4525,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-12.7';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-12.8';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -12221,18 +12221,35 @@ function allEntries(){
 
 
 /* ป๊อปอัปลบข้อมูลรายชีท — เลือกเฉพาะเดือนได้ ถ้าไม่มีเดือนคือลบทั้งหมด */
-function openDelete(table, sheet, months){
-  const hasMonth = Array.isArray(months) && months.length > 0;
+async function openDelete(table, sheet, months){
+  const isStock = table === 'stock_snapshot';
+  // Stock เก็บแบบเฉพาะที่เปลี่ยน ลบเจาะเดือนไม่ได้ แต่เลือกลบทีละโรงได้
+  const hasMonth = !isStock && Array.isArray(months) && months.length > 0;
+  let facs = [];
+  if(isStock){
+    try{ const m = await rpc('app_stock_monitor');
+         facs = (m.rows||[]).filter(r=>r.has)
+                  .map(r=>({k:r.k, code:String(r.k).replace(/^Fac\./,''), days:r.days, sku:r.sku_stock}));
+    }catch(e){}
+  }
   openModal(`ลบข้อมูลชีท ${sheet}`, `
     <div class="msg warn">การลบย้อนกลับไม่ได้ ต้องอัปโหลดไฟล์ใหม่เท่านั้นถึงจะได้ข้อมูลคืน</div>
     <p class="sm" style="margin-bottom:14px">ตาราง <code>${esc(table)}</code></p>
+    ${isStock ? `
+      <div class="msg info">ชีทนี้เก็บเฉพาะส่วนที่เปลี่ยนจากวันก่อนหน้า
+        การลบเจาะบางเดือนจะทำให้การไล่ค่าของวันถัดไปเพี้ยน จึงลบได้ทีละทั้งโรง หรือทั้งหมดเท่านั้น</div>
+      ${facs.length ? `<div class="fld"><label>เลือกสิ่งที่จะลบ</label>
+        <select id="delFac">
+          <option value="">ทั้งหมดทุกโรง (${facs.length} โรง)</option>
+          ${facs.map(f=>`<option value="${esc(f.code)}">เฉพาะ ${esc(f.k)} — ${fmt(f.days)} วัน · ${fmt(f.sku)} SKU</option>`).join('')}
+        </select></div>` : ''}` : ''}
     ${hasMonth ? `
       <div class="fld"><label>เลือกช่วงที่จะลบ</label>
         <select id="delMonth">
           <option value="">ทั้งหมดทุกเดือน (${months.length} เดือน)</option>
           ${months.slice().sort().map(m=>`<option value="${m}">เฉพาะ ${monthLabel(m)}</option>`).join('')}
         </select></div>`
-      : `<div class="msg info">ชีทนี้ไม่มีคอลัมน์วันที่ จึงลบได้แบบทั้งหมดเท่านั้น</div>`}
+      : (isStock ? '' : `<div class="msg info">ชีทนี้ไม่มีคอลัมน์วันที่ จึงลบได้แบบทั้งหมดเท่านั้น</div>`)}
     <div class="fld"><label>พิมพ์คำว่า <b>ลบ</b> เพื่อยืนยัน</label>
       <input id="delConfirm" placeholder="ลบ" autocomplete="off"></div>
     <div id="delMsg"></div>
@@ -12245,13 +12262,16 @@ function openDelete(table, sheet, months){
 async function doDelete(table, sheet){
   if((el('delConfirm')?.value || '').trim() !== 'ลบ'){
     el('delMsg').innerHTML = '<div class="msg err">กรุณาพิมพ์คำว่า ลบ ให้ตรงเพื่อยืนยัน</div>'; return; }
-  const m = el('delMonth') ? el('delMonth').value : '';
+  const m   = el('delMonth') ? el('delMonth').value : '';
+  const fac = el('delFac')   ? el('delFac').value   : '';
   const b = el('delBtn'); b.disabled = true; b.textContent = 'กำลังลบ…';
   try{
-    const r = await rpc('app_delete_data',{p_table:table, p_month:m || null});
+    const r = fac
+      ? await rpc('app_stock_delete',{p_factory:fac, p_all:false})
+      : await rpc('app_delete_data',{p_table:table, p_month:m || null});
     closeModal();
     el('preview').innerHTML = `<div class="card anim"><div class="msg ok">
-      ลบข้อมูลชีท <b>${esc(sheet)}</b> ${m?`เฉพาะ ${monthLabel(m)}`:'ทั้งหมด'} เรียบร้อย —
+      ลบข้อมูลชีท <b>${esc(sheet)}</b> ${fac?`เฉพาะโรง ${esc(fac)}`:(m?`เฉพาะ ${monthLabel(m)}`:'ทั้งหมด')} เรียบร้อย —
       ลบไป <b>${fmt(r.deleted)}</b> แถว</div></div>`;
     clearCache();
     loadDataSummary();
@@ -12315,8 +12335,8 @@ async function loadDataSummary(){
   <div class="kpis" style="margin-bottom:16px">
     <div class="kpi o"><div class="k">แถวข้อมูลรวม</div><div class="v">${fmt(S.total_rows)}</div>
       <div class="s">ทุกตารางรวมกัน</div></div>
-    <div class="kpi ${txHas===5?'g':'o'}"><div class="k">ชีท Transaction ที่มีข้อมูล</div>
-      <div class="v">${txHas} / 5</div><div class="s">FG · Prepare · Milk Run · Shipment · Timeout</div></div>
+    <div class="kpi ${txHas===6?'g':'o'}"><div class="k">ชีท Transaction ที่มีข้อมูล</div>
+      <div class="v">${txHas} / 6</div><div class="s">FG · Prepare · Milk Run · Shipment · Timeout · Stock</div></div>
     <div class="kpi ${msHas===3?'g':'o'}"><div class="k">ทะเบียนที่มีข้อมูล</div>
       <div class="v">${msHas} / 3</div><div class="s">Master · Customer · User</div></div>
     <div class="kpi"><div class="k">ขนาดฐานข้อมูล</div>
