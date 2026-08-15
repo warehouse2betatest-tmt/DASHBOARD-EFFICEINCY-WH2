@@ -478,6 +478,26 @@ body.navfold .me button::after{content:'⏻';font-size:15px}
 .defbox .row span{flex:1;min-width:0}
 .defbox .row span b{font-weight:600;color:var(--txt)}
 
+/* ---------- แถวแยกจ่ายออก/รับเข้า ---------- */
+.splitrow{padding:15px 0;border-top:1px solid var(--line)}
+.splitrow:first-of-type{border-top:none;padding-top:2px}
+.splitrow .hd{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+.splitrow .hd b{font-size:14.5px;font-weight:600;color:var(--txt)}
+.splitrow .hd .tt{margin-left:auto;font-size:17px;font-weight:700;color:var(--navy)}
+.splitrow .hd .tt small{font-size:11.5px;font-weight:300;color:var(--muted);margin-left:3px}
+.sp2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.sp{border-left:3px solid;border-radius:9px;padding:10px 13px;background:#fbfcfe;min-width:0}
+.sp .lb{font-size:11.5px;font-weight:500}
+.sp .big{font-size:22px;font-weight:700;color:var(--txt);line-height:1.15;margin:2px 0 8px}
+.sp .big small{font-size:11px;font-weight:300;color:var(--muted);margin-left:4px}
+.sp .mini{display:flex;gap:0;border-top:1px solid var(--line);padding-top:8px}
+.sp .mini>div{flex:1;text-align:center;border-left:1px solid var(--line);min-width:0}
+.sp .mini>div:first-child{border-left:none}
+.sp .mini span{display:block;font-size:10px;color:var(--muted);font-weight:300}
+.sp .mini b{display:block;font-size:14px;font-weight:600;color:var(--txt);margin-top:1px}
+.sp .mini i{display:block;font-size:9.5px;font-style:normal;color:var(--muted);font-weight:300}
+@media(max-width:620px){ .sp2{grid-template-columns:1fr} }
+
 /* ---------- แถวกลุ่มสินค้าในหน้า Overview ---------- */
 .gprow{display:grid; grid-template-columns:132px 1fr 118px; align-items:center; gap:14px;
   padding:11px 4px; border-bottom:1px solid var(--line);}
@@ -4525,7 +4545,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-12.8';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-12.9';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -7509,7 +7529,7 @@ async function pageOverview(){
     ${ovc('g','รับเข้า (Inbound)',fmt(I.total,1),'ตัน',fmt(I.per_month,1),fmt(I.per_day,1),fmt(I.max_day,1))}
   </div>
 
-  ${sect(2,'ปริมาณงาน','เที่ยวรถ · ใบส่งของ · รายการสินค้า')}
+  ${sect(2,'ปริมาณงาน','เที่ยวรถ · ใบส่งของ · รายการสินค้า — แยกจ่ายออกกับรับเข้า')}
   <div class="ovgrid">
     ${ovc('o','จำนวนเที่ยวรถ (Shipment)',fmt((C.ships||{}).total),'เที่ยว',
           fmt((C.ships||{}).per_month),fmt((C.ships||{}).per_day),fmt((C.ships||{}).max_day))}
@@ -7517,6 +7537,40 @@ async function pageOverview(){
           fmt((C.dlv||{}).per_month),fmt((C.dlv||{}).per_day),fmt((C.dlv||{}).max_day))}
     ${ovc('','จำนวนรายการสินค้า',fmt((C.lines||{}).total),'รายการ',
           fmt((C.lines||{}).per_month),fmt((C.lines||{}).per_day),fmt((C.lines||{}).max_day))}
+  </div>
+
+  <div class="card anim d2">
+    <h3>แยกจ่ายออก กับ รับเข้า</h3>
+    <p class="sm" style="margin:-4px 0 14px">เที่ยวรถหนึ่งเที่ยวเป็นได้อย่างเดียว
+      ไม่มีเที่ยวไหนขนทั้งจ่ายออกและรับเข้าปนกัน ตัวเลขจึงบวกกันได้ตรงพอดี ·
+      <b>สูงสุด/วัน</b> คือวันที่ทำได้มากที่สุดในช่วงข้อมูล</p>
+    ${[['จำนวนเที่ยวรถ','เที่ยว',C.ships||{}],
+       ['จำนวนใบส่งของ','ใบ',C.dlv||{}],
+       ['จำนวนรายการสินค้า','รายการ',C.lines||{}]].map(([nm,unit,c])=>{
+      const O2=c.out||{}, I2=c.in||{};
+      return `<div class="splitrow">
+        <div class="hd"><b>${esc(nm)}</b>
+          <span class="tt">${fmt(c.total)} <small>${esc(unit)}</small></span></div>
+        <div class="pbar" style="height:26px;margin:9px 0 10px">
+          <i style="width:${(+O2.pct||0).toFixed(1)}%;background:#ff7a18">${
+            +O2.pct>=12?fmt(O2.pct,1)+'%':''}</i>
+          <i style="width:${(+I2.pct||0).toFixed(1)}%;background:#0f9d58">${
+            +I2.pct>=12?fmt(I2.pct,1)+'%':''}</i>
+        </div>
+        <div class="sp2">
+          ${[['จ่ายออก','#ff7a18',O2],['รับเข้า','#0f9d58',I2]].map(([lb,cl,x])=>`
+            <div class="sp" style="border-left-color:${cl}">
+              <div class="lb" style="color:${cl}">${lb} · ${fmt(x.pct,1)}%</div>
+              <div class="big">${fmt(x.total)}<small>${esc(unit)}</small></div>
+              <div class="mini">
+                <div><span>เฉลี่ย/เดือน</span><b>${fmt(x.per_month)}</b></div>
+                <div><span>เฉลี่ย/วัน</span><b>${fmt(x.per_day)}</b></div>
+                <div><span>สูงสุด/วัน</span><b>${fmt(x.max_day)}</b>${
+                  x.max_date?`<i>${dmy(x.max_date)}</i>`:''}</div>
+              </div>
+            </div>`).join('')}
+        </div>
+      </div>`;}).join('')}
   </div>
 
   ${sect(3,'รูปแบบการส่ง','จัดส่งให้ลูกค้า เทียบกับ ลูกค้ามารับเอง','o')}
@@ -7653,6 +7707,8 @@ async function pageOverview(){
       {h:'รับเข้า',k:'in',n:1,f:r=>fmt(r.in,1)},
       {h:'ตัน/วัน',k:'ton_day',n:1,f:r=>fmt(r.ton_day,1)},
       {h:'เที่ยวรถ',k:'ships',n:1,f:r=>fmt(r.ships)},
+      {h:'เที่ยวจ่ายออก',k:'ships_out',n:1,raw:1,f:r=>`<b style="color:var(--org-deep)">${fmt(r.ships_out)}</b>`},
+      {h:'เที่ยวรับเข้า',k:'ships_in',n:1,raw:1,f:r=>`<b style="color:#0f9d58">${fmt(r.ships_in)}</b>`},
       {h:'เที่ยว/วัน',k:'ship_day',n:1,f:r=>fmt(r.ship_day)},
       {h:'ใบส่งของ',k:'dlv',n:1,f:r=>fmt(r.dlv)},
       {h:'รายการ',k:'lines',n:1,f:r=>fmt(r.lines)},
