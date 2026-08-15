@@ -478,6 +478,30 @@ body.navfold .me button::after{content:'⏻';font-size:15px}
 .defbox .row span{flex:1;min-width:0}
 .defbox .row span b{font-weight:600;color:var(--txt)}
 
+/* ---------- การ์ดค่าเฉลี่ยรายโรง ---------- */
+.facgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(224px,1fr));gap:13px}
+.faccard{border:1px solid var(--line);border-radius:13px;padding:14px 16px;background:#fff;
+  min-width:0;position:relative;overflow:hidden;transition:.2s}
+.faccard:hover{transform:translateY(-3px);box-shadow:var(--sh2)}
+.faccard::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px}
+.faccard.ok::before{background:var(--ok)} .faccard.late::before{background:var(--bad)}
+.faccard .fh{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.faccard .fh b{font-size:15.5px;font-weight:700;color:var(--txt)}
+.faccard .fh .pv{margin-left:auto;font-size:19px;font-weight:700;color:var(--navy)}
+.faccard .fh .pv small{font-size:10.5px;font-weight:300;color:var(--muted);margin-left:3px}
+.faccard .fr{display:flex;margin-top:11px;border-top:1px solid var(--line);padding-top:10px}
+.faccard .fr>div{flex:1;border-left:1px solid var(--line);text-align:center;min-width:0}
+.faccard .fr>div:first-child{border-left:none}
+.faccard .fr span{display:block;font-size:10px;color:var(--muted);font-weight:300}
+.faccard .fr b{display:block;font-size:15px;font-weight:600;margin-top:1px}
+.faccard .fr i{display:block;font-size:9.5px;font-style:normal;color:var(--muted);font-weight:300}
+.faccard .fbar{height:5px;background:var(--bg);border-radius:3px;overflow:hidden;margin:11px 0 5px}
+.faccard .fbar i{display:block;height:100%;border-radius:3px;background:var(--bad);transition:width .6s}
+.faccard .fnote{font-size:10.5px;color:var(--muted);font-weight:300}
+.faccard .fnote b{color:var(--txt);font-weight:600}
+.faccard .fnote2{font-size:10.5px;color:var(--muted);font-weight:300;margin-top:8px;
+  padding-top:8px;border-top:1px dashed var(--line);line-height:1.5}
+
 /* ---------- แถวแยกจ่ายออก/รับเข้า ---------- */
 .splitrow{padding:15px 0;border-top:1px solid var(--line)}
 .splitrow:first-of-type{border-top:none;padding-top:2px}
@@ -4545,7 +4569,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-12.9';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-13.1';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -11630,6 +11654,9 @@ async function pageFG(){
   const workDays=N(K.work_days), nTm=N(K.tm_rows), nFac=N(K.factories);
 
   const peakTon=N(K.peak_ton), peakDate=K.peak_date, peakTrucks=N(K.peak_trucks);
+  const peakFac=K.peak_fac, peakFacTon=N(K.peak_fac_ton);
+  const FACS=(R.by_fac||[]).filter(x=>x.k && x.k!=='(ไม่ระบุคลัง)');
+  const FACNO=(R.by_fac||[]).filter(x=>x.k==='(ไม่ระบุคลัง)')[0];
   const avgDayTon=N(K.avg_day_ton), avgDayTrucks=N(K.avg_day_trucks);
   const lateH=N(K.latest_h), lateDate=K.latest_date, lateFac=K.latest_fac;
   const avgMaxH=N(K.avg_max_h), daysOver=N(K.days_over_target), daysTime=N(K.days_with_time);
@@ -11704,14 +11731,51 @@ async function pageFG(){
   <div class="kpis">
     <div class="kpi o anim d1"><div class="k">Peak Daily Weight</div>
       <div class="v">${peakTon==null?'—':fmt(peakTon,1)}</div>
-      <div class="s">ตัน${peakDate?` · ${esc(dmy(peakDate))} · ${fmt(peakTrucks)} คัน`:''}</div></div>
+      <div class="s">ตัน${peakDate?` · ${esc(dmy(peakDate))} · ${fmt(peakTrucks)} คัน`:''}${
+        peakFac?`<br>โรงที่ส่งมากสุดวันนั้น <b style="color:var(--org-deep)">${esc(peakFac)}</b>
+          ${fmt(peakFacTon,1)} ตัน (${fmt(peakTon?peakFacTon/peakTon*100:0,0)}%)`:''}</div></div>
     <div class="kpi anim d2"><div class="k">น้ำหนักเฉลี่ยต่อวัน</div>
       <div class="v">${fmt(avgDayTon,1)}</div><div class="s">ตัน/วัน</div></div>
     <div class="kpi ${avgMaxH==null?'':(avgMaxH>TARGET_H?'r':'g')} anim d3"><div class="k">Average Time</div>
       <div class="v">${hhmm(avgMaxH)}</div>
       <div class="s">${avgMaxH==null ? 'ยังไม่ได้นำเข้าชีท Timeout'
         : `เฉลี่ยเวลาเลิกงานของ ${fmt(daysTime)} วัน · เกิน Target ${fmt(daysOver)} วัน`}</div></div>
+    <div class="kpi r anim d4"><div class="k">เลิกงานช้าที่สุด</div>
+      <div class="v">${hhmm(lateH)}</div>
+      <div class="s">${lateH==null ? 'ยังไม่ได้นำเข้าชีท Timeout'
+        : `${lateDate?esc(dmy(lateDate)):''}${lateFac?` · <b style="color:var(--bad)">${esc(lateFac)}</b>`:''}
+           <br>ช้ากว่า Target ${hhmm(TARGET_H)} อยู่ ${fmt((lateH-TARGET_H)*60,0)} นาที`}</div></div>
   </div>
+
+  ${FACS.length ? `<div class="card anim d2">
+    <h3>ค่าเฉลี่ยรายโรง — ${fmt(FACS.length)} โรง</h3>
+    <p class="sm" style="margin:-4px 0 14px">น้ำหนักเฉลี่ยต่อวัน · เวลาเลิกงานเฉลี่ย ·
+      และวันที่เลิกช้าที่สุดของโรงนั้น · เรียงตามน้ำหนักรวม ·
+      แถบสีคือสัดส่วนวันที่เลิกเกิน Target ${hhmm(TARGET_H)}</p>
+    <div class="facgrid">
+      ${FACS.map((f,i)=>{
+        const late = f.avg_h!=null && +f.avg_h>TARGET_H;
+        return `<div class="faccard ${late?'late':'ok'}">
+          <div class="fh"><b>${esc(f.k)}</b>
+            <span class="pv">${fmt(f.ton_day,1)}<small>ตัน/วัน</small></span></div>
+          <div class="fr">
+            <div><span>เลิกงานเฉลี่ย</span>
+              <b style="color:${f.avg_h==null?'var(--muted)':(late?'#d62828':'#0f9d58')}">${hhmm(f.avg_h)}</b></div>
+            <div><span>ช้าสุด</span><b>${hhmm(f.max_h)}</b>
+              ${f.max_d?`<i>${dmy(f.max_d)}</i>`:''}</div>
+          </div>
+          ${f.pct_over!=null?`<div class="fbar" title="เลิกเกิน Target ${fmt(f.over_t)} วัน จาก ${fmt(f.days_t)} วัน">
+            <i style="width:${Math.min(100,+f.pct_over).toFixed(1)}%"></i></div>
+            <div class="fnote">เกิน Target <b>${fmt(f.pct_over,1)}%</b>
+              (${fmt(f.over_t)} จาก ${fmt(f.days_t)} วัน)</div>`:''}
+          <div class="fnote2">รวม ${fmt(f.ton,1)} ตัน · ${fmt(f.days)} วันทำงาน ·
+            สูงสุด ${fmt(f.max_ton,1)} ตัน${f.max_ton_d?` (${dmy(f.max_ton_d)})`:''}</div>
+        </div>`;}).join('')}
+    </div>
+    ${FACNO?`<p class="sm" style="margin-top:12px">หมายเหตุ — มีอีก
+      <b>${fmt(FACNO.ton,1)}</b> ตัน (${fmt(FACNO.days)} วัน) ที่ระบุคลังไม่ได้
+      จึงไม่ได้แสดงเป็นโรงงาน</p>`:''}
+  </div>` : ''}
   <div class="card anim d3">
     <h3>น้ำหนักและจำนวนคันรายวัน เทียบเวลาเลิกงาน</h3>
     ${hasTime ? '' : `<div class="msg warn">ยังไม่ได้นำเข้าชีท <code>Timeout</code>
