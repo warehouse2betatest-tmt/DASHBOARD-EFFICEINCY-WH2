@@ -478,6 +478,24 @@ body.navfold .me button::after{content:'⏻';font-size:15px}
 .defbox .row span{flex:1;min-width:0}
 .defbox .row span b{font-weight:600;color:var(--txt)}
 
+/* ---------- ตัวกรองกลุ่มสินค้าในหัวข้อ Product Analysis ---------- */
+.pachips{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:820px){ .pachips{grid-template-columns:1fr} }
+.pagrp{min-width:0}
+.pagrp .ph{font-size:13px;font-weight:600;color:var(--txt);margin-bottom:9px;
+  display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.pagrp .ph .sm{margin-left:auto;font-weight:300}
+.pagrp .pw{display:flex;flex-wrap:wrap;gap:6px}
+.pchip{padding:5px 11px;border-radius:99px;border:1.5px solid var(--line);background:#fff;
+  font-family:inherit;font-size:11.5px;font-weight:400;color:var(--txt);cursor:pointer;
+  transition:.16s;display:inline-flex;align-items:center;gap:6px;max-width:100%}
+.pchip i{font-style:normal;font-size:10px;font-weight:300;color:var(--muted)}
+.pchip:hover{border-color:var(--org);background:var(--org-soft)}
+.pchip.on{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:500}
+.pchip.on i{color:rgba(255,255,255,.72)}
+.pchip.more{border-style:dashed;color:var(--navy2);font-weight:500}
+.pafilter .cardhd{align-items:center}
+
 /* ---------- ค้นหาแนวโน้มรายรหัสสินค้า ---------- */
 .skusearch{display:flex;gap:10px;align-items:center;position:relative}
 .skusearch .ic{position:absolute;left:14px;font-size:15px;opacity:.45;pointer-events:none}
@@ -4603,7 +4621,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-13.2';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-13.3';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -7891,6 +7909,16 @@ async function pageOverview(){
 /* =========================================================================
    ค้นหาแนวโน้มรายรหัสสินค้า (หน้า FG)
    ========================================================================= */
+let PA_GS = [];          // กลุ่มขายที่เลือกในหัวข้อ Product Analysis
+let PA_PT = [];          // ชนิดสินค้าที่เลือก
+const PA_MORE = {gs:false, pt:false};   // กางรายการตัวเลือกเต็มหรือไม่
+function paToggle(kind, val){
+  const a = kind==='gs' ? PA_GS : PA_PT;
+  const i = a.indexOf(val);
+  if(i>-1) a.splice(i,1); else a.push(val);
+  clearCache(); pageFG();
+}
+
 let SKU_T = null;        // ตัวจับเวลา กันยิงทุกตัวอักษร
 let SKU_LAST = [];       // รายการที่ค้นเจอล่าสุด
 
@@ -11786,8 +11814,10 @@ async function pageFG(){
   /* ข้อมูลจากทะเบียนสินค้า: กลุ่มขาย / กลุ่มผลิตภัณฑ์ / ชนิดสินค้า
      ใช้ทั้งวาดหมวดใหม่ และทำ tooltip บอกสัดส่วนกลุ่มขายในทุกกราฟ */
   let MV2 = null;
-  try{ MV2 = await rpcCached('app_fg_movers',
-        { p_slocs: hasF('factories') ? (slocs.length ? slocs : ['__NO_MATCH__']) : null }); }
+  try{ MV2 = await rpcCached('app_fg_movers',{
+        p_slocs : hasF('factories') ? (slocs.length ? slocs : ['__NO_MATCH__']) : null,
+        p_gsales: PA_GS.length ? PA_GS : null,
+        p_ptypes: PA_PT.length ? PA_PT : null }); }
   catch(_){ MV2 = null; }
 
   try{ GS = await rpcCached('app_dash_fg_gsale',{
@@ -11976,7 +12006,43 @@ async function pageFG(){
   </div>
 
   ${sect(4,'Product Analysis','สินค้ากลุ่มไหนเคลื่อนไหวมากที่สุด · ตัวไหนโตขึ้นหดลง · ค้นหารายรหัสได้')}
-  ${MV2 ? `<div class="kpis">
+  ${MV2 ? `
+  <div class="card anim d1 pafilter">
+    <div class="cardhd">
+      <h3>กรองเฉพาะกลุ่มที่สนใจ</h3>
+      ${(PA_GS.length||PA_PT.length)?`<button class="fbtn alt" style="flex:none"
+        onclick="PA_GS=[];PA_PT=[];clearCache();pageFG()">ล้างตัวกรองสินค้า</button>`:''}
+    </div>
+    <p class="sm" style="margin:-2px 0 12px">เลือกได้หลายค่า · มีผลกับทุกอย่างในหัวข้อนี้
+      ยกเว้นช่องค้นหารายรหัสด้านล่างที่ค้นได้ทั้งระบบเสมอ</p>
+    <div class="pachips">
+      ${[['กลุ่มขาย (Group Sale)', MV2.opt_gsale||[], PA_GS, 'gs'],
+         ['ชนิดสินค้า (Product Type)', MV2.opt_ptype||[], PA_PT, 'pt']].map(([t,opts,sel,kind])=>`
+        <div class="pagrp">
+          <div class="ph">${t}
+            <span class="sm">${sel.length?`เลือกไว้ ${fmt(sel.length)} จาก ${fmt(opts.length)}`
+                                        :`ทั้งหมด ${fmt(opts.length)} รายการ`}</span></div>
+          <div class="pw">
+            ${opts.slice(0,PA_MORE[kind]?opts.length:12).map(x=>`
+              <button class="pchip ${sel.includes(x.k)?'on':''}"
+                onclick="paToggle('${kind}',${JSON.stringify(x.k).replace(/"/g,'&quot;')})"
+                title="${esc(x.k)} · ${fmt(x.ton,1)} ตัน · ${fmt(x.n)} SKU">
+                ${esc(x.k)}<i>${fmt(x.ton,0)}</i></button>`).join('')}
+            ${opts.length>12?`<button class="pchip more"
+              onclick="PA_MORE['${kind}']=!PA_MORE['${kind}'];pageFG()">${
+              PA_MORE[kind]?'▲ ย่อ':'▼ อีก '+fmt(opts.length-12)+' รายการ'}</button>`:''}
+          </div>
+        </div>`).join('')}
+    </div>
+    ${(PA_GS.length||PA_PT.length)?`<div class="msg info" style="margin-top:12px">
+      กำลังดูเฉพาะ
+      ${PA_GS.length?`<b>กลุ่มขาย</b> ${PA_GS.map(esc).join(', ')}`:''}
+      ${(PA_GS.length&&PA_PT.length)?' และ ':''}
+      ${PA_PT.length?`<b>ชนิดสินค้า</b> ${PA_PT.map(esc).join(', ')}`:''}
+      — <b>${fmt(MV2.n_sku)}</b> SKU · <b>${fmt(MV2.ton,1)}</b> ตัน</div>`:''}
+  </div>
+
+  <div class="kpis">
     <div class="kpi o anim d1"><div class="k">SKU ที่เคลื่อนไหว</div><div class="v">${fmt(MV2.n_sku)}</div>
       <div class="s">ทำ 80% ของน้ำหนักด้วย <b>${fmt(MV2.n80)}</b> ตัว (${fmt(MV2.n_sku?MV2.n80/MV2.n_sku*100:0,1)}%)</div></div>
     <div class="kpi g anim d2"><div class="k">โตขึ้น</div><div class="v">${fmt(MV2.n_up)}</div>
@@ -12006,6 +12072,20 @@ async function pageFG(){
         ], arr, 15) : '<div class="msg">ไม่มีข้อมูล</div>'}</div>`).join('')}
     </div>
   </div>
+
+  ${(MV2.top||[]).length?`<div class="card anim d2">
+    <h3>15 อันดับแรกในขอบเขตที่เลือก</h3>
+    <p class="sm" style="margin:-4px 0 11px">รวม ${fmt(MV2.n_sku)} SKU · ${fmt(MV2.ton,1)} ตัน ·
+      คลิกรหัสเพื่อดูแนวโน้มรายเดือน</p>
+    ` + tableHTML([
+      {h:'อันดับ',k:'mat',raw:1,f:r=>`<b>${fmt((MV2.top||[]).indexOf(r)+1)}</b>`},
+      {h:'รหัสสินค้า',k:'mat',raw:1,f:r=>`<a class="skulink" onclick="skuShow('${esc(r.mat)}')">${esc(r.mat)}</a>`},
+      {h:'น้ำหนัก (ตัน)',k:'ton',n:1,raw:1,f:r=>`<b>${fmt(r.ton,1)}</b>`},
+      {h:'สัดส่วน',k:'pct',n:1,raw:1,f:r=>`<b style="color:var(--org-deep)">${fmt(r.pct,1)}%</b>`
+         + `<div class="minibar" style="margin-top:4px"><i style="width:${Math.min(100,+r.pct*3).toFixed(0)}%;background:var(--org)"></i></div>`},
+      {h:'รายการ',k:'lines',n:1,f:r=>fmt(r.lines)},
+      {h:'ขยับกี่เดือน',k:'months',n:1,f:r=>fmt(r.months)}
+    ], MV2.top, 15) + `</div>`:''}
 
   <div class="grid2">
     <div class="card anim d2"><h3>สินค้าเข้าใหม่ — ${fmt(MV2.n_new)} ตัว</h3>
