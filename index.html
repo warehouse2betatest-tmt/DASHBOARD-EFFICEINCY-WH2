@@ -478,6 +478,40 @@ body.navfold .me button::after{content:'⏻';font-size:15px}
 .defbox .row span{flex:1;min-width:0}
 .defbox .row span b{font-weight:600;color:var(--txt)}
 
+/* ---------- ค้นหาแนวโน้มรายรหัสสินค้า ---------- */
+.skusearch{display:flex;gap:10px;align-items:center;position:relative}
+.skusearch .ic{position:absolute;left:14px;font-size:15px;opacity:.45;pointer-events:none}
+.skusearch input{flex:1;padding:12px 14px 12px 42px;border:1.5px solid var(--line);border-radius:11px;
+  font-family:inherit;font-size:14px;color:var(--txt);transition:.2s;min-width:0}
+.skusearch input:focus{outline:none;border-color:var(--org);box-shadow:0 0 0 4px rgba(255,122,24,.14)}
+.skusug{margin-top:10px;max-height:290px;overflow-y:auto;border-radius:11px}
+.skusug .sitem{display:flex;gap:12px;align-items:center;padding:10px 13px;border:1px solid var(--line);
+  border-radius:10px;margin-bottom:7px;cursor:pointer;transition:.16s;background:#fff}
+.skusug .sitem:hover{border-color:var(--org);background:var(--org-soft);transform:translateX(3px)}
+.skusug .sitem .c{flex:1;min-width:0}
+.skusug .sitem .c b{font-size:13.5px;font-weight:600;margin-right:7px}
+.skusug .sitem .v{text-align:right;flex:none;font-size:16px;font-weight:700;color:var(--navy)}
+.skusug .sitem .v small{font-size:10px;font-weight:300;color:var(--muted);margin-left:3px}
+.skulink{color:var(--navy2);font-weight:600;cursor:pointer;border-bottom:1px dashed var(--navy3)}
+.skulink:hover{color:var(--org-deep);border-bottom-color:var(--org)}
+.skuhead{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;margin:16px 0 14px;
+  padding:15px 17px;border-radius:13px;background:linear-gradient(135deg,#fbfcfe,#f2f6fb);
+  border:1px solid var(--line)}
+.skuhead .mt{font-size:19px;font-weight:700;color:var(--txt);letter-spacing:-.3px}
+.skuhead .ds{font-size:12.5px;color:var(--muted);font-weight:300;margin-top:3px}
+.skuhead .tg{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.skuhead .tot{margin-left:auto;text-align:right;flex:none}
+.skuhead .tot .big{font-size:28px;font-weight:700;color:var(--org-deep);line-height:1.1}
+.skuhead .tot .big small{font-size:12px;font-weight:300;color:var(--muted);margin-left:4px}
+.skukpi{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:10px}
+.skukpi>div{border:1px solid var(--line);border-radius:11px;padding:11px 13px;background:#fff;min-width:0}
+.skukpi>div.g{border-color:#a9d8bd;background:#f5fbf7}
+.skukpi>div.r{border-color:#f3b6b6;background:#fdf6f6}
+.skukpi span{display:block;font-size:10.5px;color:var(--muted);font-weight:300}
+.skukpi b{display:block;font-size:19px;font-weight:700;color:var(--txt);margin:2px 0 1px;line-height:1.1}
+.skukpi i{display:block;font-size:10px;font-style:normal;color:var(--muted);font-weight:300}
+b.up{color:#0f9d58} b.dn{color:#d62828}
+
 /* ---------- การ์ดค่าเฉลี่ยรายโรง ---------- */
 .facgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(224px,1fr));gap:13px}
 .faccard{border:1px solid var(--line);border-radius:13px;padding:14px 16px;background:#fff;
@@ -4569,7 +4603,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-13.1';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-13.2';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -7851,6 +7885,125 @@ async function pageOverview(){
        return `<b>${dmy(r.d)}</b><br>รวม ${fmt(r.t,1)} ตัน<br>`+
               `จ่ายออก ${fmt(r.o,1)} · รับเข้า ${fmt(r.i,1)} ตัน<br>`+
               `<span style="opacity:.75">${fmt(r.s)} เที่ยวรถ</span>`;}});
+}
+
+
+/* =========================================================================
+   ค้นหาแนวโน้มรายรหัสสินค้า (หน้า FG)
+   ========================================================================= */
+let SKU_T = null;        // ตัวจับเวลา กันยิงทุกตัวอักษร
+let SKU_LAST = [];       // รายการที่ค้นเจอล่าสุด
+
+function skuSuggest(q){
+  clearTimeout(SKU_T);
+  const box = el('skuSug'); if(!box) return;
+  if((q||'').trim().length < 2){ box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="sm" style="padding:8px 2px">กำลังค้นหา…</div>';
+  SKU_T = setTimeout(async ()=>{
+    let list = [];
+    try{ list = await rpc('app_fg_sku_search',{ p_q:q, p_limit:20 }) || []; }
+    catch(ex){ box.innerHTML = `<div class="msg err">${esc(ex.message)}</div>`; return; }
+    SKU_LAST = list;
+    if(!list.length){ box.innerHTML = '<div class="sm" style="padding:8px 2px">ไม่พบรหัสที่ตรงกับคำค้น</div>'; return; }
+    box.innerHTML = list.map(x=>`<div class="sitem" onclick="skuShow('${esc(x.mat)}')">
+        <div class="c"><b>${esc(x.mat)}</b>${x.gp?`<span class="pill b">${esc(x.gp)}</span>`:''}
+          <div class="sm">${esc(x.desc||'ไม่มีคำอธิบายในทะเบียนสินค้า')}</div></div>
+        <div class="v">${fmt(x.ton,1)}<small>ตัน</small><div class="sm">${fmt(x.months)} เดือน</div></div>
+      </div>`).join('');
+  }, 260);
+}
+function skuPickFirst(){ if(SKU_LAST.length) skuShow(SKU_LAST[0].mat); }
+
+async function skuShow(mat){
+  const out = el('skuOut'); if(!out) return;
+  el('skuSug').innerHTML = '';
+  const q = el('skuQ'); if(q) q.value = mat;
+  out.innerHTML = '<div class="spin"></div>';
+  let T;
+  try{ T = await rpc('app_fg_sku_trend',{ p_mat: mat }); }
+  catch(ex){ out.innerHTML = `<div class="msg err">${esc(ex.message)}</div>`; return; }
+  if(!T.found){
+    out.innerHTML = `<div class="msg warn">ไม่พบการเคลื่อนไหวของรหัส <b>${esc(mat)}</b> ในช่วงข้อมูลที่มี</div>`;
+    return;
+  }
+  const I = T.info||{}, R2 = T.rows||[];
+  const up = +T.trend_pct;
+  const arrow = v => v==null ? '<span class="sm">—</span>'
+    : `<b class="${+v>0?'up':(+v<0?'dn':'')}">${+v>0?'▲ +':(+v<0?'▼ ':'')}${fmt(v,1)}%</b>`;
+
+  out.innerHTML = `
+  <div class="skuhead">
+    <div>
+      <div class="mt">${esc(T.mat)}</div>
+      <div class="ds">${esc(I.desc||'ไม่มีคำอธิบายในทะเบียนสินค้า')}</div>
+      <div class="tg">
+        ${I.gs?`<span class="pill o">กลุ่มขาย ${esc(I.gs)}</span>`:''}
+        ${I.gp?`<span class="pill b">${esc(I.gp)}</span>`:''}
+        ${I.pt?`<span class="pill">${esc(I.pt)}</span>`:''}
+        ${I.ws?`<span class="pill">${fmt(I.ws,2)} กก./เส้น</span>`:''}
+      </div>
+    </div>
+    <div class="tot">
+      <div class="sm">น้ำหนักรวมทั้งช่วง</div>
+      <div class="big">${fmt(T.total,1)}<small>ตัน</small></div>
+      <div class="sm">${fmt(T.months_act)} จาก ${fmt(T.months_all)} เดือนที่มีการเคลื่อนไหว</div>
+    </div>
+  </div>
+
+  <div class="skukpi">
+    <div><span>เฉลี่ยต่อเดือน</span><b>${fmt(T.avg_month,1)}</b><i>ตัน</i></div>
+    <div><span>เดือนที่มากสุด</span><b>${fmt(T.max,1)}</b><i>${monthLabel(T.max_ym)}</i></div>
+    <div><span>เดือนที่น้อยสุด</span><b>${fmt(T.min,1)}</b><i>${T.min_ym?monthLabel(T.min_ym):'—'}</i></div>
+    <div><span>ความผันผวน</span><b>${fmt(T.cv,2)}</b>
+      <i>${T.cv==null?'—':(+T.cv<=0.5?'สม่ำเสมอ':(+T.cv<=1?'แกว่งปานกลาง':'แกว่งแรง'))}</i></div>
+    <div class="${up>0?'g':(up<0?'r':'')}"><span>แนวโน้มรวม</span>
+      <b>${isNaN(up)?'—':(up>0?'+':'')+fmt(up,1)+'%'}</b><i>ครึ่งหลังเทียบครึ่งแรก</i></div>
+    <div><span>จำนวนรายการ</span><b>${fmt(T.lines)}</b><i>${fmt(T.ships)} เที่ยวรถ</i></div>
+  </div>
+
+  <div class="chartbox" style="height:290px;margin:16px 0 4px"><canvas id="skuChart"></canvas></div>
+  <p class="sm" style="margin-bottom:14px">แท่ง = น้ำหนักรายเดือน · เส้นประ = ค่าเฉลี่ย ${fmt(T.avg_month,1)} ตัน ·
+    ตัวเลขบนแท่งคือ % เปลี่ยนแปลงจากเดือนก่อนหน้า</p>
+
+  ` + tableHTML([
+    {h:'เดือน',k:'m',raw:1,f:r=>`<b>${monthLabel(r.m)}</b>${r.has?'':' <span class="pill n">ไม่มีการเคลื่อนไหว</span>'}`},
+    {h:'น้ำหนัก (ตัน)',k:'ton',n:1,raw:1,f:r=>`<b>${fmt(r.ton,1)}</b>`},
+    {h:'เดือนก่อน',k:'prev',n:1,f:r=>r.prev==null?'—':fmt(r.prev,1)},
+    {h:'เปลี่ยน (ตัน)',k:'chg',n:1,raw:1,
+     f:r=>r.chg==null?'<span class="sm">—</span>'
+       :`<b class="${+r.chg>0?'up':(+r.chg<0?'dn':'')}">${+r.chg>0?'+':''}${fmt(r.chg,1)}</b>`},
+    {h:'เปลี่ยน %',k:'chg_pct',n:1,raw:1,f:r=>arrow(r.chg_pct)},
+    {h:'เทียบค่าเฉลี่ย',k:'vs_avg',n:1,raw:1,f:r=>arrow(r.vs_avg)},
+    {h:'จ่ายออก',k:'out',n:1,f:r=>fmt(r.out,1)},
+    {h:'รับเข้า',k:'in',n:1,f:r=>fmt(r.in,1)},
+    {h:'รายการ',k:'lines',n:1,f:r=>fmt(r.lines)},
+    {h:'เที่ยวรถ',k:'ships',n:1,f:r=>fmt(r.ships)},
+    {h:'ลูกค้า',k:'custs',n:1,f:r=>fmt(r.custs)},
+    {h:'วันที่มีงาน',k:'days',n:1,f:r=>fmt(r.days)}
+  ], R2, 60);
+
+  const axisFont={font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'};
+  chart('skuChart','bar',R2.map(r=>monthLabel(r.m)),[
+    {label:'น้ำหนัก (ตัน)',
+     data:R2.map(r=>+r.ton||0),
+     backgroundColor:R2.map(r=> r.chg_pct==null ? '#1d4f92'
+        : (+r.chg_pct>0 ? '#0f9d58' : (+r.chg_pct<0 ? '#d62828' : '#1d4f92'))),
+     borderRadius:6}
+  ],{layout:{padding:{top:26}},
+     scales:{y:{beginAtZero:true,grace:'20%',grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont,
+                title:{display:true,text:'ตัน',font:{family:'Kanit',size:10}}},
+             x:{grid:{display:false},ticks:axisFont}},
+     vl:(v,i)=>{ const r=R2[i]; if(!r) return null;
+       return r.chg_pct==null ? fmt(v,0) : `${fmt(v,0)}\n${+r.chg_pct>0?'+':''}${fmt(r.chg_pct,1)}%`; },
+     avgLine: T.avg_month!=null?{v:+T.avg_month, txt:`เฉลี่ย ${fmt(T.avg_month,1)} ตัน`}:null,
+     tip:(pts)=>{ const r=R2[pts[0].dataIndex]; if(!r) return '';
+       return `<b>${monthLabel(r.m)}</b><br>${fmt(r.ton,1)} ตัน`
+         + (r.chg_pct!=null?` (${+r.chg_pct>0?'+':''}${fmt(r.chg_pct,1)}% จากเดือนก่อน)`:'')
+         + `<br>จ่ายออก ${fmt(r.out,1)} · รับเข้า ${fmt(r.in,1)} ตัน<br>`
+         + `<span style="opacity:.75">${fmt(r.lines)} รายการ · ${fmt(r.ships)} เที่ยว · `
+         + `${fmt(r.custs)} ลูกค้า · ${fmt(r.days)} วันที่มีงาน</span>`;}});
+
+  try{ el('skuFinder').scrollIntoView({behavior:'smooth',block:'start'}); }catch(e){}
 }
 
 /* =========================================================================
@@ -11632,6 +11785,11 @@ async function pageFG(){
   catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
   /* ข้อมูลจากทะเบียนสินค้า: กลุ่มขาย / กลุ่มผลิตภัณฑ์ / ชนิดสินค้า
      ใช้ทั้งวาดหมวดใหม่ และทำ tooltip บอกสัดส่วนกลุ่มขายในทุกกราฟ */
+  let MV2 = null;
+  try{ MV2 = await rpcCached('app_fg_movers',
+        { p_slocs: hasF('factories') ? (slocs.length ? slocs : ['__NO_MATCH__']) : null }); }
+  catch(_){ MV2 = null; }
+
   try{ GS = await rpcCached('app_dash_fg_gsale',{
         p_months: orNull('months'),
         p_slocs : hasF('factories') ? (slocs.length ? slocs : ['__NO_MATCH__']) : null,
@@ -11817,7 +11975,56 @@ async function pageFG(){
       <div class="chartbox"><canvas id="f2"></canvas></div></div>
   </div>
 
-  ${sect(4,'Product Analysis','สินค้ากลุ่มไหนเคลื่อนไหวมากที่สุด และเก็บอยู่ที่ใด')}
+  ${sect(4,'Product Analysis','สินค้ากลุ่มไหนเคลื่อนไหวมากที่สุด · ตัวไหนโตขึ้นหดลง · ค้นหารายรหัสได้')}
+  ${MV2 ? `<div class="kpis">
+    <div class="kpi o anim d1"><div class="k">SKU ที่เคลื่อนไหว</div><div class="v">${fmt(MV2.n_sku)}</div>
+      <div class="s">ทำ 80% ของน้ำหนักด้วย <b>${fmt(MV2.n80)}</b> ตัว (${fmt(MV2.n_sku?MV2.n80/MV2.n_sku*100:0,1)}%)</div></div>
+    <div class="kpi g anim d2"><div class="k">โตขึ้น</div><div class="v">${fmt(MV2.n_up)}</div>
+      <div class="s">SKU · เทียบครึ่งหลังกับครึ่งแรก</div></div>
+    <div class="kpi r anim d3"><div class="k">หดลง</div><div class="v">${fmt(MV2.n_down)}</div>
+      <div class="s">SKU · เทียบครึ่งหลังกับครึ่งแรก</div></div>
+    <div class="kpi anim d4"><div class="k">เข้าใหม่ / หายไป</div>
+      <div class="v" style="font-size:23px">${fmt(MV2.n_new)} <span style="opacity:.4">/</span> ${fmt(MV2.n_gone)}</div>
+      <div class="s">ตัวใหม่ไม่เคยมีในครึ่งแรก · ตัวที่หายไม่มีในครึ่งหลัง</div></div>
+  </div>
+
+  <div class="card anim d1">
+    <h3>สินค้าที่เปลี่ยนแปลงมากที่สุด</h3>
+    <p class="sm" style="margin:-4px 0 13px">เทียบ <b>ครึ่งหลัง</b> (${(MV2.late_ms||[]).map(monthLabel).join(', ')})
+      กับ <b>ครึ่งแรก</b> (${(MV2.early_ms||[]).map(monthLabel).join(', ')}) ·
+      คลิกรหัสเพื่อดูแนวโน้มรายเดือนของตัวนั้น</p>
+    <div class="grid2">
+      ${[['เพิ่มขึ้นมากที่สุด',MV2.up||[],'#0f9d58','+'],
+         ['ลดลงมากที่สุด',MV2.down||[],'#d62828','']].map(([t,arr,c,sign])=>`
+        <div><h3 style="font-size:13.5px;color:${c};margin-bottom:8px">${t}</h3>
+        ${arr.length ? tableHTML([
+          {h:'รหัสสินค้า',k:'mat',raw:1,f:r=>`<a class="skulink" onclick="skuShow('${esc(r.mat)}')">${esc(r.mat)}</a>`},
+          {h:'ครึ่งแรก',k:'early',n:1,f:r=>fmt(r.early,1)},
+          {h:'ครึ่งหลัง',k:'late',n:1,f:r=>fmt(r.late,1)},
+          {h:'เปลี่ยน (ตัน)',k:'chg',n:1,raw:1,f:r=>`<b style="color:${c}">${sign}${fmt(r.chg,1)}</b>`},
+          {h:'%',k:'pct',n:1,raw:1,f:r=>r.pct==null?'—':`<b style="color:${c}">${+r.pct>0?'+':''}${fmt(r.pct,1)}%</b>`}
+        ], arr, 15) : '<div class="msg">ไม่มีข้อมูล</div>'}</div>`).join('')}
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="card anim d2"><h3>สินค้าเข้าใหม่ — ${fmt(MV2.n_new)} ตัว</h3>
+      <p class="sm" style="margin:-4px 0 10px">ไม่มีการเคลื่อนไหวเลยในครึ่งแรก เพิ่งมาขยับครึ่งหลัง</p>
+      ${(MV2.new||[]).length ? tableHTML([
+        {h:'รหัสสินค้า',k:'mat',raw:1,f:r=>`<a class="skulink" onclick="skuShow('${esc(r.mat)}')">${esc(r.mat)}</a>`},
+        {h:'น้ำหนัก (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)},
+        {h:'เริ่มเดือน',k:'first_m',f:r=>monthLabel(r.first_m)},
+        {h:'ขยับกี่เดือน',k:'months',n:1,f:r=>fmt(r.months)}
+      ], MV2.new, 15) : '<div class="msg">ไม่มี</div>'}</div>
+    <div class="card anim d3"><h3>สินค้าที่หายไป — ${fmt(MV2.n_gone)} ตัว</h3>
+      <p class="sm" style="margin:-4px 0 10px">เคยเคลื่อนไหวในครึ่งแรก แต่ครึ่งหลังไม่มีเลย</p>
+      ${(MV2.gone||[]).length ? tableHTML([
+        {h:'รหัสสินค้า',k:'mat',raw:1,f:r=>`<a class="skulink" onclick="skuShow('${esc(r.mat)}')">${esc(r.mat)}</a>`},
+        {h:'น้ำหนักเดิม (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)},
+        {h:'เดือนสุดท้าย',k:'last_m',f:r=>monthLabel(r.last_m)},
+        {h:'เคยขยับกี่เดือน',k:'months',n:1,f:r=>fmt(r.months)}
+      ], MV2.gone, 15) : '<div class="msg">ไม่มี</div>'}</div>
+  </div>` : ''}
   <div class="grid2">
     <div class="card anim d1"><h3>น้ำหนักตามกลุ่มสินค้า (ตัน)</h3>
       <div class="chartbox"><canvas id="f3"></canvas></div>
@@ -11829,6 +12036,22 @@ async function pageFG(){
   <div class="grid2">
     <div class="card anim d3"><h3>10 อันดับรหัสสินค้า (ตัน)</h3><div class="chartbox"><canvas id="f6"></canvas></div></div>
     <div class="card anim d4"><h3>น้ำหนักตาม Storage Location (ตัน)</h3><div class="chartbox"><canvas id="f7"></canvas></div></div>
+  </div>
+
+  <div class="card anim d5" id="skuFinder">
+    <div class="cardhd">
+      <h3>ค้นหาแนวโน้มรายรหัสสินค้า</h3>
+      <div class="sm" style="text-align:right;max-width:270px">พิมพ์รหัสหรือชื่อสินค้า<br>
+        แล้วดูว่าแต่ละเดือนกี่ตัน เพิ่มหรือลดกี่ %</div>
+    </div>
+    <div class="skusearch">
+      <span class="ic">🔍</span>
+      <input id="skuQ" placeholder="เช่น 3SPTS0050 หรือ ท่อเหลี่ยม 50" autocomplete="off"
+             oninput="skuSuggest(this.value)" onkeydown="if(event.key==='Enter'){event.preventDefault();skuPickFirst();}">
+      <button class="fbtn alt" onclick="el('skuQ').value='';el('skuSug').innerHTML='';el('skuOut').innerHTML='';">ล้าง</button>
+    </div>
+    <div id="skuSug" class="skusug"></div>
+    <div id="skuOut"></div>
   </div>
 
   ${sect(5,'Sales Group Analysis','เจาะตามทะเบียนสินค้า — กลุ่มขาย กลุ่มผลิตภัณฑ์ และชนิดสินค้า','o')}
