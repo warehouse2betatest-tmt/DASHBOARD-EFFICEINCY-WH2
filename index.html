@@ -478,6 +478,29 @@ body.navfold .me button::after{content:'⏻';font-size:15px}
 .defbox .row span{flex:1;min-width:0}
 .defbox .row span b{font-weight:600;color:var(--txt)}
 
+/* ---------- ป๊อปอัปรายละเอียดลูกค้า ---------- */
+.cdhead{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:9px;margin-bottom:13px}
+.cdhead>div{background:#fbfcfe;border:1px solid var(--line);border-radius:11px;padding:10px 12px;min-width:0}
+.cdhead b{display:block;font-size:20px;font-weight:700;color:var(--txt);line-height:1.15;margin-top:2px}
+.cdhead i{font-style:normal;font-size:10.5px;color:var(--muted);font-weight:300}
+.cdblock{margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.cdblock:last-child{border-bottom:none;padding-bottom:0;margin-bottom:0}
+.cdblock .ch{display:flex;align-items:baseline;gap:10px}
+.cdblock .ch b{font-size:14px;font-weight:600;color:var(--txt)}
+.cdblock .ch .sm{margin-left:auto}
+.cdtab{display:flex;flex-direction:column}
+.cdrow{display:flex;align-items:center;gap:9px;padding:6px 0;border-top:1px solid var(--line);
+  font-size:12.5px;min-width:0}
+.cdrow:first-child{border-top:none}
+.cdrow.dim{opacity:.65}
+.cdrow>b{flex:none;width:10px;height:10px;border-radius:3px}
+.cdrow .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:400}
+.cdrow .tn{flex:none;font-weight:600;color:var(--txt)}
+.cdrow .tn small{font-size:10px;font-weight:300;color:var(--muted);margin-left:3px}
+.cdrow .pc{flex:none;width:56px;text-align:right;font-weight:700;color:var(--org-deep)}
+.cdrow .sk{flex:none;width:132px;text-align:right}
+@media(max-width:560px){ .cdrow .sk{display:none} }
+
 /* ---------- ตัวกรองกลุ่มสินค้าในหัวข้อ Product Analysis ---------- */
 .pachips{display:grid;grid-template-columns:1fr 1fr;gap:16px}
 @media(max-width:820px){ .pachips{grid-template-columns:1fr} }
@@ -4621,7 +4644,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-13.3';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-13.5';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -5242,7 +5265,9 @@ function chartDefaultsFor(){
 
 function go(p,e){
   if(e) e.preventDefault();
-  if(typeof hideTip === 'function') hideTip();      // กล่องข้อความลอยค้างตอนสลับหน้า
+  if(typeof hideTip === 'function') hideTip();
+  /* บันทึกว่าเปิดหน้าไหน — ยิงทิ้งไม่รอผล ถ้าพลาดก็ไม่กระทบการใช้งาน */
+  if(TOKEN){ try{ sb.rpc('app_track',{p_token:TOKEN, p_page:p}); }catch(_){} }      // กล่องข้อความลอยค้างตอนสลับหน้า
   document.body.style.overflow = '';                // กันหน้าจอเลื่อนไม่ได้ ถ้ามี popup ค้าง
   chartDefaultsFor(p);
   if((p==='import'||p==='users') && ME.role!=='admin') p='fg';
@@ -7905,6 +7930,206 @@ async function pageOverview(){
               `<span style="opacity:.75">${fmt(r.s)} เที่ยวรถ</span>`;}});
 }
 
+
+/* =========================================================================
+   ป๊อปอัปรายละเอียดลูกค้า — คลิกจากกราฟ 10 อันดับลูกค้า
+   ========================================================================= */
+let CUST_ARGS = {};
+
+async function custDetail(name){
+  openModal('รายละเอียดลูกค้า', '<div class="spin"></div>');
+  let D;
+  try{ D = await rpc('app_fg_cust_detail',{
+        p_name: name, p_months: CUST_ARGS.months,
+        p_slocs: CUST_ARGS.slocs, p_shtys: CUST_ARGS.shtys }); }
+  catch(ex){ el('modalBody').innerHTML = `<div class="msg err">${esc(ex.message)}</div>`; return; }
+  if(!D.found){
+    el('modalBody').innerHTML = `<div class="msg warn">ไม่พบข้อมูลของ <b>${esc(name)}</b> ตามตัวกรองที่เลือก</div>`;
+    return;
+  }
+
+  /* แถบสัดส่วน + ตาราง ใช้ซ้ำได้ทั้งกลุ่มขาย กลุ่มผลิตภัณฑ์ และชนิดสินค้า */
+  const block = (title, rows, note) => {
+    const R2 = rows||[]; if(!R2.length) return '';
+    const shown = R2.slice(0,8);
+    const rest  = R2.slice(8);
+    const restTon = rest.reduce((s,x)=>s+ +x.ton,0);
+    const restPct = rest.reduce((s,x)=>s+ +x.pct,0);
+    return `<div class="cdblock">
+      <div class="ch"><b>${title}</b><span class="sm">${fmt(R2.length)} กลุ่ม</span></div>
+      <div class="pbar" style="height:24px;margin:9px 0 9px">
+        ${shown.map((x,i)=>`<i style="width:${(+x.pct||0).toFixed(1)}%;background:${PAL[i%PAL.length]}"
+          title="${esc(x.k)} · ${fmt(x.ton,1)} ตัน (${fmt(x.pct,1)}%)">${+x.pct>=9?fmt(x.pct,0)+'%':''}</i>`).join('')}
+        ${rest.length?`<i style="width:${restPct.toFixed(1)}%;background:#c6d0dd;color:var(--txt)"
+          title="อื่นๆ ${fmt(rest.length)} กลุ่ม">${restPct>=9?fmt(restPct,0)+'%':''}</i>`:''}
+      </div>
+      <div class="cdtab">
+        ${shown.map((x,i)=>`<div class="cdrow">
+          <b style="background:${PAL[i%PAL.length]}"></b>
+          <span class="nm">${esc(x.k)}</span>
+          <span class="tn">${fmt(x.ton,1)}<small>ตัน</small></span>
+          <span class="pc">${fmt(x.pct,1)}%</span>
+          <span class="sk sm">${fmt(x.skus)} SKU · ${fmt(x.lines)} รายการ</span>
+        </div>`).join('')}
+        ${rest.length?`<div class="cdrow dim">
+          <b style="background:#c6d0dd"></b>
+          <span class="nm">อื่นๆ อีก ${fmt(rest.length)} กลุ่ม</span>
+          <span class="tn">${fmt(restTon,1)}<small>ตัน</small></span>
+          <span class="pc">${fmt(restPct,1)}%</span><span class="sk"></span></div>`:''}
+      </div>
+      ${note?`<p class="sm" style="margin-top:8px">${note}</p>`:''}
+    </div>`;
+  };
+
+  const gs = D.gsale||[], gp = D.gprod||[];
+  const conc = a => a.length ? +a[0].pct : 0;
+
+  el('modalTitle').textContent = name;
+  el('modalBody').innerHTML = `
+  <div class="cdhead">
+    <div><div class="sm">น้ำหนักรวม</div><b>${fmt(D.ton,1)}</b><i>ตัน</i></div>
+    <div><div class="sm">รหัสสินค้า</div><b>${fmt(D.skus)}</b><i>SKU</i></div>
+    <div><div class="sm">เที่ยวรถ</div><b>${fmt(D.ships)}</b><i>เที่ยว</i></div>
+    <div><div class="sm">ใบส่งของ</div><b>${fmt(D.dlv)}</b><i>ใบ</i></div>
+    <div><div class="sm">ช่วงที่ซื้อ</div><b style="font-size:15px">${fmt(D.months)}</b><i>เดือน</i></div>
+  </div>
+  ${D.cg?`<p class="sm" style="margin-bottom:12px">กลุ่มลูกค้า <b>${esc(D.cg)}</b> ·
+    ซื้อครั้งแรก ${dmy(D.d0)} · ล่าสุด ${dmy(D.d1)}</p>`:''}
+
+  ${block('กลุ่มขาย (Group Sale)', gs,
+     gs.length ? `กลุ่มหลักคือ <b>${esc(gs[0].k)}</b> คิดเป็น <b>${fmt(gs[0].pct,1)}%</b> ของน้ำหนักที่ซื้อ`
+       + (conc(gs)>=70 ? ' — พึ่งพากลุ่มเดียวสูงมาก' : (conc(gs)>=45 ? ' — ค่อนข้างกระจุกตัว' : ' — ซื้อกระจายหลายกลุ่ม')) : '')}
+
+  ${block('กลุ่มผลิตภัณฑ์ (Group Product)', gp,
+     gp.length ? `กลุ่มหลักคือ <b>${esc(gp[0].k)}</b> คิดเป็น <b>${fmt(gp[0].pct,1)}%</b>` : '')}
+
+  ${block('ชนิดสินค้า (Product Type)', D.ptype||[], '')}
+
+  ${(D.top_sku||[]).length?`<div class="cdblock">
+    <div class="ch"><b>10 อันดับสินค้าที่ซื้อมากที่สุด</b></div>
+    ` + tableHTML([
+      {h:'รหัสสินค้า',k:'k',raw:1,f:r=>`<a class="skulink" onclick="closeModal();go('fg');setTimeout(()=>skuShow('${esc(r.k)}'),400)">${esc(r.k)}</a>`},
+      {h:'รายละเอียด',k:'d',w:1,f:r=>r.d||'—'},
+      {h:'น้ำหนัก (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)},
+      {h:'สัดส่วน',k:'pct',n:1,raw:1,f:r=>`<b style="color:var(--org-deep)">${fmt(r.pct,1)}%</b>`},
+      {h:'รายการ',k:'lines',n:1,f:r=>fmt(r.lines)}
+    ], D.top_sku, 10) + `</div>`:''}
+  `;
+}
+
+/* =========================================================================
+   แดชบอร์ดการใช้งานระบบ (หน้าจัดการผู้ใช้)
+   ========================================================================= */
+function actBlock(AC, nice, ago){
+  const T = AC.tot||{}, RW = AC.rows||[], PGS = AC.top_page||[], DAY = AC.by_day||[];
+  const maxLog = Math.max(1, ...RW.map(r=>+r.logins||0));
+  const rank = i => i===0?'🥇':(i===1?'🥈':(i===2?'🥉':''));
+
+  const sect2 = (n,t,s,cls='') =>
+    `<div class="sect ${cls}"><div class="no">${n}</div>
+       <div><h2>${t}</h2><p>${s}</p></div><div class="ln"></div></div>`;
+
+  return `
+  ${sect2(1,'การใช้งานระบบ','ใครเข้ามาใช้บ้าง บ่อยแค่ไหน และล่าสุดเมื่อไร','o')}
+
+  <div class="filters anim">
+    <div class="fld" style="margin:0"><label>ช่วงเวลาที่ดู</label>
+      <select onchange="UA_DAYS=+this.value; pageUsers()" style="padding:9px 12px">
+        ${[[7,'7 วันล่าสุด'],[30,'30 วันล่าสุด'],[90,'90 วันล่าสุด'],[3650,'ตั้งแต่เริ่มเก็บ']]
+          .map(([v,t])=>`<option value="${v}" ${UA_DAYS===v?'selected':''}>${t}</option>`).join('')}
+      </select></div>
+    <div style="margin-left:auto;text-align:right">
+      <div class="sm">เริ่มเก็บประวัติเมื่อ</div>
+      <div style="font-weight:500;font-size:15px">${AC.started?dmy(AC.started):'—'}</div></div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi o anim d1"><div class="k">เข้าใช้งานทั้งหมด</div>
+      <div class="v">${fmt(T.logins)}</div>
+      <div class="s">ครั้ง · ในช่วง ${fmt(AC.days>365?'':AC.days)||'ทั้งหมด'}${AC.days>365?'ทั้งหมด':' วัน'}</div></div>
+    <div class="kpi g anim d2"><div class="k">คนที่เข้ามาใช้จริง</div>
+      <div class="v">${fmt(T.active)} <span style="font-size:15px;opacity:.45">/ ${fmt(T.users)}</span></div>
+      <div class="s">คน · ${T.never?`ยังไม่เคยเข้าเลย ${fmt(T.never)} คน`:'ทุกคนเคยเข้าแล้ว'}</div></div>
+    <div class="kpi ${+T.fails?'r':''} anim d3"><div class="k">เข้าไม่สำเร็จ</div>
+      <div class="v">${fmt(T.fails)}</div>
+      <div class="s">ครั้ง${+T.locked?` · ถูกล็อกอยู่ ${fmt(T.locked)} บัญชี`:''}</div></div>
+    <div class="kpi anim d4"><div class="k">เปิดหน้าดูข้อมูล</div>
+      <div class="v">${fmt(T.pages)}</div>
+      <div class="s">${AC.has_page?'ครั้ง':'เริ่มเก็บเมื่อเปิดใช้ครั้งถัดไป'}</div></div>
+  </div>
+
+  <div class="card anim d1">
+    <h3>ใครเข้ามาใช้บ้าง</h3>
+    <p class="sm" style="margin:-4px 0 12px">เรียงจากคนที่เข้าบ่อยที่สุด ·
+      แถบสีคือจำนวนครั้งเทียบกับคนที่เข้ามากที่สุด${
+      AC.has_page?' · คอลัมน์เปิดหน้าคือจำนวนครั้งที่เปิดดูข้อมูลในระบบ':''}</p>
+    ` + tableHTML([
+      {h:'',k:'emp',raw:1,f:r=>`<span style="font-size:15px">${rank(RW.indexOf(r))}</span>`},
+      {h:'รหัสพนักงาน',k:'emp',raw:1,f:r=>`<b>${esc(r.emp)}</b>`},
+      {h:'ชื่อ',k:'name',w:1,f:r=>r.name||'—'},
+      {h:'สิทธิ์',k:'role',raw:1,f:r=>`<span class="pill ${r.role==='admin'?'o':''}">${
+        r.role==='admin'?'ผู้ดูแลระบบ':'ผู้ใช้งาน'}</span>${r.ok?'':' <span class="pill n">รออนุมัติ</span>'}`},
+      {h:'เข้าใช้ (ครั้ง)',k:'logins',n:1,raw:1,
+       f:r=>`<b style="font-size:15px;color:${+r.logins?'var(--org-deep)':'var(--muted)'}">${fmt(r.logins)}</b>`
+          + `<div class="minibar" style="margin-top:4px"><i style="width:${(+r.logins/maxLog*100).toFixed(0)}%;background:var(--org)"></i></div>`},
+      {h:'เปิดหน้า',k:'pages',n:1,f:r=>fmt(r.pages)},
+      {h:'วันที่ใช้งาน',k:'active_days',n:1,f:r=>fmt(r.active_days)},
+      {h:'เข้าล่าสุด',k:'last_in',raw:1,
+       f:r=>r.last_in?`${esc(nice(r.last_in))}<div class="sm">${esc(ago(r.last_in))}</div>`
+                     :'<span class="sm">ยังไม่เคยเข้า</span>'},
+      {h:'เข้าครั้งแรก',k:'first_in',f:r=>r.first_in?nice(r.first_in):'—'},
+      {h:'สร้างบัญชีเมื่อ',k:'created',f:r=>r.created?nice(r.created):'—'},
+      {h:'สถานะ',k:'locked',raw:1,
+       f:r=>r.locked?'<span class="pill r">ถูกล็อก</span>'
+            :(+r.fails?`<span class="pill o">ผิด ${fmt(r.fails)} ครั้ง</span>`
+                      :'<span class="pill g">ปกติ</span>')}
+    ], RW, 100) + `
+  </div>
+
+  ${DAY.length>1 ? `<div class="card anim d2"><h3>การใช้งานรายวัน</h3>
+    <div class="chartbox" style="height:250px"><canvas id="uaDay"></canvas></div>
+    <p class="sm" style="margin-top:10px">แท่ง = จำนวนครั้งที่เข้าระบบ · เส้น = จำนวนคนที่ใช้งานวันนั้น</p></div>` : ''}
+
+  ${PGS.length ? `<div class="card anim d3"><h3>หน้าที่เปิดดูบ่อยที่สุด</h3>
+    ` + tableHTML([
+      {h:'หน้า',k:'k',raw:1,f:r=>`<b>${esc(PAGE_TH[r.k]||r.k)}</b>`},
+      {h:'เปิดกี่ครั้ง',k:'n',n:1,f:r=>fmt(r.n)},
+      {h:'กี่คนที่เปิด',k:'users',n:1,f:r=>fmt(r.users)}
+    ], PGS, 20) + `</div>` : ''}
+
+  ${sect2(2,'จัดการบัญชี','อนุมัติ เปลี่ยนสิทธิ์ ตั้งรหัสผ่านใหม่')}
+  `;
+}
+
+/* วาดกราฟการใช้งานรายวัน — เรียกหลัง body() ของหน้าจัดการผู้ใช้ */
+function drawUseChart(DAY){
+  if(!DAY || DAY.length < 2 || !el('uaDay')) return;
+  const axisFont = {font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'};
+  chart('uaDay','bar',DAY.map(x=>dmy(x.d)),[
+    {label:'เข้าระบบ (ครั้ง)',data:DAY.map(x=>+x.logins||0),
+     backgroundColor:'#ff7a18',borderRadius:5},
+    {type:'line',label:'จำนวนคนที่ใช้งาน',data:DAY.map(x=>+x.users||0),
+     borderColor:'#0b2447',backgroundColor:'#0b2447',borderWidth:2.5,
+     tension:.3,pointRadius:4,yAxisID:'y2'}
+  ],{layout:{padding:{top:20}},
+     scales:{y:{beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+             y2:{position:'right',beginAtZero:true,grid:{display:false},border:{display:false},
+                 ticks:Object.assign({},axisFont,{precision:0})},
+             x:{grid:{display:false},ticks:axisFont}},
+     vl:v=>fmt(v,0),
+     tip:(pts)=>{const r=DAY[pts[0].dataIndex];
+       return `<b>${dmy(r.d)}</b><br>เข้าระบบ ${fmt(r.logins)} ครั้ง<br>`
+         + `ผู้ใช้งาน ${fmt(r.users)} คน`
+         + (+r.pages?`<br><span style="opacity:.75">เปิดหน้า ${fmt(r.pages)} ครั้ง</span>`:'');}});
+}
+
+/* ชื่อหน้าเป็นภาษาไทย สำหรับตารางสถิติ */
+const PAGE_TH = {
+  ov:'ภาพรวม', fg:'FG จ่ายออก/รับเข้า', shipment:'Shipment Analysis',
+  do:'DO Preparing & Milk Run', mrfg:'Shipment & Milk Run',
+  stock:'สต็อก & การจัดวาง', ops:'สายงาน & ประสิทธิภาพ',
+  import:'นำเข้าข้อมูล', profile:'โปรไฟล์ของฉัน', users:'จัดการผู้ใช้'
+};
 
 /* =========================================================================
    ค้นหาแนวโน้มรายรหัสสินค้า (หน้า FG)
@@ -12191,7 +12416,9 @@ async function pageFG(){
       <div class="v">${nCust?fmt(ton/nCust,2):'—'}</div><div class="s">ตัน/ราย</div></div>
   </div>
   <div class="grid3">
-    <div class="card anim d3"><h3>10 อันดับลูกค้าตามน้ำหนัก (ตัน)</h3><div class="chartbox"><canvas id="f5"></canvas></div></div>
+    <div class="card anim d3"><h3>10 อันดับลูกค้าตามน้ำหนัก (ตัน)</h3>
+      <p class="sm" style="margin:-4px 0 8px">คลิกที่แท่งเพื่อดูว่าลูกค้ารายนั้นซื้อกลุ่มสินค้าอะไรบ้าง</p>
+      <div class="chartbox"><canvas id="f5"></canvas></div></div>
     <div class="card anim d3"><h3>สัดส่วนตามกลุ่มลูกค้า (ตัน)</h3><div class="chartbox"><canvas id="f4"></canvas></div></div>
   </div>
   <div class="grid2">
@@ -12304,8 +12531,18 @@ async function pageFG(){
     {scales:tonScale, layout:{padding:{top:18}}, vl:v=>fmt(v,0),
      tip:gsTip('sloc', i=>bySloc[i][0], 'ตัน')});
 
+  CUST_ARGS = { months: orNull('months'),
+                slocs : hasF('factories') ? (slocs.length ? slocs : ['__NO_MATCH__']) : null,
+                shtys : orNull('shtys') };
   chart('f5','bar',byName.map(x=>x[0].slice(0,24)),[{label:'ตัน',data:byName.map(x=>x[1]),
-    backgroundColor:'#ff7a18',borderRadius:6}], Object.assign({},hBar,{vl:v=>fmt(v,0)}));
+    backgroundColor:'#ff7a18',borderRadius:6}],
+    Object.assign({},hBar,{vl:v=>fmt(v,0),
+      onClick:(evt,els)=>{ if(els&&els.length) custDetail(byName[els[0].index][0]); },
+      onHover:(evt,els)=>{ const c=evt.native&&evt.native.target;
+        if(c) c.style.cursor = (els&&els.length) ? 'pointer' : 'default'; },
+      tip:(pts)=>{ const r=byName[pts[0].dataIndex]; if(!r) return '';
+        return `<b>${esc(r[0])}</b><br>${fmt(r[1],1)} ตัน (${fmt(r[1]/Math.max(ton,1)*100,1)}%)`
+             + `<br><span style="opacity:.75">คลิกเพื่อดูกลุ่มสินค้าของลูกค้ารายนี้</span>`;}}));
   chart('f4','doughnut',byCustGrp.map(x=>x[0]),[{data:byCustGrp.map(x=>x[1]),
     backgroundColor:PAL,borderWidth:3,borderColor:'#fff'}],
     {cutout:'58%', vl:v=>`${fmt(v,0)} ต\n${(v/Math.max(ton,1)*100).toFixed(0)}%`,
@@ -13316,15 +13553,34 @@ async function changePw(e){
 /* =========================================================================
    PAGE 6 — USER MANAGEMENT (admin)
    ========================================================================= */
+let UA_DAYS = 30;   // ช่วงเวลาที่ดูสถิติการใช้งาน
+
 async function pageUsers(){
   let U;
   try{ U = await rpc('app_list_users'); }
   catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
 
+  let AC = null;
+  try{ AC = await rpc('app_user_activity',{ p_days: UA_DAYS }); }
+  catch(_){ AC = null; }
+
   const pend = U.filter(u=>!u.is_approved);
   const inReg = U.filter(u=>u.in_registry).length;
+  const DAY = (AC && AC.by_day) || [];
+
+  const nice = ts => { if(!ts) return '—';
+    const d = new Date(ts);
+    return d.toLocaleString('th-TH',{dateStyle:'short',timeStyle:'short'}); };
+  const ago = ts => { if(!ts) return 'ยังไม่เคยเข้า';
+    const m = (Date.now() - new Date(ts).getTime())/60000;
+    if(m < 1) return 'เมื่อครู่นี้';
+    if(m < 60) return `${Math.round(m)} นาทีที่แล้ว`;
+    if(m < 1440) return `${Math.round(m/60)} ชั่วโมงที่แล้ว`;
+    const dd = Math.round(m/1440);
+    return dd < 31 ? `${dd} วันที่แล้ว` : `${Math.round(dd/30)} เดือนที่แล้ว`; };
 
   body(`
+  ${AC ? actBlock(AC, nice, ago) : ''}
   <div class="kpis">
     <div class="kpi anim d1"><div class="k">ผู้ใช้ทั้งหมด</div><div class="v">${fmt(U.length)}</div><div class="s">บัญชี</div></div>
     <div class="kpi ${pend.length?'o':'g'} anim d2"><div class="k">รออนุมัติ</div><div class="v">${fmt(pend.length)}</div><div class="s">คน</div></div>
@@ -13366,6 +13622,8 @@ async function pageUsers(){
         </td></tr>`;
     }).join('')}</tbody></table></div>
   </div>`);
+
+  drawUseChart(DAY);
 }
 
 async function uApprove(id,cur){
