@@ -4644,7 +4644,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-13.5';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-13.6';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -7993,6 +7993,8 @@ async function custDetail(name){
     <div><div class="sm">ใบส่งของ</div><b>${fmt(D.dlv)}</b><i>ใบ</i></div>
     <div><div class="sm">ช่วงที่ซื้อ</div><b style="font-size:15px">${fmt(D.months)}</b><i>เดือน</i></div>
   </div>
+  ${+D.n_names>1?`<div class="msg warn">ชื่อย่อนี้ตรงกับลูกค้า <b>${fmt(D.n_names)}</b> ราย
+    ตัวเลขด้านล่างจึงเป็นยอดรวมของทุกรายที่ใช้ชื่อย่อเดียวกัน</div>`:''}
   ${D.cg?`<p class="sm" style="margin-bottom:12px">กลุ่มลูกค้า <b>${esc(D.cg)}</b> ·
     ซื้อครั้งแรก ${dmy(D.d0)} · ล่าสุด ${dmy(D.d1)}</p>`:''}
 
@@ -12084,6 +12086,7 @@ async function pageFG(){
 
   const byDir=kv(R.by_direction), byShty=kv(R.by_shty), byGrp=kv(R.by_group),
         byPtype=kv(R.by_ptype), bySloc=kv(R.by_sloc), byName=kv(R.top_customer),
+        custFull=(R.top_customer||[]).map(x=>x.full||x.k),   // ชื่อเต็มไว้ส่งตอนคลิก
         bySku=kv(R.top_sku), byCustGrp=kv(R.by_customer), custShip=kv(R.cust_by_ship),
         shipTo=kv(R.shipto_top), truckDist=kv(R.truck_dist), shipByShty=kv(R.ship_by_shty);
 
@@ -12537,7 +12540,8 @@ async function pageFG(){
   chart('f5','bar',byName.map(x=>x[0].slice(0,24)),[{label:'ตัน',data:byName.map(x=>x[1]),
     backgroundColor:'#ff7a18',borderRadius:6}],
     Object.assign({},hBar,{vl:v=>fmt(v,0),
-      onClick:(evt,els)=>{ if(els&&els.length) custDetail(byName[els[0].index][0]); },
+      onClick:(evt,els)=>{ if(els&&els.length){ const i=els[0].index;
+        custDetail(custFull[i] || byName[i][0]); } },
       onHover:(evt,els)=>{ const c=evt.native&&evt.native.target;
         if(c) c.style.cursor = (els&&els.length) ? 'pointer' : 'default'; },
       tip:(pts)=>{ const r=byName[pts[0].dataIndex]; if(!r) return '';
