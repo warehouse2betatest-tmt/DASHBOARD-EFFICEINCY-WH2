@@ -478,6 +478,36 @@ body.navfold .me button::after{content:'⏻';font-size:15px}
 .defbox .row span{flex:1;min-width:0}
 .defbox .row span b{font-weight:600;color:var(--txt)}
 
+/* ---------- หน้าตรวจคุณภาพข้อมูล ---------- */
+.qhero{display:flex;align-items:center;gap:17px;padding:18px 22px;border-radius:var(--r);
+  margin-bottom:17px;border:1px solid var(--line);box-shadow:var(--sh);flex-wrap:wrap}
+.qhero.ok{background:linear-gradient(135deg,#f2fbf6,#e6f7ee);border-color:#a9d8bd}
+.qhero.warn{background:linear-gradient(135deg,#fff8f0,#fff0e0);border-color:#ffc999}
+.qhero .ic{font-size:34px;flex:none;line-height:1}
+.qhero h2{font-size:19px;font-weight:600;color:var(--txt);letter-spacing:-.2px}
+.qhero p{font-size:12.5px;font-weight:300;color:var(--muted);margin-top:4px;line-height:1.6;max-width:660px}
+.qbar{height:5px;background:var(--bg);border-radius:3px;overflow:hidden;margin-top:5px;min-width:78px}
+.qbar i{display:block;height:100%;border-radius:3px;transition:width .6s}
+
+/* ---------- การ์ดตั้งค่าเป้าหมาย ---------- */
+.tgtgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:14px}
+.tgtcard{border:1px solid var(--line);border-radius:13px;padding:15px 16px;background:#fff;min-width:0}
+.tgtcard .th{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:11px}
+.tgtcard .th b{font-size:14.5px;font-weight:600;color:var(--txt)}
+.tgtcard .th .pill{margin-left:auto}
+.tgtcard .tv{display:flex;gap:10px}
+.tgtcard .tv>div{flex:1;border-radius:10px;padding:9px 11px;min-width:0}
+.tgtcard .tv .g{background:var(--ok-soft)} .tgtcard .tv .a{background:var(--org-soft)}
+.tgtcard .tv span{display:block;font-size:10.5px;font-weight:300;color:var(--muted)}
+.tgtcard .tv b{display:block;font-size:17px;font-weight:700;margin-top:2px}
+.tgtcard .tv .g b{color:#0b6b3a} .tgtcard .tv .a b{color:#a34f06}
+.tgtcard .tn{font-size:11.5px;color:var(--muted);font-weight:300;margin-top:10px;line-height:1.55}
+.tgtcard .tf{display:flex;gap:7px;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.tgtcard .tf input{flex:1;min-width:0;padding:8px 10px;border:1.5px solid var(--line);border-radius:9px;
+  font-family:inherit;font-size:13px;color:var(--txt);transition:.18s}
+.tgtcard .tf input:focus{outline:none;border-color:var(--org);box-shadow:0 0 0 3px rgba(255,122,24,.13)}
+.tgtcard .tf .fbtn{flex:none;padding:8px 15px;font-size:12.5px}
+
 /* ---------- ป๊อปอัปรายละเอียดลูกค้า ---------- */
 .cdhead{display:grid;grid-template-columns:repeat(auto-fit,minmax(96px,1fr));gap:9px;margin-bottom:13px}
 .cdhead>div{background:#fbfcfe;border:1px solid var(--line);border-radius:11px;padding:10px 12px;min-width:0}
@@ -1683,6 +1713,8 @@ details summary{cursor:pointer;user-select:none}
       <a href="#" data-p="stock" onclick="go('stock',event)"><span class="ic">📍</span> สต็อก &amp; การจัดวาง</a>
       <a href="#" data-p="ops" onclick="go('ops',event)"><span class="ic">📈</span> สายงาน &amp; ประสิทธิภาพ</a>
       <div class="navlbl">ระบบ</div>
+      <a href="#" data-p="faccmp" onclick="go('faccmp',event)"><span class="ic">🏭</span> เทียบโรงงาน</a>
+      <a href="#" data-p="quality" onclick="go('quality',event)"><span class="ic">🔍</span> ตรวจคุณภาพข้อมูล</a>
       <a href="#" data-p="import" id="navImport" onclick="go('import',event)"><span class="ic">📥</span> นำเข้าข้อมูล</a>
       <a href="#" data-p="profile" onclick="go('profile',event)"><span class="ic">👤</span> โปรไฟล์ของฉัน</a>
       <a href="#" data-p="users" id="navUsers" onclick="go('users',event)"><span class="ic">⚙️</span> จัดการผู้ใช้</a>
@@ -4644,7 +4676,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-13.6';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-14.2';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -4680,6 +4712,20 @@ let DATE_ISSUES = [];   // ปัญหาวันเวลาที่ตร�
 
 /* ตัวกรองใช้ร่วมกันทุกหน้า + แคชข้อมูลไว้ ไม่ต้องยิงซ้ำตอนเปลี่ยนตัวกรอง */
 let FILTERS = { months:[], factories:[], shtys:[], routes:[], mstat:['Completed'], opsloc:[], dim:'gate', keys:[] };
+
+/* ค่าเป้าหมายที่ตั้งไว้ในระบบ — โหลดครั้งเดียวตอนเข้าระบบ แก้ได้ที่หน้าตั้งค่า */
+const TARGETS = {};
+const tgt   = (m, fallback) => { const t = TARGETS[m];
+  return t && t.green_max != null ? +t.green_max : fallback; };
+const tgtA  = (m, fallback) => { const t = TARGETS[m];
+  return t && t.amber_max != null ? +t.amber_max : fallback; };
+/* คืนสีตามเกณฑ์ที่ตั้งไว้ : g = ดี, o = พอใช้, r = ต้องแก้ */
+function tgtLevel(m, v){
+  const t = TARGETS[m]; if(!t || v==null || isNaN(v)) return '';
+  const g = +t.green_max, a = +t.amber_max;
+  if(t.higher_better) return v >= g ? 'g' : (v >= a ? 'o' : 'r');
+  return v <= g ? 'g' : (v <= a ? 'o' : 'r');
+}
 let MONTHS_CACHE = [];        // รายชื่อเดือนที่มีข้อมูล ใช้ร่วมกันทุกหน้า
 const hasF = k => (FILTERS[k]||[]).length > 0;
 const orNull = k => hasF(k) ? FILTERS[k] : null;
@@ -5151,6 +5197,8 @@ async function boot(){
   el('navImport').classList.toggle('hide',!adm);
   el('navUsers').classList.toggle('hide',!adm);
   show('appView');
+  try{ const t = await rpc('app_targets_get');
+       (t||[]).forEach(x=>{ TARGETS[x.metric] = x; }); }catch(_){}
   restoreNavFold();
   go('ov');   // เปิดที่หน้าภาพรวมก่อน
 }
@@ -5251,6 +5299,8 @@ const PAGES = {
   ops:     {t:'สายงาน &amp; <span class="ac">ประสิทธิภาพ</span>', s:'ไล่เวลาตั้งแต่เปิด DO จนรถออก · เวลาเลิกงาน · การใช้พื้นที่รถ', f:pageOps},
   mrfg:    {t:'Shipment &amp; <span class="ac">Milk Run</span>', s:'จับคู่สินค้าที่ขนย้ายระหว่างโรงกับเที่ยวรถที่จ่ายออกจริง ด้วยใบส่ง + เลขรายการ', f:pageMRFG},
   do:      {t:'DO Preparing &amp; <span class="ac">Milk Run</span>', s:'วิเคราะห์เวลาจัดเตรียมสินค้าและการขนส่งระหว่างโรงแบบเจาะลึก', f:pageDO},
+  faccmp:  {t:'เทียบ<span class="ac">โรงงาน</span>', s:'อะไรทำให้เลิกงานเร็ว/ช้า — เจาะจากข้อมูลจริง', f:pageFacCmp},
+  quality: {t:'ตรวจ<span class="ac">คุณภาพข้อมูล</span>', s:'ตัวเลขที่เห็นตั้งอยู่บนข้อมูลที่ครบแค่ไหน', f:pageQuality},
   import:  {t:'นำเข้า<span class="ac">ข้อมูล</span>',        s:'อัปโหลดไฟล์ Excel 8 ชีทเข้าฐานข้อมูล', f:pageImport},
   profile: {t:'โปรไฟล์<span class="ac">ของฉัน</span>',       s:'แก้ไขข้อมูลส่วนตัวและรหัสผ่าน', f:pageProfile},
   users:   {t:'จัดการ<span class="ac">ผู้ใช้</span>',        s:'อนุมัติผู้สมัครและกำหนดสิทธิ์', f:pageUsers}
@@ -7814,7 +7864,9 @@ async function pageOverview(){
       {h:'ใบส่งของ',k:'dlv',n:1,f:r=>fmt(r.dlv)},
       {h:'รายการ',k:'lines',n:1,f:r=>fmt(r.lines)},
       {h:'เลิกงานเฉลี่ย (ช้าสุด/วัน)',k:'close_h',n:1,raw:1,
-       f:r=>r.close_h==null?'—':`<b style="color:${+r.close_h>=20.5?'#e03131':(+r.close_h<20?'#0f9d58':'var(--org-deep)')}">${hhmm(r.close_h)}</b>`
+       f:r=>r.close_h==null?'—':`<b style="color:${
+         ({g:'#0f9d58',o:'var(--org-deep)',r:'#e03131'})[tgtLevel('finish_hour',+r.close_h)]||'var(--txt)'
+       }">${hhmm(r.close_h)}</b>`
              + `<br><span class="sm">${hhmm(r.close_min)} – ${hhmm(r.close_max)}</span>`}
     ], R.monthly||[]) + `</div>
   <div class="card anim d3"><h3>ปริมาณรายวัน</h3>
@@ -7930,6 +7982,332 @@ async function pageOverview(){
               `<span style="opacity:.75">${fmt(r.s)} เที่ยวรถ</span>`;}});
 }
 
+
+
+
+/* =========================================================================
+   หน้า เทียบโรงงาน — หาว่าอะไรทำให้เลิกงานเร็ว/ช้า
+   ========================================================================= */
+async function pageFacCmp(){
+  let C;
+  try{ C = await rpcCached('app_fac_compare',{ p_months: orNull('months') }); }
+  catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
+
+  const sect = (n,t,s,cls='') =>
+    `<div class="sect ${cls}"><div class="no">${n}</div>
+       <div><h2>${t}</h2><p>${s}</p></div><div class="ln"></div></div>`;
+  const hh = v => (v==null||isNaN(v)) ? '—'
+    : `${String(Math.floor(+v)).padStart(2,'0')}:${String(Math.round((+v%1)*60)).padStart(2,'0')} น.`;
+
+  const R = C.rows||[], P = C.pooled||{}, TG = +C.target || 20.5;
+  if(!R.length){ body(emptyBox('ไม่พบข้อมูลตามตัวกรองที่เลือก')); return; }
+
+  const best = R[0], worst = R[R.length-1];
+  const gap  = (+worst.avg_h - +best.avg_h) * 60;
+  const maxTpt = Math.max(...R.map(r=>+r.tpt||0));
+  const maxTr  = Math.max(...R.map(r=>+r.tr_day||0));
+  const totSaved = R.reduce((s,r)=>s + Math.max(0,+r.min_saved||0), 0);
+
+  body(`
+  <div class="filters anim">
+    ${msRender('months','เดือน',MONTHS_CACHE,FILTERS.months,'pageFacCmp',monthLabel)}
+    <button class="fbtn alt" onclick="resetFilters('pageFacCmp')">ล้างตัวกรอง</button>
+    <div style="margin-left:auto;text-align:right"><div class="sm">เป้าหมายเวลาเลิกงาน</div>
+      <div style="font-weight:500;font-size:15px">${hh(TG)}</div></div>
+  </div>
+
+  <div class="qhero warn anim" style="background:linear-gradient(135deg,#f4f7fc,#e9eff8);border-color:#c6d3e6">
+    <div class="ic">🔎</div>
+    <div>
+      <h2>สิ่งที่ทำให้เลิกงานช้า คือ <b style="color:var(--org-deep)">จำนวนคันรถ</b> ไม่ใช่จำนวนตัน</h2>
+      <p>เมื่อรวมทุกโรงเข้าด้วยกัน ความสัมพันธ์ระหว่าง<b>น้ำหนัก</b>กับเวลาเลิกงานแทบเป็นศูนย์
+        (${fmt(P.c_ton,3)}) แต่<b>จำนวนคันรถ</b>ยังสัมพันธ์ชัด (${fmt(P.c_tr,3)}) ·
+        และยิ่งบรรทุกต่อคันได้มาก ยิ่งเลิกเร็ว (${fmt(P.c_tpt,3)} เป็นค่าติดลบ)<br>
+        แปลว่าต้นทุนเวลาอยู่ที่ <b>การรับรถแต่ละคัน</b> ไม่ใช่ปริมาณของที่ขน</p>
+    </div>
+  </div>
+
+  <div class="kpis">
+    <div class="kpi g anim d1"><div class="k">เลิกเร็วที่สุด</div>
+      <div class="v" style="font-size:22px">${esc(best.k)}</div>
+      <div class="s">${hh(best.avg_h)} · บรรทุก ${fmt(best.tpt,2)} ตัน/คัน</div></div>
+    <div class="kpi r anim d2"><div class="k">เลิกช้าที่สุด</div>
+      <div class="v" style="font-size:22px">${esc(worst.k)}</div>
+      <div class="s">${hh(worst.avg_h)} · บรรทุก ${fmt(worst.tpt,2)} ตัน/คัน</div></div>
+    <div class="kpi o anim d3"><div class="k">ห่างกัน</div>
+      <div class="v">${fmt(gap,0)}</div><div class="s">นาที</div></div>
+    <div class="kpi anim d4"><div class="k">บรรทุกต่อคันดีที่สุด</div>
+      <div class="v">${fmt(C.best_tpt,2)}</div><div class="s">ตัน/คัน · โดย ${esc(best.k)}</div></div>
+  </div>
+
+  ${sect(1,'เทียบทุกโรงในตารางเดียว','เรียงจากเลิกเร็วไปช้า','o')}
+  <div class="card anim d1">
+    <p class="sm" style="margin:-4px 0 12px">
+      <b>corr</b> คือความสัมพันธ์กับเวลาเลิกงาน ยิ่งเข้าใกล้ 1 ยิ่งสัมพันธ์กันมาก ·
+      <b>นาที/คันเพิ่ม</b> คือเวลาที่เลิกงานช้าลงเมื่อรถเพิ่ม 1 คัน คำนวณจากเส้นถดถอยของโรงนั้น</p>
+    ` + tableHTML([
+      {h:'โรงงาน',k:'k',raw:1,f:r=>`<b>${esc(r.k)}</b>`},
+      {h:'เลิกงานเฉลี่ย',k:'avg_h',n:1,raw:1,
+       f:r=>`<b style="color:${+r.avg_h<=TG?'#0f9d58':'#d62828'}">${hh(r.avg_h)}</b>`},
+      {h:'เกินเป้า',k:'pct_over',n:1,raw:1,
+       f:r=>`<b style="color:${+r.pct_over<=10?'#0f9d58':(+r.pct_over<=25?'var(--org-deep)':'#d62828')}">${fmt(r.pct_over,1)}%</b>`
+          + `<div class="sm">${fmt(r.over_t)} จาก ${fmt(r.days)} วัน</div>`},
+      {h:'ตัน/วัน',k:'ton_day',n:1,f:r=>fmt(r.ton_day,1)},
+      {h:'คัน/วัน',k:'tr_day',n:1,raw:1,
+       f:r=>`<b>${fmt(r.tr_day,1)}</b><div class="minibar" style="margin-top:4px"><i style="width:${(+r.tr_day/maxTr*100).toFixed(0)}%;background:#1d4f92"></i></div>`},
+      {h:'ตัน/คัน',k:'tpt',n:1,raw:1,
+       f:r=>`<b style="color:var(--org-deep)">${fmt(r.tpt,2)}</b><div class="minibar" style="margin-top:4px"><i style="width:${(+r.tpt/maxTpt*100).toFixed(0)}%;background:var(--org)"></i></div>`},
+      {h:'รายการ/คัน',k:'lpt',n:1,f:r=>fmt(r.lpt,2)},
+      {h:'corr ตัน',k:'c_ton',n:1,f:r=>fmt(r.c_ton,3)},
+      {h:'corr คันรถ',k:'c_tr',n:1,raw:1,
+       f:r=>`<b style="color:${+r.c_tr>+r.c_ton?'#0f9d58':'inherit'}">${fmt(r.c_tr,3)}</b>`},
+      {h:'นาที/คันเพิ่ม',k:'min_per_truck',n:1,raw:1,
+       f:r=>`<b style="color:${+r.min_per_truck<=2.5?'#0f9d58':'var(--org-deep)'}">${fmt(r.min_per_truck,1)}</b>`}
+    ], R) + `
+    <div class="msg ok" style="margin-top:13px">
+      <b>ทุกโรงโดยไม่มีข้อยกเว้น</b> — จำนวนคันรถสัมพันธ์กับเวลาเลิกงานมากกว่าจำนวนตัน
+      (คอลัมน์ <b>corr คันรถ</b> สูงกว่า <b>corr ตัน</b> ทั้ง ${fmt(R.length)} โรง)
+    </div>
+  </div>
+
+  ${sect(2,'สองอย่างที่ '+esc(best.k)+' ทำต่างจากคนอื่น','ไม่ใช่เพราะงานน้อย แต่เป็นวิธีจัดการรถ')}
+  <div class="grid2">
+    <div class="card anim d1"><h3>1. บรรทุกต่อคันมากกว่าเกือบเท่าตัว</h3>
+      <div class="chartbox" style="height:${Math.max(220,R.length*38)}px"><canvas id="fc1"></canvas></div>
+      <p class="sm" style="margin-top:10px">${esc(best.k)} บรรทุก <b>${fmt(best.tpt,2)}</b> ตัน/คัน
+        ขณะที่ ${esc(worst.k)} ได้ <b>${fmt(worst.tpt,2)}</b> ตัน/คัน —
+        ต่างกัน <b>${fmt((+best.tpt/Math.max(+worst.tpt,0.01)),1)} เท่า</b><br>
+        ${esc(best.k)} ขนของมากกว่า ${fmt(+best.ton_day/Math.max(+worst.ton_day,0.1),1)} เท่า
+        แต่ใช้รถมากกว่าแค่ ${fmt(+best.tr_day/Math.max(+worst.tr_day,0.1),1)} เท่า</p></div>
+    <div class="card anim d2"><h3>2. รับรถแต่ละคันเร็วกว่า</h3>
+      <div class="chartbox" style="height:${Math.max(220,R.length*38)}px"><canvas id="fc2"></canvas></div>
+      <p class="sm" style="margin-top:10px">รถเพิ่ม 1 คัน ทำให้ ${esc(best.k)} เลิกช้าลง
+        <b>${fmt(best.min_per_truck,1)} นาที</b> ส่วนโรงอื่นอยู่ที่
+        <b>${fmt(R.filter(r=>r.k!==best.k).reduce((s,r)=>s+ +r.min_per_truck,0)/Math.max(R.length-1,1),1)} นาที</b>
+        โดยเฉลี่ย — เกือบสองเท่า</p></div>
+  </div>
+
+  ${sect(3,'ถ้าบรรทุกได้เท่า '+esc(best.k)+' จะเป็นอย่างไร','เป็นการประมาณเพื่อให้เห็นขนาดของโอกาส','o')}
+  <div class="card anim d1">
+    <div class="msg warn">
+      <b>อ่านตัวเลขนี้อย่างระมัดระวัง</b> — เป็นการคำนวณแบบสมมติว่าทุกโรงบรรทุกได้
+      ${fmt(C.best_tpt,2)} ตัน/คัน เท่า ${esc(best.k)} ซึ่งในความจริงอาจทำไม่ได้
+      เพราะขนาดออเดอร์ลูกค้า ชนิดสินค้า และระยะทางต่างกัน ·
+      ใช้ดูว่า<b>โอกาสมีขนาดประมาณเท่าไร</b> ไม่ใช่เป้าที่ต้องทำให้ได้
+    </div>
+    ` + tableHTML([
+      {h:'โรงงาน',k:'k',raw:1,f:r=>`<b>${esc(r.k)}</b>`},
+      {h:'ตัน/วัน',k:'ton_day',n:1,f:r=>fmt(r.ton_day,1)},
+      {h:'คันที่ใช้จริง',k:'tr_day',n:1,f:r=>fmt(r.tr_day,1)},
+      {h:'คันที่ต้องใช้',k:'tr_if_best',n:1,f:r=>fmt(r.tr_if_best,1)},
+      {h:'ลดได้',k:'tr_saved',n:1,raw:1,
+       f:r=>+r.tr_saved>0?`<b style="color:#0f9d58">${fmt(r.tr_saved,1)} คัน</b>`:'<span class="sm">—</span>'},
+      {h:'ประหยัดเวลา',k:'min_saved',n:1,raw:1,
+       f:r=>+r.min_saved>0?`<b style="color:var(--org-deep)">${fmt(r.min_saved,0)} นาที/วัน</b>`:'<span class="sm">—</span>'},
+      {h:'เลิกงานจะเป็น',k:'min_saved',raw:1,
+       f:r=>+r.min_saved>0?`<b>${hh(+r.avg_h - (+r.min_saved/60))}</b>
+              <div class="sm">จาก ${hh(r.avg_h)}</div>`:'<span class="sm">—</span>'}
+    ], R) + `
+    <div class="msg info" style="margin-top:13px">
+      รวมทุกโรงจะประหยัดได้ราว <b>${fmt(totSaved,0)} นาที/วัน</b>
+      หรือ <b>${fmt(totSaved/60,1)} ชั่วโมง/วัน</b> ·
+      ถ้าคิด ${fmt(R[0].days)} วันทำงาน จะเป็น <b>${fmt(totSaved*R[0].days/60,0)} ชั่วโมง</b>
+    </div>
+  </div>
+
+  ${sect(4,'ความสัมพันธ์รายวัน','แต่ละจุดคือหนึ่งวันของหนึ่งโรง')}
+  <div class="card anim d1"><h3>จำนวนคันรถ เทียบ เวลาเลิกงาน</h3>
+    <div class="chartbox" style="height:340px"><canvas id="fc3"></canvas></div>
+    <p class="sm" style="margin-top:10px">เส้นประแดงคือเป้าหมาย ${hh(TG)} ·
+      จุดที่อยู่เหนือเส้นคือวันที่เลิกเกินเป้า · สังเกตว่าแต่ละโรงมีความชันต่างกัน
+      โรงที่เส้นชันน้อยคือโรงที่รับรถได้เร็วกว่า</p></div>
+  `);
+
+  const axisFont={font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'};
+  const hBar={indexAxis:'y',layout:{padding:{right:46}},
+    scales:{x:{beginAtZero:true,grace:'16%',grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+            y:{grid:{display:false},ticks:axisFont}}};
+
+  chart('fc1','bar',R.map(r=>r.k),
+    [{label:'ตัน/คัน',data:R.map(r=>+r.tpt),
+      backgroundColor:R.map(r=>r.k===best.k?'#0f9d58':'#ff7a18'),borderRadius:6}],
+    Object.assign({},hBar,{vl:v=>fmt(v,2),
+      tip:(pts)=>{const r=R[pts[0].dataIndex];
+        return `<b>${esc(r.k)}</b><br>บรรทุก ${fmt(r.tpt,2)} ตัน/คัน<br>`+
+               `${fmt(r.ton_day,1)} ตัน/วัน ด้วยรถ ${fmt(r.tr_day,1)} คัน<br>`+
+               `<span style="opacity:.75">เลิกงานเฉลี่ย ${hh(r.avg_h)}</span>`;}}));
+
+  chart('fc2','bar',R.map(r=>r.k),
+    [{label:'นาทีที่ช้าลง เมื่อรถเพิ่ม 1 คัน',data:R.map(r=>+r.min_per_truck),
+      backgroundColor:R.map(r=>r.k===best.k?'#0f9d58':'#1d4f92'),borderRadius:6}],
+    Object.assign({},hBar,{vl:v=>fmt(v,1),
+      tip:(pts)=>{const r=R[pts[0].dataIndex];
+        return `<b>${esc(r.k)}</b><br>รถเพิ่ม 1 คัน = ช้าลง ${fmt(r.min_per_truck,1)} นาที<br>`+
+               `<span style="opacity:.75">อธิบายความแปรผันได้ ${fmt(+r.r2*100,0)}%</span>`;}}));
+
+  /* กราฟกระจาย แยกสีตามโรง */
+  const SC = C.scatter||[];
+  const facs = R.map(r=>r.k);
+  chart('fc3','scatter', null,
+    facs.map((f,i)=>({label:f,
+      data:SC.filter(s=>s.f===f).map(s=>({x:+s.x,y:+s.y})),
+      backgroundColor:PAL[i%PAL.length], pointRadius:3, pointHoverRadius:6})).concat([
+      {type:'line',label:'เป้าหมาย '+hh(TG),
+       data:[{x:0,y:TG},{x:Math.max(...SC.map(s=>+s.x))+5,y:TG}],
+       borderColor:'#e03131',borderWidth:2,borderDash:[7,5],pointRadius:0,fill:false}]),
+    {scales:{x:{type:'linear',beginAtZero:true,grid:{color:'#eef2f8'},border:{display:false},
+                ticks:axisFont,title:{display:true,text:'จำนวนคันรถในวันนั้น',font:{family:'Kanit',size:10}}},
+             y:{grid:{color:'#eef2f8'},border:{display:false},
+                ticks:Object.assign({},axisFont,{callback:v=>hh(v)}),
+                title:{display:true,text:'เวลาเลิกงาน',font:{family:'Kanit',size:10}}}},
+     tip:(pts)=>{const p=pts[0]; if(p.raw==null) return '';
+       return `<b>${esc(p.dataset ? p.dataset.label : '')}</b><br>`+
+              `รถ ${fmt(p.raw.x)} คัน · เลิกงาน ${hh(p.raw.y)}`;}});
+}
+
+/* =========================================================================
+   หน้า ตรวจคุณภาพข้อมูล
+   บอกว่าตัวเลขบนแดชบอร์ดตั้งอยู่บนข้อมูลที่ครบแค่ไหน
+   ========================================================================= */
+async function pageQuality(){
+  let Q;
+  try{ Q = await rpcCached('app_data_quality',{}); }
+  catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
+
+  const sect = (n,t,s,cls='') =>
+    `<div class="sect ${cls}"><div class="no">${n}</div>
+       <div><h2>${t}</h2><p>${s}</p></div><div class="ln"></div></div>`;
+
+  const CV = Q.cover||[], FA = Q.fac||[], RG = Q.range||{};
+  const SK = Q.sku_miss||{}, CU = Q.cus_miss||{}, DM = Q.dummy||{}, NS = Q.nosloc||{};
+  const totTon = +Q.total_ton || 1;
+
+  /* นับปัญหาที่ควรลงมือแก้ */
+  const issues = [
+    CV.filter(c=>+c.pct < 90).length,
+    FA.filter(f=>!f.has).length ? 1 : 0,
+    +SK.n ? 1 : 0, +CU.n ? 1 : 0, +DM.n ? 1 : 0,
+    +NS.n ? 1 : 0, +Q.bad_import ? 1 : 0
+  ].reduce((a,b)=>a+b,0);
+
+  const pctBar = (v,good=95) => `<div class="qbar"><i style="width:${Math.min(100,+v||0).toFixed(1)}%;
+    background:${+v>=good?'var(--ok)':(+v>=70?'var(--org)':'var(--bad)')}"></i></div>`;
+
+  body(`
+  <div class="qhero ${issues?'warn':'ok'} anim">
+    <div class="ic">${issues?'⚠️':'✅'}</div>
+    <div>
+      <h2>${issues ? `พบ ${fmt(issues)} เรื่องที่ควรตรวจสอบ` : 'ข้อมูลครบถ้วนดี'}</h2>
+      <p>หน้านี้บอกว่าตัวเลขบนแดชบอร์ดตั้งอยู่บนข้อมูลที่ครบแค่ไหน
+         ไม่ได้แปลว่าระบบผิด แต่ถ้าข้อมูลต้นทางไม่ครบ ตัวเลขที่เห็นก็จะไม่ครบตามไปด้วย</p>
+    </div>
+    <button class="fbtn alt" style="flex:none" onclick="clearCache();pageQuality()">↻ ตรวจใหม่</button>
+  </div>
+
+  ${sect(1,'ความครบของแต่ละชีท','เทียบวันทำงานที่ควรมี กับวันที่มีข้อมูลจริง','o')}
+  <div class="card anim d1">
+    <p class="sm" style="margin:-4px 0 13px">ช่วงข้อมูลอ้างอิงจากชีท FG
+      (${dmy(RG.f0)} ถึง ${dmy(RG.f1)}) ตัดวันอาทิตย์ออกแล้ว ·
+      ชีทที่ครบน้อยไม่ได้ผิด แต่การวิเคราะห์ที่ใช้ชีทนั้นจะครอบคลุมสั้นกว่า</p>
+    ` + tableHTML([
+      {h:'ชีท',k:'sheet',raw:1,f:r=>`<b>${esc(r.sheet)}</b><div class="sm">${esc(r.label)}</div>`},
+      {h:'วันที่ควรมี',k:'should',n:1,f:r=>fmt(r.should)},
+      {h:'มีข้อมูล',k:'have',n:1,raw:1,f:r=>`<b>${fmt(r.have)}</b>`},
+      {h:'ขาด',k:'miss',n:1,raw:1,
+       f:r=>+r.miss ? `<b style="color:${+r.pct<90?'var(--bad)':'var(--org-deep)'}">${fmt(r.miss)}</b>` : '0'},
+      {h:'ความครบ',k:'pct',n:1,raw:1,
+       f:r=>`<b style="color:${+r.pct>=95?'#0f9d58':(+r.pct>=70?'var(--org-deep)':'#d62828')}">${fmt(r.pct,1)}%</b>`
+          + pctBar(r.pct)},
+      {h:'ความหมาย',k:'pct',raw:1,w:1,f:r=>+r.pct>=95
+          ? '<span class="sm">ครบดี ใช้อ้างอิงได้เต็มที่</span>'
+          : (+r.pct>=70 ? '<span class="sm">ขาดบางช่วง ระวังตอนเทียบรายเดือน</span>'
+                        : '<span class="sm" style="color:var(--bad)">ครอบคลุมไม่ถึงครึ่ง — ตัวเลขที่ใช้ชีทนี้อยู่บนฐานที่เล็กกว่ามาก</span>')}
+    ], CV) + `
+  </div>
+
+  ${sect(2,'ชีท Prepare ครอบคลุมโรงไหนบ้าง','เรื่องนี้กระทบหน้าสายงานและการวิเคราะห์จัดวางสินค้าโดยตรง')}
+  <div class="card anim d1">
+    ${FA.filter(f=>!f.has).length ? `<div class="msg warn">
+      <b>${fmt(FA.filter(f=>!f.has).length)} โรงไม่มีข้อมูลการเตรียมเลย</b> รวม
+      <b>${fmt(FA.filter(f=>!f.has).reduce((s,f)=>s+ +f.ton,0),1)}</b> ตัน
+      (${fmt(FA.filter(f=>!f.has).reduce((s,f)=>s+ +f.ton,0)/Math.max(FA.reduce((s,f)=>s+ +f.ton,0),1)*100,1)}% ของงานในช่วงนั้น)<br>
+      หน้า <b>สายงาน &amp; ประสิทธิภาพ</b> กับ <b>สต็อก &amp; การจัดวาง</b> จึงวิเคราะห์ได้เฉพาะโรงที่มีข้อมูล
+      เพราะต้องใช้คอลัมน์ <code>User Gate</code> จากชีทนี้</div>` : ''}
+    ` + tableHTML([
+      {h:'โรงงาน',k:'k',raw:1,f:r=>`<b>${esc(r.k)}</b>`},
+      {h:'น้ำหนัก (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)},
+      {h:'แถวใน FG',k:'rows',n:1,f:r=>fmt(r.rows)},
+      {h:'แถวใน Prepare',k:'prep',n:1,f:r=>fmt(r.prep)},
+      {h:'สถานะ',k:'has',raw:1,f:r=>r.has
+          ? '<span class="pill g">มีข้อมูลเตรียม</span>'
+          : '<span class="pill r">ไม่มีข้อมูลเตรียม</span>'}
+    ], FA) + `
+  </div>
+
+  ${sect(3,'คีย์ที่จับคู่ไม่ได้','รหัสที่มีใน FG แต่ไม่มีในทะเบียน ทำให้หลุดจากการวิเคราะห์แบบจัดกลุ่ม','o')}
+  <div class="grid2">
+    ${[['รหัสสินค้าที่ไม่มีในทะเบียนสินค้า', SK, 'k',
+        'ผลกระทบ: ไม่มีกลุ่มขาย กลุ่มผลิตภัณฑ์ และชนิดสินค้า จึงไม่ถูกนับในหน้า Sales Group Analysis',
+        'เพิ่มรหัสเหล่านี้ในชีท Master แล้วนำเข้าใหม่'],
+       ['รหัสลูกค้าที่ไม่มีในทะเบียนลูกค้า', CU, 'k',
+        'ผลกระทบ: ถูกจัดเป็น “ไม่พบในทะเบียนลูกค้า” ในกราฟกลุ่มลูกค้า',
+        'เพิ่มรหัสเหล่านี้ในชีท Customer แล้วนำเข้าใหม่']]
+      .map(([t,D,kf,eff,fix])=>`
+      <div class="card anim d1">
+        <div class="cardhd"><h3>${t}</h3>
+          <div class="bigbadge" style="background:linear-gradient(135deg,#fff3e8,#ffe6cc);border-color:#ffc999">
+            <div class="k" style="color:#a34f06">ไม่มีในทะเบียน</div>
+            <div class="v" style="color:#e8590c">${fmt(D.n)}<small>/ ${fmt(D.all)}</small></div>
+            <div class="s" style="color:#a34f06">${fmt(D.ton,1)} ตัน
+              (${fmt(+D.ton/totTon*100,1)}% ของทั้งหมด)</div></div></div>
+        <p class="sm" style="margin:-2px 0 11px">${eff}<br><b>วิธีแก้:</b> ${fix}</p>
+        ${(D.rows||[]).length ? tableHTML(
+          kf==='k' && D===CU
+            ? [{h:'รหัสลูกค้า',k:'k',raw:1,f:r=>`<b>${esc(r.k)}</b>`},
+               {h:'ชื่อที่พบใน FG',k:'nm',w:1,f:r=>r.nm||'—'},
+               {h:'น้ำหนัก (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)},
+               {h:'แถว',k:'n',n:1,f:r=>fmt(r.n)}]
+            : [{h:'รหัสสินค้า',k:'k',raw:1,f:r=>`<b>${esc(r.k)}</b>`},
+               {h:'น้ำหนัก (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)},
+               {h:'แถว',k:'n',n:1,f:r=>fmt(r.n)}],
+          D.rows, 50) + (D.n > (D.rows||[]).length
+            ? `<p class="sm" style="margin-top:9px">แสดง ${fmt((D.rows||[]).length)} อันดับแรกจากทั้งหมด ${fmt(D.n)} รายการ</p>` : '')
+          : '<div class="msg ok">จับคู่ได้ครบทุกรหัส</div>'}
+      </div>`).join('')}
+  </div>
+
+  ${sect(4,'ข้อมูลที่ควรตรวจก่อนใช้','รายการที่ปนอยู่ในตัวเลขแต่อาจไม่ใช่ของจริง')}
+  <div class="grid2">
+    <div class="card anim d1">
+      <h3>รหัสสมมติ (DUMMY)</h3>
+      <p class="sm" style="margin:-4px 0 11px">รหัสขึ้นต้นด้วย <code>DUMMY</code>
+        น่าจะเป็นรายการตั้งต้นของระบบ ไม่ใช่สินค้าจริง แต่ตอนนี้ถูกนับรวมในทุกกราฟ</p>
+      ${+DM.n ? `<div class="msg warn">พบ <b>${fmt(DM.n)}</b> รหัส รวม
+        <b>${fmt(DM.ton,1)}</b> ตัน (${fmt(+DM.ton/totTon*100,1)}% ของน้ำหนักทั้งหมด)</div>`
+        + tableHTML([
+          {h:'รหัสสินค้า',k:'k',raw:1,f:r=>`<b>${esc(r.k)}</b>`},
+          {h:'น้ำหนัก (ตัน)',k:'ton',n:1,f:r=>fmt(r.ton,1)},
+          {h:'แถว',k:'n',n:1,f:r=>fmt(r.n)}
+        ], DM.rows||[], 20)
+        + `<p class="sm" style="margin-top:9px">ถ้ายืนยันว่าไม่ใช่สินค้าจริง
+           บอกได้ ผมกรองออกจากทุกการวิเคราะห์ให้</p>`
+        : '<div class="msg ok">ไม่พบรหัสสมมติ</div>'}
+    </div>
+    <div class="card anim d2">
+      <h3>รายการที่ระบุคลังไม่ได้</h3>
+      <p class="sm" style="margin:-4px 0 11px">คอลัมน์ Storage Location ว่าง
+        จึงจัดเข้าโรงงานไม่ได้ และหลุดจากทุกการวิเคราะห์ที่แยกตามโรง</p>
+      ${+NS.n ? `<div class="msg warn">พบ <b>${fmt(NS.n)}</b> แถว รวม
+        <b>${fmt(NS.ton,1)}</b> ตัน (${fmt(+NS.ton/totTon*100,1)}% ของน้ำหนักทั้งหมด)</div>
+        <p class="sm">ตรวจที่ต้นทางว่าเป็นรายการประเภทไหน แล้วเติมรหัสคลังให้ครบ</p>`
+        : '<div class="msg ok">ทุกแถวระบุคลังครบ</div>'}
+      ${+Q.bad_import ? `<div class="msg err" style="margin-top:13px">
+        มีการนำเข้าที่ล้มเหลวค้างอยู่ <b>${fmt(Q.bad_import)}</b> ครั้ง —
+        ดูรายละเอียดได้ที่ประวัติการนำเข้าในหน้า <b>นำเข้าข้อมูล</b></div>` : ''}
+    </div>
+  </div>
+  `);
+}
 
 /* =========================================================================
    ป๊อปอัปรายละเอียดลูกค้า — คลิกจากกราฟ 10 อันดับลูกค้า
@@ -8896,7 +9274,8 @@ async function pageOps(){
       <p class="sm" style="margin-top:10px">แต่ละจุดคือหนึ่งวัน · จุดแดง = เลิกเกินเป้า</p></div>
     <div class="card anim d3"><h3>เวลาเลิกงานเฉลี่ยรายโรง</h3>` + tableHTML([
       {h:'โรงงาน',k:'k'},
-      {h:'เลิกเฉลี่ย',k:'h',n:1,raw:1,f:r=>`<b style="color:${+r.h>20.5?'var(--bad)':'inherit'}">${hhmm(r.h)}</b>`},
+      {h:'เลิกเฉลี่ย',k:'h',n:1,raw:1,f:r=>`<b style="color:${
+         +r.h > tgt('finish_hour',20.5) ? 'var(--bad)':'inherit'}">${hhmm(r.h)}</b>`},
       {h:'วันที่เกินเป้า',k:'late',n:1,f:r=>fmt(r.late)},
       {h:'วันทั้งหมด',k:'n',n:1,f:r=>fmt(r.n)},
       {h:'สัดส่วนเกินเป้า',k:'late',n:1,f:r=>fmt(+r.late/Math.max(+r.n,1)*100,0)+'%'}
@@ -9050,8 +9429,9 @@ async function pageOps(){
 
   chart('op5','bar',BL.map(x=>x.k),
     [{label:'เวลาเลิกงาน',data:BL.map(x=>+x.h),
-      backgroundColor:BL.map(x=>+x.h>20.5?'#e03131':'#0b2447'),borderRadius:7,maxBarThickness:56},
-     {type:'line',label:'เป้า 20:30',data:BL.map(()=>20.5),borderColor:'#e03131',borderWidth:2,
+      backgroundColor:BL.map(x=>+x.h>tgt('finish_hour',20.5)?'#e03131':'#0b2447'),borderRadius:7,maxBarThickness:56},
+     {type:'line',label:'เป้า '+hhmm(tgt('finish_hour',20.5)),data:BL.map(()=>tgt('finish_hour',20.5)),
+      borderColor:'#e03131',borderWidth:2,
       borderDash:[6,4],pointRadius:0,noLabel:true}],
     {layout:{padding:{top:22}},
      scales:{y:{beginAtZero:false,min:17,grid:{color:'#eef2f8'},border:{display:false},
@@ -9065,7 +9445,7 @@ async function pageOps(){
   const SC=T.scatter||[];
   chart('op6','scatter',null,
     [{label:'แต่ละวัน',data:SC.map(x=>({x:+x.x,y:+x.y})),
-      backgroundColor:SC.map(x=>+x.y>20.5?'#e03131':'#1d4f92'),pointRadius:4,pointHoverRadius:6}],
+      backgroundColor:SC.map(x=>+x.y>tgt('finish_hour',20.5)?'#e03131':'#1d4f92'),pointRadius:4,pointHoverRadius:6}],
     {scales:{x:{title:{display:true,text:'จำนวนรถ (คัน)',font:{family:'Kanit',size:11}},
                 grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
              y:{title:{display:true,text:'เวลาเลิกงาน',font:{family:'Kanit',size:11}},
@@ -12078,7 +12458,7 @@ async function pageFG(){
   const pkTruck=N(K.peak_truck_day), pkTruckDate=K.peak_truck_date;
   const tonPerTruck=N(K.ton_per_truck), maxTonTruck=N(K.max_ton_truck), linesPerTruck=N(K.lines_per_truck);
   const topShare=N(K.top_cust_share);
-  const TARGET_H = 20.5;
+  const TARGET_H = tgt('finish_hour', 20.5);   // อ่านจากค่าที่ตั้งไว้ ไม่ฝังเลขในโค้ด
 
   const hhmm = h => { if(h==null||isNaN(h)) return '—';
     const t=Math.round(h*60); return pad(Math.floor(t/60))+':'+pad(t%60); };
@@ -13625,9 +14005,68 @@ async function pageUsers(){
             onclick="uDelete('${u.id}','${esc(u.employee_id)}')">ลบ</button>`}
         </td></tr>`;
     }).join('')}</tbody></table></div>
+  </div>
+
+  ${sectU(3,'ค่าเป้าหมาย (Target)','เกณฑ์ที่ใช้ระบายสีเขียว/เหลือง/แดงทั้งระบบ','o')}
+  <div class="card anim d1">
+    <div class="msg info">แก้ค่าตรงนี้แล้วมีผลกับทุกหน้าทันทีที่เข้าระบบครั้งถัดไป —
+      ไม่ต้องแก้ไฟล์ · <b>เขียว</b> คือผ่านเกณฑ์ · <b>เหลือง</b> คือพอรับได้ · เกินกว่านั้นเป็น<b>แดง</b></div>
+    <div class="tgtgrid">
+      ${Object.values(TARGETS).sort((a,b)=>a.label.localeCompare(b.label,'th')).map(t=>{
+        const isTime = t.metric === 'finish_hour';
+        const show = v => v==null ? '—' : (isTime ? hhmmU(v) : fmt(v, +v%1?1:0)+' '+esc(t.unit||''));
+        return `<div class="tgtcard">
+          <div class="th"><b>${esc(t.label)}</b>
+            <span class="pill ${t.higher_better?'g':'b'}">${t.higher_better?'ยิ่งมากยิ่งดี':'ยิ่งน้อยยิ่งดี'}</span></div>
+          <div class="tv">
+            <div class="g"><span>ผ่านเกณฑ์ (เขียว)</span><b>${show(t.green_max)}</b></div>
+            <div class="a"><span>พอรับได้ (เหลือง)</span><b>${show(t.amber_max)}</b></div>
+          </div>
+          ${t.note?`<div class="tn">${esc(t.note)}</div>`:''}
+          <div class="tf">
+            <input id="tg_g_${esc(t.metric)}" type="number" step="0.1" value="${t.green_max}"
+                   placeholder="เขียว" title="ค่าที่ถือว่าผ่านเกณฑ์">
+            <input id="tg_a_${esc(t.metric)}" type="number" step="0.1" value="${t.amber_max}"
+                   placeholder="เหลือง" title="ค่าที่ยังพอรับได้">
+            <button class="fbtn" onclick="saveTarget('${esc(t.metric)}')">บันทึก</button>
+          </div>
+          ${isTime?`<div class="sm" style="margin-top:6px">กรอกเป็นชั่วโมงทศนิยม —
+            20.5 = 20:30 น. · 21.25 = 21:15 น.</div>`:''}
+          <div id="tg_msg_${esc(t.metric)}"></div>
+        </div>`;}).join('')}
+    </div>
+    ${!Object.keys(TARGETS).length?'<div class="msg warn">ยังโหลดค่าเป้าหมายไม่ได้ ลองเข้าระบบใหม่อีกครั้ง</div>':''}
   </div>`);
 
   drawUseChart(DAY);
+}
+
+/* แปลงชั่วโมงทศนิยมเป็นเวลานาฬิกา ใช้ในหน้าตั้งค่า */
+function hhmmU(v){ if(v==null||isNaN(v)) return '—';
+  const t = Math.round(+v*60);
+  return String(Math.floor(t/60)).padStart(2,'0')+':'+String(t%60).padStart(2,'0')+' น.'; }
+
+function sectU(n,t,s,cls=''){
+  return `<div class="sect ${cls}"><div class="no">${n}</div>
+    <div><h2>${t}</h2><p>${s}</p></div><div class="ln"></div></div>`;
+}
+
+async function saveTarget(metric){
+  const g = el('tg_g_'+metric), a = el('tg_a_'+metric), m = el('tg_msg_'+metric);
+  if(!g||!a) return;
+  m.innerHTML = '<div class="sm" style="margin-top:7px">กำลังบันทึก…</div>';
+  try{
+    const r = await rpc('app_targets_set',
+      { p_metric: metric, p_green: +g.value, p_amber: +a.value });
+    if(TARGETS[metric]){ TARGETS[metric].green_max = r.green; TARGETS[metric].amber_max = r.amber; }
+    clearCache();
+    m.innerHTML = `<div class="msg ok" style="margin-top:8px">บันทึกแล้ว —
+      เขียว ${fmt(r.old_green,1)} → <b>${fmt(r.green,1)}</b> ·
+      เหลือง ${fmt(r.old_amber,1)} → <b>${fmt(r.amber,1)}</b></div>`;
+    setTimeout(()=>pageUsers(), 900);
+  }catch(ex){
+    m.innerHTML = `<div class="msg err" style="margin-top:8px">${esc(ex.message||'บันทึกไม่สำเร็จ')}</div>`;
+  }
 }
 
 async function uApprove(id,cur){
