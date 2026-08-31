@@ -2514,7 +2514,9 @@ details summary{cursor:pointer;user-select:none}
     <div class="card">
       <h3>รายละเอียดตามกลุ่มผลิตภัณฑ์</h3>
       <table>
-        <thead><tr><th class="left">กลุ่มผลิตภัณฑ์</th><th>มัดเต็ม</th><th>มัดเศษ</th><th>% มัดเศษ</th></tr></thead>
+        <thead><tr><th class="left">กลุ่มผลิตภัณฑ์</th><th>Item มัดเต็ม</th><th>Item มัดเศษ</th>
+          <th>รวม Item</th><th>% มัดเต็ม</th><th>% มัดเศษ</th><th>เทียบสัดส่วน</th>
+          <th>ไม่มีมัด</th></tr></thead>
         <tbody id="tblBundlePg"></tbody>
       </table>
   <details class="calc-detail">
@@ -2530,9 +2532,14 @@ details summary{cursor:pointer;user-select:none}
 
   <div class="card">
     <h3>มัดเต็ม/มัดเศษ แยกตามโรงงาน</h3>
-    <div class="card-sub">เทียบสัดส่วนมัดเต็มระหว่างโรงงาน เพื่อดูว่าความหลากหลายของคำสั่งซื้อแตกต่างกันมากน้อยแค่ไหนในแต่ละแห่ง</div>
+    <div class="card-sub">นับเป็น <b>จำนวน Item</b> (หนึ่งบรรทัด DO = หนึ่ง Item) ·
+      ถ้า Item ไหนมีมัดเศษปนอยู่ ถือเป็น<b>มัดเศษ</b> แม้จะมีมัดเต็มด้วย ·
+      คอลัมน์ <b>ไม่มีมัด</b> คือ Item ที่ไม่มีทั้งมัดเต็มและมัดเศษ ไม่ถูกนับใน % ·
+      แบ่งโรงจากรหัส Group Storage Location · ส่วนนี้แสดงข้อมูลทั้งหมดเสมอ ไม่ขึ้นกับตัวกรองด้านบน</div>
     <table>
-      <thead><tr><th class="left">โรงงาน</th><th>มัดเต็ม</th><th>มัดเศษ</th><th>% มัดเศษ</th></tr></thead>
+      <thead><tr><th class="left">โรงงาน</th><th>Item มัดเต็ม</th><th>Item มัดเศษ</th>
+        <th>รวม Item</th><th>% มัดเต็ม</th><th>% มัดเศษ</th><th>เทียบสัดส่วน</th>
+        <th>ไม่มีมัด</th></tr></thead>
       <tbody id="tblBundleFac"></tbody>
     </table>
   </div>
@@ -4676,7 +4683,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-15.1';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-15.3';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -6294,37 +6301,57 @@ function computeMatFamByPg(cleanedRows) {
 }
 
 // ---- Bundle efficiency by product group (analysis_v3_d.py) ----
+/* จัดประเภทของแต่ละ Item (หนึ่งแถว = หนึ่ง DO Item)
+   ถ้าแถวนั้นมีมัดเศษปนอยู่ ให้ถือว่าเป็น "มัดเศษ" แม้จะมีมัดเต็มด้วย
+   คืน 'partial' | 'full' | 'none' */
+function bundleKindOf(r) {
+  if ((r.bundlePartial || 0) > 0) return 'partial';
+  if ((r.bundleFull    || 0) > 0) return 'full';
+  return 'none';
+}
+/* สรุปจำนวน Item ตามคีย์ที่กำหนด — ใช้ซ้ำได้ทั้งกลุ่มผลิตภัณฑ์และโรงงาน */
+function bundleTally(rows, keyFn) {
+  const by = {};
+  rows.forEach(r => {
+    const k = keyFn(r); if (k === null || k === undefined || k === '') return;
+    if (!by[k]) by[k] = { full: 0, partial: 0, none: 0 };
+    by[k][bundleKindOf(r)]++;
+  });
+  return by;
+}
+function bundleShape(name, v) {
+  const denom = v.full + v.partial;                 // นับเฉพาะ Item ที่มีมัด
+  return { name, full: v.full, partial: v.partial, none: v.none,
+           items: denom, all: denom + v.none,
+           full_pct:    denom ? round1(v.full    / denom * 100) : 0,
+           partial_pct: denom ? round1(v.partial / denom * 100) : 0 };
+}
+
 function computeBundleByPg(cleanedRows) {
-  const byPg = {};
-  cleanedRows.forEach(r => {
-    if (!byPg[r.productGroup]) byPg[r.productGroup] = { full: 0, partial: 0 };
-    byPg[r.productGroup].full += (r.bundleFull || 0);
-    byPg[r.productGroup].partial += (r.bundlePartial || 0);
-  });
-  // Python groupby('Product Group') iterates in sorted-key order, then chart_data_v3.py doesn't reorder BUNDLE_PG (kept as bundle_by_pg raw order)
-  return Object.keys(byPg).sort().map(pg => {
-    const v = byPg[pg];
-    const denom = v.full + v.partial;
-    return { 'Product Group': pg, full: v.full, partial: v.partial, full_pct: denom ? round1(v.full / denom * 100) : 0 };
-  });
+  const by = bundleTally(cleanedRows, r => r.productGroup);
+  return Object.keys(by).sort().map(pg =>
+    Object.assign({ 'Product Group': pg }, bundleShape(pg, by[pg])));
 }
 
 // ---- Bundle efficiency by factory (same shape as computeBundleByPg, grouped by factory instead
 // of product group -- lets us see whether full/partial-bundle ratio is a product-group trait or
 // varies by which factory does the cutting) ----
 function computeBundleByFac(cleanedRows) {
-  const byFac = {};
-  cleanedRows.forEach(r => {
-    if (!r.factory) return;
-    if (!byFac[r.factory]) byFac[r.factory] = { full: 0, partial: 0 };
-    byFac[r.factory].full += (r.bundleFull || 0);
-    byFac[r.factory].partial += (r.bundlePartial || 0);
+  const byFac = bundleTally(cleanedRows, r => r.factory);
+  const out = FAC_LIST.filter(f => byFac[f])
+    .map(f => Object.assign({ Factory: f }, bundleShape(f, byFac[f])));
+  /* รหัสคลังที่ไม่เข้าโรงหลัก เดิมถูกตัดทิ้งเงียบๆ ทำให้ยอดรวมไม่ครบ */
+  const other = { full: 0, partial: 0, none: 0 };
+  let nOther = 0;
+  Object.keys(byFac).forEach(k => {
+    if (FAC_LIST.indexOf(k) >= 0) return;
+    other.full += byFac[k].full; other.partial += byFac[k].partial; other.none += byFac[k].none;
+    nOther++;
   });
-  return FAC_LIST.filter(fac => byFac[fac]).map(fac => {
-    const v = byFac[fac];
-    const denom = v.full + v.partial;
-    return { Factory: fac, full: v.full, partial: v.partial, full_pct: denom ? round1(v.full / denom * 100) : 0 };
-  });
+  if (other.full + other.partial + other.none > 0)
+    out.push(Object.assign({ Factory: 'อื่นๆ / ไม่ระบุคลัง' },
+      bundleShape('อื่นๆ / ไม่ระบุคลัง', other), { isOther: true, nGroup: nOther }));
+  return out;
 }
 
 // ---- Daily trend + per-PG daily (analysis_v3_d.py), merged (chart_data_v3.py) ----
@@ -7079,10 +7106,34 @@ function buildCustBundleTokens(T, ctx) {
   T.SPECIAL_CUSTOMER_TEXT = (rama3 ? `"คลังสินค้าพระราม 3" เป็นลูกค้าที่มีปริมาณสั่งซื้อสูง (${n(rama3.qty)} หน่วย, ${n(rama3.line_items)} รายการ, ${rama3.pct_completed}% ปิดงานสำเร็จ) ` : '') +
     (lowTxt ? `พบลูกค้าปริมาณสูงแต่อัตราปิดงานต่ำผิดปกติที่ควรตรวจสอบ: ${lowTxt} &mdash; ควรตรวจสอบว่าเป็นลูกค้าที่สั่งเฉพาะกลุ่มงานพิเศษ (ไม่ผ่านสแกน) หรือเป็นปัญหาการติดตามงานจริง` : 'ไม่พบลูกค้าปริมาณสูงที่มีอัตราปิดงานต่ำผิดปกติในช่วงข้อมูลปัจจุบัน');
 
-  T.TABLE_BUNDLE_PG = bundleByPg.map(b => {
-    const partialPct = 100 - b.full_pct;
-    return `<tr><td class="left">${PG_TH[b['Product Group']] || b['Product Group']}</td><td>${n(b.full)}</td><td>${n(b.partial)}</td><td><span class="badge ${partialPct >= 90 ? 'red' : 'orange'}">${n1(partialPct)}%</span></td></tr>`;
-  }).join('');
+  /* แถบเทียบสัดส่วนมัดเต็ม/มัดเศษ ให้เห็นด้วยตาโดยไม่ต้องอ่านตัวเลข */
+  const bundleBar = (fp, pp) =>
+    `<div style="display:flex;height:14px;border-radius:7px;overflow:hidden;min-width:110px;background:#eef1f5">`
+    + `<i style="width:${fp}%;background:#2e9e5b"></i>`
+    + `<i style="width:${pp}%;background:#e8590c"></i></div>`;
+  const bundleRow = (label, b, dim) =>
+    `<tr${dim ? ' style="opacity:.7"' : ''}>`
+    + `<td class="left">${label}</td>`
+    + `<td>${n(b.full)}</td><td>${n(b.partial)}</td><td>${n(b.items)}</td>`
+    + `<td><span class="badge ${b.full_pct >= 50 ? 'green' : (b.full_pct >= 25 ? 'orange' : 'red')}">${n1(b.full_pct)}%</span></td>`
+    + `<td><span class="badge ${b.partial_pct >= 75 ? 'red' : 'orange'}">${n1(b.partial_pct)}%</span></td>`
+    + `<td>${bundleBar(b.full_pct, b.partial_pct)}</td>`
+    + `<td>${n(b.none || 0)}</td></tr>`;
+  const bundleTotalRow = (arr, label) => {
+    const a = (arr || []).reduce((s, b) => ({ f: s.f + b.full, p: s.p + b.partial, z: s.z + (b.none || 0) }),
+                                 { f: 0, p: 0, z: 0 });
+    const d = a.f + a.p; if (!d) return '';
+    const fp = round1(a.f / d * 100), pp = round1(a.p / d * 100);
+    return `<tr style="background:#f4f7fc;font-weight:600">`
+      + `<td class="left">${label || 'รวมทั้งหมด'}</td>`
+      + `<td>${n(a.f)}</td><td>${n(a.p)}</td><td>${n(d)}</td>`
+      + `<td>${n1(fp)}%</td><td>${n1(pp)}%</td>`
+      + `<td>${bundleBar(fp, pp)}</td><td>${n(a.z)}</td></tr>`;
+  };
+
+  T.TABLE_BUNDLE_PG = bundleByPg.map(b =>
+      bundleRow(PG_TH[b['Product Group']] || b['Product Group'], b)).join('')
+    + bundleTotalRow(bundleByPg);
   const bundleFullTotal = bundleByPg.reduce((a, b) => a + b.full, 0), bundlePartialTotal = bundleByPg.reduce((a, b) => a + b.partial, 0);
   T.BUNDLE_PARTIAL_PCT = n1((bundleFullTotal + bundlePartialTotal) ? bundlePartialTotal / (bundleFullTotal + bundlePartialTotal) * 100 : 0);
   const lpFullPct = (bundleByPg.find(b => b['Product Group'] === 'Long Pipe') || {}).full_pct;
@@ -7090,10 +7141,10 @@ function buildCustBundleTokens(T, ctx) {
   T.BUNDLE_EXPLAIN_TEXT = `มัดเศษ (partial bundle) สูงเป็นปกติของธุรกิจตัดเหล็กตามสั่ง (cut-to-order) เพราะลูกค้าสั่งตามความยาว/จำนวนที่ต้องการเฉพาะราย ไม่ใช่หน่วยมัดมาตรฐานจากโรงงานผลิตเหล็กต้นทาง ` +
     `Long Pipe มีสัดส่วนมัดเต็ม ${lpFullPct != null ? lpFullPct + '%' : '-'} ขณะที่ Flat Bar มีสัดส่วน ${fbFullPct != null ? fbFullPct + '%' : '-'} สอดคล้องกับลักษณะงานตัดเฉพาะขนาดที่หลากหลายกว่า`;
 
-  T.TABLE_BUNDLE_FAC = (bundleByFac || []).map(b => {
-    const partialPct = 100 - b.full_pct;
-    return `<tr><td class="left">${b.Factory}</td><td>${n(b.full)}</td><td>${n(b.partial)}</td><td><span class="badge ${partialPct >= 90 ? 'red' : 'orange'}">${n1(partialPct)}%</span></td></tr>`;
-  }).join('');
+  T.TABLE_BUNDLE_FAC = (bundleByFac || []).map(b => bundleRow(
+      b.Factory + (b.isOther ? ` <span style="font-size:11px;opacity:.75">(${b.nGroup} รหัสคลัง)</span>` : ''),
+      b, b.isOther)).join('')
+    + bundleTotalRow(bundleByFac || [], 'รวมทุกโรง');
   if (bundleByFac && bundleByFac.length) {
     const topFullFac = bundleByFac.reduce((a, b) => (b.full_pct > a.full_pct ? b : a));
     const lowFullFac = bundleByFac.reduce((a, b) => (b.full_pct < a.full_pct ? b : a));
