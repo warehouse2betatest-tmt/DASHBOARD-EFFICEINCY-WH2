@@ -4676,7 +4676,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-14.2';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-15.1';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -4735,17 +4735,49 @@ async function getData(fn){
   return CACHE[fn];
 }
 function clearCache(){ Object.keys(CACHE).forEach(k=>delete CACHE[k]);
-  Object.keys(ARG_CACHE).forEach(k=>delete ARG_CACHE[k]); }
+  Object.keys(ARG_CACHE).forEach(k=>delete ARG_CACHE[k]);
+  Object.keys(INFLIGHT).forEach(k=>delete INFLIGHT[k]); }
 
 /* จำผลลัพธ์ตาม "ชุดตัวกรอง" ที่เคยเลือก — ติ๊กกลับไปแบบเดิมจะขึ้นทันทีไม่ต้องรอเซิร์ฟเวอร์
    (ฝั่งเซิร์ฟเวอร์ยังต้องไล่ข้อมูล 219,114 แถวอยู่ จึงช้าเฉพาะครั้งแรกของแต่ละชุด) */
 const ARG_CACHE = {};
+const INFLIGHT   = {};   // คำขอที่กำลังวิ่งอยู่ กันยิงซ้ำซ้อนตอนกดรัวๆ
 async function rpcCached(fn, args){
   const key = fn + '|' + JSON.stringify(args || {});
   if(ARG_CACHE[key] !== undefined) return ARG_CACHE[key];
-  const r = await rpc(fn, args);
-  ARG_CACHE[key] = r;
-  return r;
+  /* ถ้าคำขอเดียวกันกำลังวิ่งอยู่ ให้รอผลอันเดิม ไม่ยิงซ้ำ */
+  if(INFLIGHT[key]) return INFLIGHT[key];
+  INFLIGHT[key] = (async ()=>{
+    try{
+      const r = await rpc(fn, args);
+      ARG_CACHE[key] = r;
+      return r;
+    } finally { delete INFLIGHT[key]; }
+  })();
+  return INFLIGHT[key];
+}
+
+/* โหลดข้อมูลหน้าที่หนักไว้เบื้องหลัง ตั้งแต่ยังอยู่หน้าแรก
+   พอผู้ใช้กดเข้าไปจริง ข้อมูลรออยู่แล้ว ไม่ต้องนั่งรอ
+   ยิงทีละอันแบบเว้นจังหวะ ไม่ให้แย่งแบนด์วิดท์กับหน้าที่กำลังดูอยู่ */
+let PREFETCHED = false;
+function prefetchHeavy(){
+  if(PREFETCHED || !TOKEN) return;
+  PREFETCHED = true;
+  const jobs = [
+    ['app_dash_fg_agg',      { p_months:null, p_slocs:null, p_facs:null, p_shtys:null }],
+    ['app_dash_shipment_agg',{ p_months:null, p_facs:null, p_shtys:null }],
+    ['app_dash_ops',         { p_months:null, p_slocs:null }],
+    ['app_stock_monitor',    {}],
+    ['app_fac_compare',      { p_months:null }]
+  ];
+  let i = 0;
+  const next = ()=>{
+    if(i >= jobs.length) return;
+    const [fn,args] = jobs[i++];
+    rpcCached(fn, args).catch(()=>{}).then(()=>setTimeout(next, 400));
+  };
+  setTimeout(next, 1500);   // รอให้หน้าแรกวาดเสร็จก่อน
 }
 
 /* เก็บ token แบบไม่พังถ้าเบราว์เซอร์บล็อก localStorage (โหมดส่วนตัว / ปิดคุกกี้) */
@@ -5201,6 +5233,7 @@ async function boot(){
        (t||[]).forEach(x=>{ TARGETS[x.metric] = x; }); }catch(_){}
   restoreNavFold();
   go('ov');   // เปิดที่หน้าภาพรวมก่อน
+  prefetchHeavy();   // อุ่นข้อมูลหน้าที่หนักไว้เบื้องหลัง
 }
 function show(id){ ['authView','pendView','appView'].forEach(v=>el(v).classList.toggle('hide', v!==id)); }
 
@@ -8739,19 +8772,21 @@ async function pageStock(){
   }
 
   /* ---------- วิเคราะห์ ---------- */
-  let A;
-  try{ A = await rpcCached('app_stock_analysis',
-        { p_factory: STOCK_FAC, p_months: orNull('months') }); }
-  catch(ex){ body(mon + errCard(ex.message)); return; }
-
-  let MV = {days:0};
-  try{ MV = await rpcCached('app_stock_moves',{ p_factory: STOCK_FAC }); }
-  catch(ex){ MV = {days:0, err:ex.message}; }
-
-  let GG = {rows:[],move_out:[],balance:{},tot:{}};
-  try{ GG = await rpcCached('app_stock_gates',
-        { p_factory: STOCK_FAC, p_months: orNull('months') }); }
-  catch(ex){ GG = {rows:[],move_out:[],balance:{},tot:{},err:ex.message}; }
+  /* ยิงทั้ง 3 คำขอพร้อมกัน แทนที่จะรอทีละอัน — เวลารวมเหลือเท่าตัวที่ช้าที่สุด */
+  const [rA, rMV, rGG] = await Promise.allSettled([
+    rpcCached('app_stock_analysis',{ p_factory: STOCK_FAC, p_months: orNull('months') }),
+    rpcCached('app_stock_moves',   { p_factory: STOCK_FAC }),
+    rpcCached('app_stock_gates',   { p_factory: STOCK_FAC, p_months: orNull('months') })
+  ]);
+  if(rA.status !== 'fulfilled'){
+    const ex = rA.reason || {};
+    body(ex.session ? sessionExpiredCard() : mon + errCard(ex.message||'โหลดข้อมูลไม่สำเร็จ'));
+    return;
+  }
+  const A  = rA.value;
+  const MV = rMV.status === 'fulfilled' ? rMV.value : {days:0};
+  const GG = rGG.status === 'fulfilled' ? rGG.value
+             : {rows:[],move_out:[],balance:{},tot:{}};
   const GT = GG.rows||[], MO = GG.move_out||[], BAL = GG.balance||{};
 
   const W = A.win||{};
@@ -12411,27 +12446,28 @@ async function pageFG(){
       ? Object.keys(SLOC_TO_FACTORY).filter(k=>FILTERS.factories.includes(SLOC_TO_FACTORY[k]))
       : null;
 
-  let R, GS;
-  try{ R = await rpcCached('app_dash_fg_agg',{
-        p_months: orNull('months'),
-        p_slocs : hasF('factories') ? (slocs.length ? slocs : ['__NO_MATCH__']) : null,
-        p_facs  : orNull('factories'),
-        p_shtys : orNull('shtys') }); }
-  catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
+  const _sl = hasF('factories') ? (slocs.length ? slocs : ['__NO_MATCH__']) : null;
+  /* สามคำขอนี้ไม่ต้องรอกัน ยิงพร้อมกันเพื่อลดเวลารอ */
+  const [rR, rGS, rMV2] = await Promise.allSettled([
+    rpcCached('app_dash_fg_agg',  { p_months: orNull('months'), p_slocs: _sl,
+                                    p_facs: orNull('factories'), p_shtys: orNull('shtys') }),
+    rpcCached('app_dash_fg_gsale',{ p_months: orNull('months'), p_slocs: _sl,
+                                    p_shtys: orNull('shtys') }),
+    rpcCached('app_fg_movers',    { p_slocs: _sl,
+                                    p_gsales: PA_GS.length ? PA_GS : null,
+                                    p_ptypes: PA_PT.length ? PA_PT : null })
+  ]);
+  if(rR.status !== 'fulfilled'){
+    const ex = rR.reason || {};
+    body(ex.session ? sessionExpiredCard() : errCard(ex.message||'โหลดข้อมูลไม่สำเร็จ'));
+    return;
+  }
+  const R   = rR.value;
+  const GS  = rGS.status  === 'fulfilled' ? rGS.value  : null;
+  const MV2 = rMV2.status === 'fulfilled' ? rMV2.value : null;
   /* ข้อมูลจากทะเบียนสินค้า: กลุ่มขาย / กลุ่มผลิตภัณฑ์ / ชนิดสินค้า
      ใช้ทั้งวาดหมวดใหม่ และทำ tooltip บอกสัดส่วนกลุ่มขายในทุกกราฟ */
-  let MV2 = null;
-  try{ MV2 = await rpcCached('app_fg_movers',{
-        p_slocs : hasF('factories') ? (slocs.length ? slocs : ['__NO_MATCH__']) : null,
-        p_gsales: PA_GS.length ? PA_GS : null,
-        p_ptypes: PA_PT.length ? PA_PT : null }); }
-  catch(_){ MV2 = null; }
 
-  try{ GS = await rpcCached('app_dash_fg_gsale',{
-        p_months: orNull('months'),
-        p_slocs : hasF('factories') ? (slocs.length ? slocs : ['__NO_MATCH__']) : null,
-        p_shtys : orNull('shtys') }); }
-  catch(_){ GS = null; }
 
   const K = R.kpi;
   const bar = filterBarAgg(R, 'pageFG');
