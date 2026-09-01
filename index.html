@@ -4737,7 +4737,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-15.5';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-15.6';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -4821,24 +4821,35 @@ async function rpcCached(fn, args){
 /* โหลดข้อมูลหน้าที่หนักไว้เบื้องหลัง ตั้งแต่ยังอยู่หน้าแรก
    พอผู้ใช้กดเข้าไปจริง ข้อมูลรออยู่แล้ว ไม่ต้องนั่งรอ
    ยิงทีละอันแบบเว้นจังหวะ ไม่ให้แย่งแบนด์วิดท์กับหน้าที่กำลังดูอยู่ */
-let PREFETCHED = false;
+let PREFETCHED   = false;
+let PREFETCH_OFF = false;   // ยกธงนี้เพื่อหยุดคิวกลางคัน (เช่น ผู้ใช้เริ่มนำเข้าไฟล์)
+
+/* หยุดอุ่นข้อมูล — ใช้ตอนที่ผู้ใช้กำลังทำงานที่ต้องการเครื่องเต็มที่
+   คำขอที่ยิงไปแล้วห้ามไม่ได้ แต่คิวที่เหลือจะไม่ถูกยิงต่อ */
+function stopPrefetch(){ PREFETCH_OFF = true; }
+
 function prefetchHeavy(){
   if(PREFETCHED || !TOKEN) return;
   PREFETCHED = true;
+
+  /* เรียงตามโอกาสที่ผู้ใช้จะเข้าไปดูจริง เอาอันที่คุ้มที่สุดก่อน
+     หมายเหตุ: ไม่ใส่ app_dash_shipment_agg เพราะหน้า Shipment ไม่ได้เรียกผ่าน
+     rpcCached จึงอุ่นไว้ก็ไม่มีใครมาหยิบใช้ — เปลืองคิวเปล่าๆ */
   const jobs = [
-    ['app_dash_fg_agg',      { p_months:null, p_slocs:null, p_facs:null, p_shtys:null }],
-    ['app_dash_shipment_agg',{ p_months:null, p_facs:null, p_shtys:null }],
-    ['app_dash_ops',         { p_months:null, p_slocs:null }],
-    ['app_stock_monitor',    {}],
-    ['app_fac_compare',      { p_months:null }]
+    ['app_dash_fg_agg', { p_months:null, p_slocs:null, p_facs:null, p_shtys:null }],
+    ['app_dash_ops',    { p_months:null, p_slocs:null }],
+    ['app_fac_compare', { p_months:null }],
+    ['app_stock_monitor',{}]
   ];
   let i = 0;
   const next = ()=>{
-    if(i >= jobs.length) return;
+    if(PREFETCH_OFF || i >= jobs.length) return;
+    /* แท็บที่ถูกซ่อนอยู่ไม่ต้องอุ่น รอจนกลับมาดูค่อยทำต่อ */
+    if(document.hidden){ setTimeout(next, 2000); return; }
     const [fn,args] = jobs[i++];
-    rpcCached(fn, args).catch(()=>{}).then(()=>setTimeout(next, 400));
+    rpcCached(fn, args).catch(()=>{}).then(()=>setTimeout(next, 1200));
   };
-  setTimeout(next, 1500);   // รอให้หน้าแรกวาดเสร็จก่อน
+  setTimeout(next, 2500);   // รอให้หน้าแรกวาดเสร็จและนิ่งก่อน
 }
 
 /* เก็บ token แบบไม่พังถ้าเบราว์เซอร์บล็อก localStorage (โหมดส่วนตัว / ปิดคุกกี้) */
@@ -13321,6 +13332,9 @@ async function readFiles(fileList){
   const files = [...fileList].filter(f=>/\.xlsx?$/i.test(f.name));
   if(!files.length) return;
 
+  /* หยุดอุ่นข้อมูลเบื้องหลัง — การแกะไฟล์กินเครื่องหนัก ไม่ควรแย่งกัน */
+  stopPrefetch();
+
   const big = files.filter(f=>f.size > 30*1048576);
   if(big.length && !confirm(
       `ไฟล์ ${big.map(f=>f.name+' ('+MB(f.size)+')').join(', ')} มีขนาดใหญ่มาก\n`+
@@ -13348,18 +13362,30 @@ async function readFiles(fileList){
     await yieldUI();
     const t0 = performance.now();
     try{
+      /* แยกจับเวลาเป็น 3 ขั้น เพื่อให้รู้ว่าถ้าช้า ช้าตรงไหนจริงๆ
+         (เดิมรวมเป็นก้อนเดียว พอช้าแล้วเดาไม่ออกว่าเป็นที่ดิสก์ ที่ zip หรือที่การแปลง) */
       const bytes = await readBytes(f, r=> bump(r*0.25, `กำลังอ่านไฟล์จากเครื่อง… ${Math.round(r*100)}%`));
+      const tRead = performance.now();
       bump(0.25, 'กำลังแกะโครงสร้างไฟล์ (ขั้นนี้หน้าจอจะนิ่ง)');
       await yieldUI();
 
-      const wb = XLSX.read(bytes, {type:'array', cellDates:true});
+      const tUnzip0 = performance.now();
+      const wb = XLSX.read(bytes, {type:'array', cellDates:true, dense:true});
+      const tUnzip = performance.now();
       bump(0.55, 'กำลังแปลงข้อมูล…');
       await yieldUI();
 
+      const tConv0 = performance.now();
       const ent = await parseWB(wb, f.name,
         (frac, note)=> bump(0.55 + frac*0.45, note));
-      ent.readMs = Math.round(performance.now()-t0);
-      ent.size   = f.size;
+      const tEnd = performance.now();
+
+      ent.readMs  = Math.round(tEnd - t0);
+      ent.msRead  = Math.round(tRead  - t0);
+      ent.msUnzip = Math.round(tUnzip - tUnzip0);
+      ent.msConv  = Math.round(tEnd   - tConv0);
+      ent.nSheetsInFile = wb.SheetNames.length;   // ชีททั้งหมดในไฟล์ ไม่ใช่แค่ที่ระบบใช้
+      ent.size    = f.size;
       PARSED.files.push(ent);
     }catch(err){
       PARSED.files.push({fname:f.name, out:[], size:f.size,
@@ -13783,6 +13809,7 @@ function renderPreview(){
           f.size?` · ${MB(f.size)}`:''}${f.readMs?` · แกะไฟล์ ${(f.readMs/1000).toFixed(1)} วิ`:''}</span>
         <button class="fbtn alt" style="padding:4px 10px;font-size:12px" onclick="removeFile(${fi})">เอาออก</button>
       </div>
+      ${timeNote(f)}
       ${warn}
       ${f.out.length ? `<div class="tw" style="max-height:none"><table><thead><tr>
         <th style="width:40px;text-align:center">เลือก</th><th>ชีท</th><th>โหมด</th>
@@ -13819,6 +13846,29 @@ function renderPreview(){
     <button class="btn ghost" style="margin-top:9px" onclick="el('file').click()">+ เพิ่มไฟล์อีก</button>
     <div class="log hide" id="impLogBox" style="margin-top:13px"></div>`;
   updateImportBtn();
+}
+
+/* รายละเอียดเวลาแกะไฟล์ — โชว์เฉพาะตอนที่ช้าผิดปกติ จะได้รู้ว่าคอขวดอยู่ขั้นไหน
+   เกณฑ์: วัดจริงแล้วไฟล์ 40 MB ใช้ราว 3.3 วิ (~80 มิลลิวินาที/MB)
+   ตั้งเพดานไว้ 800 มิลลิวินาที/MB คือเผื่อไว้ 10 เท่า และต้องเกิน 1.5 วิ ก่อนถึงจะเตือน
+   เพื่อไม่ให้ไฟล์เล็กที่ช้านิดหน่อยมากวน */
+function timeNote(f){
+  if(!f.readMs || f.msRead == null) return '';
+  const mb   = Math.max((f.size||0)/1048576, 0.05);
+  const slow = f.readMs > 1500 && f.readMs / mb > 800;
+  if(!slow) return '';
+  const s = ms => (ms/1000).toFixed(1)+' วิ';
+  const parts = [
+    ['อ่านจากดิสก์', f.msRead],
+    ['คลายไฟล์ zip', f.msUnzip],
+    ['แปลงเป็นข้อมูล', f.msConv]
+  ].sort((a,b)=>b[1]-a[1]);
+  const extra = (f.nSheetsInFile||0) - (f.out||[]).length;
+  return `<div class="msg warn" style="margin:0 0 10px">
+    <b>ไฟล์นี้ใช้เวลาแกะนานผิดปกติ</b> (${s(f.readMs)} ต่อ ${MB(f.size||0)})<br>
+    <span class="sm">${parts.map(p=>`${p[0]} <b>${s(p[1])}</b>`).join(' · ')}${
+      extra > 0 ? `<br>ไฟล์มี ${f.nSheetsInFile} ชีท แต่ระบบใช้แค่ ${(f.out||[]).length} — อีก ${extra} ชีทที่เหลือก็ยังต้องถูกคลายออกมาก่อนอยู่ดี ลบชีทที่ไม่ใช้ออกจะเร็วขึ้นมาก` : ''
+    }</span></div>`;
 }
 
 /* หมายเหตุคอลัมน์ที่ขาด/เกิน ของแต่ละชีท */
