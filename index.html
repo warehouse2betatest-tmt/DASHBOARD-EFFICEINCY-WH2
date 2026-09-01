@@ -252,6 +252,40 @@ body.navfold .me button::after{content:'⏻';font-size:15px}
 .modalBody{padding:20px 22px 22px;overflow-y:auto}
 .modalBox.wide{max-width:1120px}
 
+/* ---------- ป๊อปอัปแจ้งผลนำเข้าเสร็จ (ซ้อนทับป๊อปอัปนำเข้าอีกที) ----------
+   z-index 400 สูงกว่าทุกชั้นในระบบ (modal 120 · tooltip 200 · detail-modal 250) */
+.doneOv{position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;
+  padding:20px;background:rgba(11,36,71,.62);backdrop-filter:blur(5px);animation:fadeIn .18s both}
+.doneBox{background:#fff;border-radius:20px;width:100%;max-width:440px;text-align:center;
+  padding:34px 30px 26px;box-shadow:0 34px 80px rgba(0,0,0,.45);
+  animation:pop .3s cubic-bezier(.2,.8,.3,1) both;position:relative;overflow:hidden}
+.doneBox::before{content:'';position:absolute;top:0;left:0;right:0;height:5px;background:var(--ok)}
+.doneBox.warn::before{background:var(--org)}
+.doneBox.err::before{background:var(--bad)}
+.doneIc{width:78px;height:78px;border-radius:50%;margin:0 auto 18px;display:flex;
+  align-items:center;justify-content:center;font-size:38px;line-height:1;color:#fff;
+  background:linear-gradient(135deg,#12b76a,#0f9d58);box-shadow:0 10px 26px rgba(15,157,88,.36);
+  animation:doneIn .45s cubic-bezier(.2,1.3,.4,1) .08s both}
+.doneBox.warn .doneIc{background:linear-gradient(135deg,var(--org2),var(--org));
+  box-shadow:0 10px 26px rgba(255,122,24,.36)}
+.doneBox.err .doneIc{background:linear-gradient(135deg,#f16060,var(--bad));
+  box-shadow:0 10px 26px rgba(224,49,49,.36)}
+@keyframes doneIn{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.doneBox h3{margin:0 0 6px;font-size:20px;font-weight:600;color:var(--txt);letter-spacing:-.3px}
+.doneBox h3::before{display:none}
+.doneBox .doneSub{font-size:13px;color:var(--muted);font-weight:300;line-height:1.6;margin-bottom:20px}
+.doneStats{display:grid;grid-template-columns:repeat(auto-fit,minmax(84px,1fr));gap:8px;
+  margin-bottom:20px;text-align:center}
+.doneStats>*{min-width:0}
+.doneStats div{background:var(--navy-soft);border-radius:11px;padding:11px 6px}
+.doneStats b{display:block;font-size:19px;font-weight:600;color:var(--navy2);
+  letter-spacing:-.4px;line-height:1.2}
+.doneStats span{display:block;font-size:10.5px;color:var(--muted);font-weight:300;margin-top:3px}
+.doneNote{background:var(--org-soft);border-radius:11px;padding:11px 13px;margin-bottom:18px;
+  font-size:12px;color:var(--txt);font-weight:300;line-height:1.6;text-align:left}
+.doneBtns{display:flex;gap:9px}
+.doneBtns>*{flex:1;min-width:0}
+
 /* ---------- แถบตัวเลขสรุปแบบกะทัดรัด (ใช้ในป๊อปอัป) ---------- */
 .chips{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:16px}
 .chip2{display:flex;flex-direction:column;gap:1px;padding:9px 14px;border-radius:12px;
@@ -4703,7 +4737,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-15.4';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-15.5';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -5276,13 +5310,59 @@ function openModal(title, html){
 function closeModal(e){
   // คลิกพื้นหลัง (target = #modal) หรือกดปุ่ม ✕ (ไม่ส่ง event) เท่านั้นจึงปิด
   if(e && e.target && e.target.id !== 'modal') return;
+  const dv = el('doneOv'); if(dv) dv.remove();   // กันชั้นแจ้งผลค้างจนคลิกอะไรไม่ได้
   el('modal').classList.add('hide');
   el('modalBody').innerHTML = '';
   const bx = document.querySelector('.modalBox');
   if(bx) bx.classList.remove('wide');   // คืนความกว้างปกติ ไม่ให้ติดไปยังป๊อปอัปอื่น
   document.body.style.overflow = '';
 }
-document.addEventListener('keydown', e=>{ if(e.key === 'Escape') closeModal(); });
+document.addEventListener('keydown', e=>{
+  if(e.key !== 'Escape') return;
+  /* ถ้าป๊อปอัปแจ้งผลเปิดอยู่ ให้ปิดแค่ชั้นบนสุด ไม่ปิดป๊อปอัปที่อยู่ข้างใต้ */
+  if(el('doneOv')){ closeDone(false); return; }
+  closeModal();
+});
+
+/* =========================================================================
+   ป๊อปอัปแจ้งผล — ใช้หลังนำเข้าข้อมูลเสร็จ
+   kind: 'ok' | 'warn' | 'err'
+   closeParent = true  → กดปุ่มแล้วปิดป๊อปอัปนำเข้าข้างใต้ไปด้วย
+   ========================================================================= */
+function closeDone(closeParent){
+  const o = el('doneOv'); if(o) o.remove();
+  if(closeParent) closeModal();
+}
+
+function showDone(kind, title, sub, stats, note){
+  if(el('doneOv')) el('doneOv').remove();
+  const ic  = kind === 'ok' ? '✓' : kind === 'warn' ? '!' : '✕';
+  const cls = kind === 'ok' ? '' : ' ' + kind;
+
+  /* สำเร็จล้วน → ปุ่มเดียว ปิดทั้งหมด
+     มีคำเตือน/ผิดพลาด → ต้องให้ผู้ใช้ได้อ่านบันทึกก่อน ปุ่มหลักจึงเป็น "ดูรายละเอียด" */
+  const btns = kind === 'ok'
+    ? `<button class="btn" id="doneBtn" onclick="closeDone(true)">เสร็จสิ้น</button>`
+    : `<div class="doneBtns">
+         <button class="btn ghost" onclick="closeDone(true)">ปิดหน้าต่าง</button>
+         <button class="btn" id="doneBtn" onclick="closeDone(false)">ดูรายละเอียด</button>
+       </div>`;
+
+  const d = document.createElement('div');
+  d.className = 'doneOv'; d.id = 'doneOv';
+  d.onclick = ev=>{ if(ev.target === d) closeDone(false); };   // คลิกพื้นหลัง = ปิดชั้นบน
+  d.innerHTML = `<div class="doneBox${cls}" role="alertdialog" aria-modal="true">
+    <div class="doneIc">${ic}</div>
+    <h3>${title}</h3>
+    <div class="doneSub">${sub}</div>
+    ${stats && stats.length ? `<div class="doneStats">${
+      stats.map(s=>`<div><b>${s[0]}</b><span>${s[1]}</span></div>`).join('')}</div>` : ''}
+    ${note ? `<div class="doneNote">${note}</div>` : ''}
+    ${btns}
+  </div>`;
+  document.body.appendChild(d);
+  const b = el('doneBtn'); if(b) b.focus();   // กด Enter ได้ทันที ไม่ต้องเล็งเมาส์
+}
 
 /* ใส่เงาใต้หัวข้อเมื่อเลื่อนลง ให้รู้ว่ากำลังลอยทับเนื้อหา */
 window.addEventListener('scroll', ()=>{
@@ -13801,6 +13881,10 @@ async function runImport(){
   if(repl.length && !confirm(
       `ชีท ${repl.join(', ')} จะล้างข้อมูลเดิมในตารางทิ้งทั้งหมดแล้วเขียนใหม่\n\nยืนยันดำเนินการ?`)) return;
 
+  /* ล้างผลตรวจวันเวลาของรอบก่อน — ไม่งั้นถ้ารอบนี้ไม่ได้ตรวจ (เช่นนำเข้าเฉพาะ Stock)
+     คำเตือนเก่าจะค้างมาแสดงกับข้อมูลรอบใหม่ */
+  DATE_ISSUES = [];
+
   const btn = el('impBtn'); btn.disabled = true; btn.textContent = 'กำลังนำเข้า…';
   el('impBarWrap').style.display = 'block';
   el('impLogBox').innerHTML = '';
@@ -13962,6 +14046,39 @@ async function runImport(){
   loadImportLog();
   loadDataSummary();
   scanExisting();
+
+  /* ---- ป๊อปอัปแจ้งผล ----
+     แยก 3 กรณีจริงๆ ไม่ขึ้น "เสร็จสมบูรณ์" ทับกรณีที่ยังมีปัญหา */
+  const stats = [
+    [fmt(nf),          'ไฟล์'],
+    [fmt(sel.length),  'ชีท'],
+    [fmt(grandTotal),  'แถวที่บันทึก'],
+    [secs + ' วิ',      'เวลาที่ใช้']
+  ];
+  if(!okAll){
+    showDone('err','นำเข้าไม่สำเร็จทั้งหมด',
+      'มีบางชีทที่บันทึกไม่ผ่าน ข้อมูลส่วนที่เหลือบันทึกแล้ว',
+      stats, 'ดูสาเหตุได้ที่บันทึกการทำงานด้านล่างของหน้าต่างนำเข้า');
+  }else if(DATE_ISSUES.length){
+    showDone('warn','นำเข้าสำเร็จ แต่พบปัญหาวันเวลา',
+      'ข้อมูลบันทึกครบแล้ว แต่ตัวเลขด้านเวลาจะยังเชื่อถือไม่ได้',
+      stats,
+      '<b>⚠ ' + esc(DATE_ISSUES[0].table + '.' + DATE_ISSUES[0].column) + '</b> — ' +
+      esc(DATE_ISSUES[0].msg) +
+      (DATE_ISSUES.length > 1 ? `<br>และอีก ${DATE_ISSUES.length - 1} รายการ` : '') +
+      '<br>รูปแบบวันเวลาในไฟล์อาจไม่ตรงกับที่ระบบอ่าน');
+  }else if(!grandTotal){
+    /* ไม่มีแถวถูกบันทึก — สำเร็จจริง แต่ห้ามโชว์ "0 แถว" ลอยๆ ต้องบอกสาเหตุ
+       ข้อความต่างกันตามว่าเป็นชีท Stock (เทียบกับวันก่อนหน้า) หรือชีทอื่น */
+    showDone('ok','นำเข้าเสร็จสมบูรณ์',
+      stockOK ? 'ตรวจแล้วข้อมูลไม่ต่างจากวันก่อนหน้า จึงไม่มีแถวใหม่ต้องบันทึก'
+              : 'ไม่มีแถวใหม่ต้องบันทึก ข้อมูลในระบบตรงกับไฟล์อยู่แล้ว',
+      [[fmt(nf),'ไฟล์'],[fmt(sel.length),'ชีท'],[secs + ' วิ','เวลาที่ใช้']]);
+  }else{
+    showDone('ok','นำเข้าเสร็จสมบูรณ์',
+      `บันทึกข้อมูลและสรุปผลเรียบร้อยแล้ว<br>ดูผลได้ที่เมนู Dashboard ได้ทันที`,
+      stats);
+  }
 }
 
 /* =========================================================================
