@@ -4759,7 +4759,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-16.0';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-17.0';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -9837,12 +9837,121 @@ function mrMonthCard(R){
   </div>`;
 }
 
+/* เติมชั่วโมงที่ไม่มีงานให้เป็น 0 — ไม่งั้นกราฟจะกระโดดข้าม เช่นพักเที่ยงจะหายไปเฉยๆ */
+function mrHourSeries(HR){
+  if(!HR.length) return [];
+  const m = {}; HR.forEach(x=>{ m[+x.h] = x; });
+  const lo = Math.min(...HR.map(x=>+x.h)), hi = Math.max(...HR.map(x=>+x.h));
+  const out = [];
+  for(let h=lo; h<=hi; h++) out.push(m[h] || {h, tr:0, v:0, rows:0, tr_day:0, v_day:0});
+  return out;
+}
+
+/* มิติเวลา — เฉลี่ยต่อวัน · เทรนด์รายวัน · วันในสัปดาห์ · ชั่วโมงในวัน */
+function mrTimeCards(TM, R){
+  if(!TM) return '';
+  const T = TM.kpi||{}, DW = TM.by_dow||[], MD = TM.by_month_day||[];
+  const HR = mrHourSeries(TM.by_hour||[]);
+  if(!+T.work_days) return '';
+
+  const top = (arr,f)=> arr.length ? arr.reduce((a,b)=> +f(b) > +f(a) ? b : a) : null;
+  const bot = (arr,f)=> arr.length ? arr.reduce((a,b)=> +f(b) < +f(a) ? b : a) : null;
+  const hrOn = HR.filter(x=> +x.tr > 0);          // ชั่วโมงที่มีงานจริง ใช้หาจุดต่ำสุดแบบมีความหมาย
+  const gaps = HR.filter(x=> +x.tr === 0);
+
+  const dHi = top(DW,x=>x.tr_day), dLo = bot(DW,x=>x.tr_day);
+  const hHi = top(HR,x=>x.tr),     hLo = bot(hrOn,x=>x.tr);
+  const D   = R.daily||[];
+  const yHi = top(D,x=>x.tr),      yLo = bot(D,x=>x.tr);
+
+  const dowRows = DW.map(x=>`<tr>
+      <td><b>${esc(x.k)}</b></td>
+      <td class="num">${fmt(x.days)}</td>
+      <td class="num">${fmt(x.tr)}</td>
+      <td class="num"><b>${fmt(x.tr_day,1)}</b></td>
+      <td class="num">${fmt(x.v_day,1)}</td>
+      <td class="num">${fmt(x.rows)}</td></tr>`).join('');
+
+  const mdRows = MD.map(x=>`<tr>
+      <td><b>${esc(monthLabel(x.m))}</b></td>
+      <td class="num">${fmt(x.days)}</td>
+      <td class="num">${fmt(x.tr)}</td>
+      <td class="num"><b>${fmt(x.tr_day,1)}</b></td>
+      <td class="num">${fmt(x.v,1)}</td>
+      <td class="num">${fmt(x.v_day,1)}</td></tr>`).join('');
+
+  return `
+  <div class="kpis">
+    <div class="kpi anim d1"><div class="k">วันที่มีงานขนย้าย</div><div class="v">${fmt(T.work_days)}</div>
+      <div class="s">วัน · จาก ${fmt(T.trips)} รอบทั้งหมด</div></div>
+    <div class="kpi o anim d2"><div class="k">เฉลี่ยรอบขนย้ายต่อวัน</div><div class="v">${fmt(T.per_day_trips,1)}</div>
+      <div class="s">รอบ/วัน</div></div>
+    <div class="kpi anim d3"><div class="k">เฉลี่ยน้ำหนักต่อวัน</div><div class="v">${fmt(T.per_day_ton,1)}</div>
+      <div class="s">ตัน/วัน</div></div>
+    <div class="kpi g anim d4"><div class="k">เฉลี่ยรายการต่อวัน</div><div class="v">${fmt(T.per_day_rows,1)}</div>
+      <div class="s">รายการ/วัน</div></div>
+  </div>
+
+  <div class="card anim d1"><h3>เทรนด์รายวัน ตลอดช่วงที่มีข้อมูล</h3>
+    <div class="chartbox" style="height:290px"><canvas id="mrt1"></canvas></div>
+    <p class="sm" style="margin-top:11px;line-height:1.85">
+      เส้นประแดงคือค่าเฉลี่ย <b>${fmt(T.per_day_trips,1)} รอบ/วัน</b>
+      ${yHi?`· วันที่มากสุด <b>${esc(dmy(yHi.d))}</b> ${fmt(yHi.tr)} รอบ (${fmt(yHi.v,1)} ตัน)`:''}
+      ${yLo?`· วันที่น้อยสุด <b>${esc(dmy(yLo.d))}</b> ${fmt(yLo.tr)} รอบ (${fmt(yLo.v,1)} ตัน)`:''}
+    </p>
+    ${MD.length>1 ? `<h4 style="margin:16px 0 8px">เฉลี่ยต่อวัน แยกรายเดือน</h4>
+    <div class="msg info" style="margin-bottom:10px">
+      เทียบยอดรวมรายเดือนตรงๆ ไม่ยุติธรรม เพราะแต่ละเดือนมีวันทำงานไม่เท่ากัน — ดูช่อง <b>รอบ/วัน</b> แทน
+    </div>
+    <div class="tblscroll"><table><thead><tr>
+      <th>เดือน</th><th class="num">วันทำงาน</th><th class="num">รอบรวม</th>
+      <th class="num">รอบ/วัน</th><th class="num">ตันรวม</th><th class="num">ตัน/วัน</th>
+    </tr></thead><tbody>${mdRows}</tbody></table></div>` : ''}
+  </div>
+
+  <div class="card anim d2"><h3>วันไหนของสัปดาห์งานหนักสุด</h3>
+    <div class="chartbox" style="height:265px"><canvas id="mrt2"></canvas></div>
+    <div class="tblscroll" style="margin-top:14px"><table><thead><tr>
+      <th>วัน</th><th class="num">จำนวนวัน</th><th class="num">รอบรวม</th>
+      <th class="num">รอบ/วัน</th><th class="num">ตัน/วัน</th><th class="num">รายการ</th>
+    </tr></thead><tbody>${dowRows}</tbody></table></div>
+    <p class="sm" style="margin-top:11px;line-height:1.85">
+      ${dHi&&dLo?`หนักสุด <b>${esc(dHi.k)}</b> ${fmt(dHi.tr_day,1)} รอบ/วัน ·
+        เบาสุด <b>${esc(dLo.k)}</b> ${fmt(dLo.tr_day,1)} รอบ/วัน —
+        ต่างกัน <b>${fmt((dHi.tr_day-dLo.tr_day)/dLo.tr_day*100,0)}%</b><br>`:''}
+      ต้องหารด้วยจำนวนวันก่อน เพราะช่วงนี้แต่ละวันของสัปดาห์มีไม่เท่ากัน
+      ${DW.length<7?`· <b>ไม่มีวัน${esc((['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัส','ศุกร์','เสาร์'])
+          .filter(n=>!DW.some(x=>x.k===n)).join(' และ '))}</b>เลยในข้อมูลชุดนี้`:''}
+    </p>
+  </div>
+
+  <div class="card anim d3"><h3>ช่วงเวลาไหนของวันที่เริ่มงานเยอะสุด</h3>
+    <div class="chartbox" style="height:265px"><canvas id="mrt3"></canvas></div>
+    <p class="sm" style="margin-top:11px;line-height:1.85">
+      นับตาม<b>เวลาที่รอบนั้นเริ่มงาน</b> แต่ละรอบถูกนับครั้งเดียว ยอดรวมจึงตรงกับ ${fmt(T.trips)} รอบพอดี<br>
+      ${hHi?`พีคสุด <b>${String(hHi.h).padStart(2,'0')}:00</b> ${fmt(hHi.tr)} รอบ (${fmt(hHi.v,1)} ตัน)`:''}
+      ${hLo?` · เบาสุดที่ยังมีงาน <b>${String(hLo.h).padStart(2,'0')}:00</b> ${fmt(hLo.tr)} รอบ`:''}<br>
+      ${gaps.length?`<b style="color:var(--org-deep)">ชั่วโมงที่ไม่มีงานเลย:
+        ${gaps.map(x=>String(x.h).padStart(2,'0')+':00').join(', ')}</b> — น่าจะเป็นช่วงพัก`
+        :'มีงานต่อเนื่องทุกชั่วโมงในช่วงที่เปิดทำการ'}
+    </p>
+  </div>`;
+}
+
 async function pageMRFG(){
   let R;
-  try{ R = await rpcCached('app_dash_mrfg',{
-        p_months: orNull('months'),
-        p_origins: orNull('mrorg'), p_dests: orNull('mrdst'),
-        p_status: (FILTERS.mstat && FILTERS.mstat.length) ? FILTERS.mstat : null }); }
+  let TM = null;
+  const args = { p_months: orNull('months'),
+                 p_origins: orNull('mrorg'), p_dests: orNull('mrdst'),
+                 p_status: (FILTERS.mstat && FILTERS.mstat.length) ? FILTERS.mstat : null };
+  try{
+    // ยิงพร้อมกัน มิติเวลาแยกฟังก์ชัน ถ้าพังก็ยังดูหน้าที่เหลือได้
+    const [main, time] = await Promise.all([
+      rpcCached('app_dash_mrfg', args),
+      rpcCached('app_dash_mrfg_time', args).catch(e=>{ console.warn('มิติเวลาโหลดไม่ได้', e); return null; })
+    ]);
+    R = main; TM = time;
+  }
   catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
   MRFG_DATA = R;
 
@@ -9966,6 +10075,10 @@ async function pageMRFG(){
   ${mrMixCard(R, K)}
   ${mrMonthCard(R)}
 
+  ${sect(2,'จังหวะการทำงานตามเวลา',
+      'เฉลี่ยต่อวัน · เทรนด์รายวัน · วันในสัปดาห์ · ชั่วโมงในวัน — นับที่ระดับรอบขนย้าย','o')}
+  ${mrTimeCards(TM, R)}
+
   <div class="kpis">
     <div class="kpi o anim d1"><div class="k">% ของน้ำหนักที่จ่ายออก</div><div class="v">${fmt(K.share_out_pct,2)}%</div>
       <div class="s">${fmt(K.ton,1)} จาก ${fmt(K.ton_out_all,0)} ตัน</div></div>
@@ -10006,10 +10119,10 @@ async function pageMRFG(){
       <div class="s">รายการ · ขนย้ายแล้วแต่ไม่พบใบส่งฝั่ง FG</div></div>
   </div>
 
-  ${sect(2,'ขนจากไหนไปไหน','ยิ่งสีเข้ม = ปริมาณยิ่งมาก · กดที่ช่องเพื่อดูว่ามีรายการอะไรบ้าง')}
+  ${sect(3,'ขนจากไหนไปไหน','ยิ่งสีเข้ม = ปริมาณยิ่งมาก · กดที่ช่องเพื่อดูว่ามีรายการอะไรบ้าง')}
   <div class="card anim d1"><h3>ตารางความร้อน ต้นทาง × ปลายทาง (ตัน)</h3>${heatHTML}</div>
 
-  ${sect(3,'คอขวดอยู่ตรงไหน','แยกเวลาแต่ละช่วงของรอบขนย้าย','o')}
+  ${sect(4,'คอขวดอยู่ตรงไหน','แยกเวลาแต่ละช่วงของรอบขนย้าย','o')}
   <div class="card anim d1" style="border-left:5px solid var(--bad)">
     <h3>ช่วงที่กินเวลามากที่สุด</h3>
     <div class="chartbox" style="height:210px"><canvas id="mr2"></canvas></div>
@@ -10026,7 +10139,7 @@ async function pageMRFG(){
     ], SR) + `
     <p class="sm" style="margin-top:10px">เฉพาะเส้นทางที่มีอย่างน้อย 5 รอบ · เลขแดง = รอเช็คอินเกิน 8 นาที</p></div>
 
-  ${sect(4,'ของอะไรถูกฝากบ่อย และอะไรไปด้วยกัน','ถ้ารายการไหนถูกขนย้ายซ้ำๆ แปลว่าวางสต็อกผิดโรงตั้งแต่ต้น')}
+  ${sect(5,'ของอะไรถูกฝากบ่อย และอะไรไปด้วยกัน','ถ้ารายการไหนถูกขนย้ายซ้ำๆ แปลว่าวางสต็อกผิดโรงตั้งแต่ต้น')}
   <div class="card anim d1"><h3>รายการที่ถูกฝากบ่อยที่สุด (กดเพื่อดูรายละเอียด)</h3>` + tableHTML([
       {h:'รหัสสินค้า',k:'k',raw:1,f:r=>`<a href="#" onclick="mrDrillMat('${esc(r.k)}');return false"
           style="color:var(--org-deep);font-weight:500">${esc(r.k)}</a>`},
@@ -10044,7 +10157,7 @@ async function pageMRFG(){
     <p class="sm" style="margin-top:12px">คู่ที่ไปด้วยกันบ่อย มักเป็นของที่ลูกค้าสั่งคู่กัน —
       ถ้าย้ายไปเก็บโรงเดียวกันตั้งแต่แรก จะตัดรอบขนย้ายได้ทีเดียวสองรายการ</p></div>
 
-  ${sect(5,'สินค้าและลูกค้า','กลุ่มไหนทำให้ต้องขนย้ายมากที่สุด')}
+  ${sect(6,'สินค้าและลูกค้า','กลุ่มไหนทำให้ต้องขนย้ายมากที่สุด')}
   <div class="grid2">
     <div class="card anim d1"><h3>ตามกลุ่มขาย</h3>
       <div class="chartbox" style="height:${Math.max(240,(R.by_gsale||[]).length*28)}px"><canvas id="mr5"></canvas></div></div>
@@ -10095,6 +10208,61 @@ async function pageMRFG(){
       tip:(pts)=>{const r=tc[pts[0].dataIndex];
         return `<b>${esc(r.k)}</b><br>${fmt(r.v,1)} ตัน (${fmt(r.pct,1)}%)<br>`+
                `<span style="opacity:.75">เกี่ยวข้อง ${fmt(r.trips)} รอบขนย้าย</span>`;}}));
+
+  /* ---- มิติเวลา: 3 กราฟ แต่ละกราฟมีทั้งเส้นรอบและเส้นตัน ---- */
+  if(TM && +(TM.kpi||{}).work_days){
+    const TK = TM.kpi||{}, DW = TM.by_dow||[], HR = mrHourSeries(TM.by_hour||[]);
+    const DD = R.daily||[];
+    // แกนซ้าย = รอบ (น้ำเงินเข้ม) · แกนขวา = ตัน (ส้ม) — คนละหน่วย ต้องแยกแกน
+    const twoAxis = (extra={}) => Object.assign({
+      interaction:{mode:'index',intersect:false},
+      scales:{
+        y :{beginAtZero:true,position:'left',grid:{color:'#eef2f8'},border:{display:false},
+            ticks:axisFont,title:{display:true,text:'รอบขนย้าย',
+              font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'}},
+        y2:{beginAtZero:true,position:'right',grid:{display:false},border:{display:false},
+            ticks:axisFont,title:{display:true,text:'ตัน',
+              font:{family:'Kanit',size:10,weight:'300'},color:'#7086a3'}},
+        x :{grid:{display:false},ticks:axisFont}}
+    }, extra);
+    const lineTrips = (data,label='รอบขนย้าย') => ({
+      label, data, borderColor:'#0b2447', backgroundColor:'rgba(11,36,71,.08)',
+      borderWidth:2.6, tension:.32, pointRadius:2.5, pointHoverRadius:5, fill:true, yAxisID:'y', order:1});
+    const lineTon = (data,label='ตัน') => ({
+      label, data, borderColor:'#ff7a18', backgroundColor:'rgba(255,122,24,.08)',
+      borderWidth:2.2, tension:.32, pointRadius:2.5, pointHoverRadius:5,
+      borderDash:[6,4], yAxisID:'y2', order:2});
+
+    // 1) เทรนด์รายวัน — จุดเยอะ ซ่อน label แกน x เป็นช่วงๆ ไม่งั้นอ่านไม่ออก
+    const every = DD.length > 40 ? Math.ceil(DD.length/14) : 1;
+    chart('mrt1','line',DD.map(x=>dmy(x.d)),
+      [lineTrips(DD.map(x=>+x.tr)), lineTon(DD.map(x=>+x.v))],
+      twoAxis({ avgLine:{v:+TK.per_day_trips, txt:`เฉลี่ย ${fmt(TK.per_day_trips,1)} รอบ/วัน`},
+        scales:{
+          y :{beginAtZero:true,position:'left',grid:{color:'#eef2f8'},border:{display:false},ticks:axisFont},
+          y2:{beginAtZero:true,position:'right',grid:{display:false},border:{display:false},ticks:axisFont},
+          x :{grid:{display:false},ticks:Object.assign({},axisFont,{
+                autoSkip:false, maxRotation:60,
+                callback:function(v,i){ return i%every ? '' : this.getLabelForValue(v); }})}},
+        tip:(pts)=>{const r=DD[pts[0].dataIndex];
+          return `<b>${esc(dmy(r.d))}</b><br>${fmt(r.tr)} รอบขนย้าย<br>${fmt(r.v,1)} ตัน`;}}));
+
+    // 2) วันในสัปดาห์ — ต้องใช้ค่าเฉลี่ยต่อวัน เพราะจำนวนวันแต่ละแบบไม่เท่ากัน
+    chart('mrt2','line',DW.map(x=>x.k),
+      [lineTrips(DW.map(x=>+x.tr_day),'รอบ/วัน'), lineTon(DW.map(x=>+x.v_day),'ตัน/วัน')],
+      twoAxis({ tip:(pts)=>{const r=DW[pts[0].dataIndex];
+          return `<b>วัน${esc(r.k)}</b><br>${fmt(r.tr_day,1)} รอบ/วัน · ${fmt(r.v_day,1)} ตัน/วัน<br>`+
+                 `<span style="opacity:.75">รวม ${fmt(r.tr)} รอบ จาก ${fmt(r.days)} วัน</span>`;}}));
+
+    // 3) ชั่วโมงในวัน — เติมชั่วโมงว่างเป็น 0 แล้ว จะได้เห็นช่วงพักเป็นหลุม
+    chart('mrt3','line',HR.map(x=>String(x.h).padStart(2,'0')+':00'),
+      [lineTrips(HR.map(x=>+x.tr)), lineTon(HR.map(x=>+x.v))],
+      twoAxis({ tip:(pts)=>{const r=HR[pts[0].dataIndex];
+          return +r.tr === 0
+            ? `<b>${String(r.h).padStart(2,'0')}:00</b><br>ไม่มีรอบไหนเริ่มงานในชั่วโมงนี้`
+            : `<b>${String(r.h).padStart(2,'0')}:00</b><br>${fmt(r.tr)} รอบ · ${fmt(r.v,1)} ตัน<br>`+
+              `<span style="opacity:.75">เฉลี่ย ${fmt(r.tr_day,2)} รอบ/วัน</span>`;}}));
+  }
 
   const D=R.daily||[];
   chart('mr4','bar',D.map(x=>dmy(x.d)),[
