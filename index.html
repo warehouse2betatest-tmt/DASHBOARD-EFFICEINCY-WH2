@@ -220,6 +220,19 @@ body.navfold .me button::after{content:'⏻';font-size:15px}
 .srcchip.aux{background:var(--navy-soft);color:var(--navy2);border-color:#d7e2f2;font-weight:300}
 .srcmx td .srcchip{margin:2px 3px 2px 0}
 
+/* ---------- สามตัวเลขคนละหน่วย (หน้า Milk Run) ---------- */
+.unitgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:11px}
+.unitgrid>*{min-width:0;background:#fff;border:1px solid var(--line);border-radius:12px;padding:11px 13px}
+.unitgrid .hi{border-color:var(--org);box-shadow:0 0 0 2px var(--org-soft) inset}
+.unitgrid b{display:block;font-size:24px;font-weight:600;color:var(--navy2);letter-spacing:-.6px;line-height:1.15}
+.unitgrid .hi b{color:var(--org-deep)}
+.unitgrid span{display:block;font-size:12px;font-weight:400;color:var(--txt);margin-top:2px}
+.unitgrid em{display:block;font-size:11px;font-weight:300;font-style:normal;color:var(--muted);
+  margin-top:5px;line-height:1.6}
+.mixbar{height:9px;border-radius:6px;background:var(--navy-soft);overflow:hidden;min-width:60px}
+.mixbar i{display:block;height:100%;border-radius:6px;
+  background:linear-gradient(90deg,var(--org2),var(--org))}
+
 /* ตัวกรองแบบติ๊กหลายค่า */
 .msWrap{position:relative}
 .msBtn{display:flex;align-items:center;gap:8px;padding:9px 13px;border:1.5px solid var(--line);
@@ -4746,7 +4759,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-15.7';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-16.0';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -4781,7 +4794,7 @@ let ME = null, TOKEN = null, CHARTS = {}, PAGE = 'fg';
 let DATE_ISSUES = [];   // ปัญหาวันเวลาที่ตรวจพบหลังนำเข้าล่าสุด
 
 /* ตัวกรองใช้ร่วมกันทุกหน้า + แคชข้อมูลไว้ ไม่ต้องยิงซ้ำตอนเปลี่ยนตัวกรอง */
-let FILTERS = { months:[], factories:[], shtys:[], routes:[], mstat:['Completed'], opsloc:[], dim:'gate', keys:[] };
+let FILTERS = { months:[], factories:[], shtys:[], mrorg:[], mrdst:[], mstat:['Completed'], opsloc:[], dim:'gate', keys:[] };
 
 /* ค่าเป้าหมายที่ตั้งไว้ในระบบ — โหลดครั้งเดียวตอนเข้าระบบ แก้ได้ที่หน้าตั้งค่า */
 const TARGETS = {};
@@ -5853,7 +5866,8 @@ function filterBar(sets, shown, total, fn){
 }
 
 function resetFilters(fn){
-  FILTERS.months=[]; FILTERS.factories=[]; FILTERS.shtys=[]; FILTERS.keys=[]; FILTERS.routes=[];
+  FILTERS.months=[]; FILTERS.factories=[]; FILTERS.shtys=[]; FILTERS.keys=[];
+  FILTERS.mrorg=[]; FILTERS.mrdst=[];
   FILTERS.mstat=['Completed'];   // สถานะ Milk Run กลับไปเป็นค่าตั้งต้น = นับเฉพาะที่ทำสำเร็จ
   FILTERS.opsloc=[];
   window[fn]();
@@ -9740,10 +9754,94 @@ async function pageOps(){
    ⚠ รูปแบบเลขรายการสองระบบไม่ตรงกัน FG='000010' MR='10' ต้องตัดศูนย์นำหน้าก่อนเทียบ
      (ไม่ตัดจะจับคู่ได้แค่ 35% ตัดแล้วได้ 97.3%)
    ========================================================================= */
+/* ใน "เที่ยวที่มีของขนย้ายติดไป" นั้น Milk Run กินน้ำหนักบนรถกี่ % — ตอบว่าเป็นของหลักหรือของแถม */
+function mrMixCard(R, K){
+  const MX = R.ship_mix || [];
+  if(!MX.length) return '';
+  const maxN = Math.max(1, ...MX.map(x=>+x.n));
+  const rows = MX.map(x=>`<tr>
+    <td style="min-width:190px">${esc(x.k)}</td>
+    <td style="width:34%"><div class="mixbar"><i style="width:${(+x.n/maxN*100).toFixed(1)}%"></i></div></td>
+    <td class="num"><b>${fmt(x.n)}</b></td>
+    <td class="num">${fmt(x.pct,1)}%</td>
+    <td class="num">${fmt(x.v,1)}</td>
+    <td class="num">${fmt(x.avgpct,1)}%</td></tr>`).join('');
+
+  const major = +K.mix_major || 0, minor = +K.mix_minor || 0;
+  return `<div class="card anim d3">
+    <h3>ใน ${fmt(K.shipments)} เที่ยวนั้น Milk Run กินพื้นที่รถแค่ไหน</h3>
+    <div class="msg info" style="margin-bottom:12px">
+      เทียบน้ำหนักของขนย้ายบนรถ กับน้ำหนักรวมทั้งคันของเที่ยวนั้น
+    </div>
+    <div class="tblscroll"><table><thead><tr>
+      <th>สัดส่วนบนรถคันนั้น</th><th>สัดส่วนจำนวนเที่ยว</th>
+      <th class="num">เที่ยว</th><th class="num">% ของ ${fmt(K.shipments)}</th>
+      <th class="num">ตัน Milk Run</th><th class="num">% เฉลี่ย</th>
+    </tr></thead><tbody>${rows}</tbody></table></div>
+    <p class="sm" style="margin-top:11px;line-height:1.9">
+      ${major
+        ? `มี <b>${fmt(major)} เที่ยว</b> ที่ของขนย้ายเกินครึ่งคัน — เที่ยวพวกนี้ถือว่าวิ่งเพื่อ Milk Run จริง`
+        : `<b>ไม่มีเที่ยวไหนเลย</b>ที่ของขนย้ายเกินครึ่งคัน (มากสุดที่เจอคือ ${fmt(K.mix_max_pct,1)}%)`}<br>
+      อีก <b>${fmt(minor)} เที่ยว</b> มีของขนย้ายไม่ถึง 5% ของน้ำหนักรถ — แค่แถมไปกับของอื่น<br>
+      ${major
+        ? ''
+        : `<b>สรุป</b> ตัวเลข ${fmt(K.ships_out_pct,2)}% จึงไม่ควรอ่านว่า
+           "รถ ${fmt(K.ships_out_pct,0)}% วิ่งเพื่องานขนย้าย" — ที่ถูกคือของขนย้าย<b>แทรกอยู่ใน</b>รถสัดส่วนนั้น`}
+    </p>
+  </div>`;
+}
+
+/* ภาพรวมรายเดือน ทุกสถานะ — ข้ามตัวกรองเดือนเพื่อให้เทียบกันได้ */
+function mrMonthCard(R){
+  const BM = R.by_month_status || [], BO = R.by_month_out || [];
+  if(!BM.length) return '';
+  const months = [...new Set(BM.map(x=>x.m))].sort();
+  const stats  = [...new Set(BM.map(x=>x.k))].sort();
+  const get = (m,k)=> BM.find(x=>x.m===m && x.k===k);
+  const omap = {}; BO.forEach(x=>{ omap[x.m] = x; });
+
+  const head = `<tr><th>เดือน</th>${stats.map(k=>
+      `<th class="num">${esc(k)}</th>`).join('')}<th class="num">รวมรอบขนย้าย</th>
+      <th class="num">เที่ยวขาออกทั้งเดือน</th><th class="num">ตัน Milk Run</th></tr>`;
+
+  const rows = months.map(m=>{
+    const tot = stats.reduce((s,k)=>s + (+((get(m,k)||{}).tr) || 0), 0);
+    const ton = stats.reduce((s,k)=>s + (+((get(m,k)||{}).v)  || 0), 0);
+    return `<tr><td><b>${esc(monthLabel(m))}</b></td>${stats.map(k=>{
+      const c = get(m,k);
+      return `<td class="num">${c
+        ? `<b>${fmt(c.tr)}</b><div class="sm">${fmt(c.n)} รายการ · ${fmt(c.v,1)} ต.</div>`
+        : '<span class="sm">—</span>'}</td>`;
+    }).join('')}<td class="num"><b>${fmt(tot)}</b></td>
+      <td class="num">${omap[m] ? fmt(omap[m].s) : '<span class="sm">—</span>'}</td>
+      <td class="num">${fmt(ton,1)}</td></tr>`;
+  }).join('');
+
+  const first = months[0], last = months[months.length-1];
+  const trOf = m => stats.reduce((s,k)=>s + (+((get(m,k)||{}).tr) || 0), 0);
+  const chg  = trOf(first) ? (trOf(last)-trOf(first))/trOf(first)*100 : 0;
+
+  return `<div class="card anim d4">
+    <h3>ภาพรวมรายเดือน ทุกสถานะ</h3>
+    <div class="msg info" style="margin-bottom:12px">
+      ตารางนี้<b>ไม่สนตัวกรองเดือน</b> เพื่อให้เทียบข้ามเดือนได้
+      (ตัวกรองโรงและสถานะยังมีผลกับหน้าอื่น แต่ตารางนี้แสดงทุกสถานะเสมอ)<br>
+      ตัวเลขตัวใหญ่ = <b>รอบขนย้าย</b> ไม่ซ้ำ · บรรทัดล่าง = รายการ และน้ำหนัก
+    </div>
+    <div class="tblscroll"><table><thead>${head}</thead><tbody>${rows}</tbody></table></div>
+    <p class="sm" style="margin-top:11px;line-height:1.8">
+      เดือนแรกที่มีข้อมูล <b>${esc(monthLabel(first))}</b> (${fmt(trOf(first))} รอบ)
+      เทียบเดือนล่าสุด <b>${esc(monthLabel(last))}</b> (${fmt(trOf(last))} รอบ) —
+      <b style="color:${chg>=0?'var(--org-deep)':'var(--ok)'}">${chg>=0?'+':''}${fmt(chg,1)}%</b><br>
+      เดือนที่ไม่มีตัวเลขเลยคือเดือนที่ยังไม่ได้นำเข้าชีท Milk Run</p>
+  </div>`;
+}
+
 async function pageMRFG(){
   let R;
   try{ R = await rpcCached('app_dash_mrfg',{
-        p_months: orNull('months'), p_routes: orNull('routes'),
+        p_months: orNull('months'),
+        p_origins: orNull('mrorg'), p_dests: orNull('mrdst'),
         p_status: (FILTERS.mstat && FILTERS.mstat.length) ? FILTERS.mstat : null }); }
   catch(ex){ body(ex.session ? sessionExpiredCard() : errCard(ex.message)); return; }
   MRFG_DATA = R;
@@ -9756,7 +9854,8 @@ async function pageMRFG(){
 
   const bar = `<div class="filters anim">
     ${msRender('months','เดือน',R.months||[],FILTERS.months,'pageMRFG',monthLabel)}
-    ${msRender('routes','เส้นทางขนย้าย',R.all_routes||[],FILTERS.routes,'pageMRFG')}
+    ${msRender('mrorg','โรงต้นทาง',R.all_origins||[],FILTERS.mrorg,'pageMRFG')}
+    ${msRender('mrdst','โรงปลายทาง',R.all_dests||[],FILTERS.mrdst,'pageMRFG')}
     ${msRender('mstat','สถานะ Milk Run',R.all_status||[],FILTERS.mstat,'pageMRFG')}
     <button class="fbtn alt" onclick="resetFilters('pageMRFG')">ล้างตัวกรอง</button>
     <button class="fbtn alt" onclick="pageMRFG()">↻ โหลดใหม่</button>
@@ -9821,13 +9920,32 @@ async function pageMRFG(){
       มีของที่ต้อง<b>ขนย้ายระหว่างโรงมาก่อน</b>
       <b style="color:var(--org-deep);font-size:17px">${fmt(K.ton,1)} ตัน</b>
       คิดเป็น <b style="color:var(--org-deep);font-size:17px">${fmt(K.share_out_pct,2)}%</b> ของน้ำหนัก<br>
-      แต่ของจำนวนนี้กระจายอยู่ใน <b style="color:var(--org-deep);font-size:17px">${fmt(K.shipments)} เที่ยวรถ</b>
-      หรือ <b style="color:var(--org-deep);font-size:17px">${fmt(K.ships_out_pct,2)}%</b> ของเที่ยวรถขาออกทั้งหมด
+      ของจำนวนนี้ขนด้วย <b style="color:var(--org-deep);font-size:17px">${fmt(K.mr_trips)} รอบขนย้าย</b>
+      แล้วไปกระจายขึ้นรถขาออก <b style="color:var(--org-deep);font-size:17px">${fmt(K.shipments)} เที่ยว</b>
     </p>
     <p class="sm" style="margin-top:6px">
       นับเฉพาะรายการสถานะ <b>${esc((FILTERS.mstat||[]).join(', ') || 'ทั้งหมด')}</b>
       ${+K.excl_rows ? `· ตัดออก ${fmt(K.excl_rows)} รายการ (${fmt(K.excl_ton,1)} ตัน) ที่สถานะไม่เข้าเกณฑ์` : ''}
     </p>
+
+    <div class="msg warn" style="margin:14px 0 0">
+      <b>ระวังอ่านผิด — สามตัวเลขนี้คนละหน่วยกัน</b>
+      <div class="unitgrid">
+        <div><b>${fmt(K.mr_trips)}</b><span>รอบขนย้าย</span>
+          <em>งานย้ายของระหว่างโรง — เลข Shipment Milk Run ไม่ซ้ำ</em></div>
+        <div><b>${fmt(K.shipments)}</b><span>เที่ยวขาออกที่มีของนี้ติดไป</span>
+          <em>1 รอบขนย้ายกระจายขึ้นได้หลายเที่ยว จึงมากกว่าเลขซ้าย</em></div>
+        <div class="hi"><b>${fmt(K.eq_trips)}</b><span>เที่ยวเทียบเท่า</span>
+          <em>เอา ${fmt(K.ton,1)} ตัน หารด้วย ${fmt(K.ton_per_ship_out,2)} ตัน/เที่ยว
+              = ความจุรถที่ถูกใช้จริง</em></div>
+      </div>
+      <div class="sm" style="margin-top:9px;line-height:1.75">
+        ตัวกลาง <b>${fmt(K.shipments)} เที่ยว (${fmt(K.ships_out_pct,2)}%)</b>
+        คือ<b>จำนวนเที่ยวที่มีของขนย้ายติดไปด้วย</b> ไม่ใช่เที่ยวที่วิ่งเพื่อ Milk Run —
+        ถ้าจะวัดว่ากินกำลังรถไปเท่าไร ให้ดูตัวขวา
+        <b>${fmt(K.eq_trips)} เที่ยว (${fmt(K.share_out_pct,2)}%)</b>
+      </div>
+    </div>
   </div>
 
   <div class="card anim d2"><h3>รายการ Milk Run แยกตามสถานะ</h3>` + tableHTML([
@@ -9838,7 +9956,15 @@ async function pageMRFG(){
       {h:'น้ำหนัก (ตัน)',k:'v',n:1,f:r=>fmt(r.v,1)},
       {h:'เที่ยวรถขาออก',k:'sh',n:1,f:r=>fmt(r.sh)},
       {h:'รอบขนย้าย',k:'tr',n:1,f:r=>fmt(r.tr)}
-    ], R.by_status||[]) + `</div>
+    ], R.by_status||[]) + `
+    <p class="sm" style="margin-top:10px;line-height:1.8">
+      <b>รอบขนย้าย</b> = เลข Shipment Milk Run ไม่ซ้ำ (งานย้ายของ 1 ครั้ง)<br>
+      <b>เที่ยวรถขาออก</b> = เที่ยวจ่ายออกที่รับของจากรอบเหล่านั้นไปส่งต่อ —
+      มากกว่าเสมอ เพราะของจากรอบเดียวถูกแบ่งขึ้นรถได้หลายคัน</p>
+  </div>
+
+  ${mrMixCard(R, K)}
+  ${mrMonthCard(R)}
 
   <div class="kpis">
     <div class="kpi o anim d1"><div class="k">% ของน้ำหนักที่จ่ายออก</div><div class="v">${fmt(K.share_out_pct,2)}%</div>
