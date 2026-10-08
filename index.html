@@ -1910,7 +1910,7 @@ details summary{cursor:pointer;user-select:none}
       <button class="filter-pill" data-dim="pg" data-val="3">Long C</button>
     </div>
     <div class="filter-group">
-      <span class="filter-label">โรงงาน</span>
+      <span class="filter-label" title="คลิกได้หลายปุ่มพร้อมกัน">โรงงาน <span style="font-weight:600;opacity:.55;text-transform:none;letter-spacing:0;">(เลือกได้หลายค่า)</span></span>
       <button class="filter-pill active" data-dim="fac" data-val="-1">ทั้งหมด</button>
       <button class="filter-pill" data-dim="fac" data-val="0">โรง K</button>
       <button class="filter-pill" data-dim="fac" data-val="1">โรง L</button>
@@ -3299,16 +3299,16 @@ var DATE_DOW = DATE_LIST.map(d=>{ const dt=new Date(d+'T00:00:00'); return (dt.g
 var DOW_NDAYS = [0,0,0,0,0,0,0];
 DATE_DOW.forEach(d=>DOW_NDAYS[d]++);
 
-// FILTER.pg is an ARRAY (multi-select: 0+ Product Group indices, empty = "all"). The other
-// dimensions (fac/st/mn) stay single-select (-1 = "all", otherwise one index).
-var FILTER = { pg:[], fac:-1, st:-1, mn:-1 };
+// FILTER.pg และ FILTER.fac เป็น ARRAY (เลือกได้หลายค่า · อาเรย์ว่าง = "ทั้งหมด")
+// ส่วน st/mn ยังเลือกได้ทีละค่า (-1 = "ทั้งหมด")
+var FILTER = { pg:[], fac:[], st:-1, mn:-1 };
 
 function getFilteredIndices(){
   const idxs = [];
   const {pg,fac,st,mn} = FILTER;
   for(let i=0;i<N_ROWS;i++){
     if(pg.length && !pg.includes(ROWS.pg[i])) continue;
-    if(fac>=0 && ROWS.fac[i]!==fac) continue;
+    if(fac.length && !fac.includes(ROWS.fac[i])) continue;
     if(st>=0 && ROWS.st[i]!==st) continue;
     if(mn>=0 && ROWS.mn[i]!==mn) continue;
     idxs.push(i);
@@ -3668,7 +3668,7 @@ function getMRFilteredIndices(){
   const {pg,fac,st,mn} = FILTER;
   for(let i=0;i<MR_N_ROWS;i++){
     if(pg.length && !pg.includes(MRROWS.pg[i])) continue;
-    if(fac>=0 && MRROWS.ofac[i]!==fac) continue;
+    if(fac.length && !fac.includes(MRROWS.ofac[i])) continue;   // กรองที่โรงต้นทางของรอบขนย้าย
     if(st>=0 && MRROWS.dst[i]!==st) continue;
     if(mn>=0 && MRROWS.mn[i]!==mn) continue;
     idxs.push(i);
@@ -4182,7 +4182,7 @@ function renderKPIsAndLeadStats(idxs){
 function updateFilterStatusText(idxs){
   const mnTxt = FILTER.mn>=0 ? MONTH_LIST[FILTER.mn] : null;
   const pgTxt = FILTER.pg.length ? FILTER.pg.map(v=>do_PG_TH[PG_LIST[v]]).join('/') : null;
-  const facTxt = FILTER.fac>=0 ? FAC_LIST[FILTER.fac] : null;
+  const facTxt = FILTER.fac.length ? FILTER.fac.map(v=>FAC_LIST[v]).join('/') : null;
   const stTxt = FILTER.st>=0 ? ['เสร็จสมบูรณ์','ยังไม่เริ่ม','ค้าง Preparing'][FILTER.st] : null;
   const active = [mnTxt,pgTxt,facTxt,stTxt].filter(Boolean);
   // The "which sections are affected" explanation is now static markup (a <details> block) that
@@ -4454,21 +4454,22 @@ function applyFilters(){
 }
 
 // ===== Filter pill wiring =====
-// Product Group ("pg") is multi-select: clicking a value toggles it in/out of FILTER.pg, clicking
-// "ทั้งหมด" clears the selection. Every other dimension stays single-select (radio-style).
+// "กลุ่มผลิตภัณฑ์" (pg) กับ "โรงงาน" (fac) เลือกได้หลายค่า — กดค่าหนึ่งคือสลับเปิด/ปิดค่านั้น
+// กด "ทั้งหมด" คือล้างการเลือกของมิตินั้น · มิติที่เหลือ (st/mn) ยังเลือกได้ทีละค่า
+const MULTI_DIMS = ['pg','fac'];
 document.querySelectorAll('.filter-pill').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     const dim = btn.dataset.dim, val = parseInt(btn.dataset.val,10);
-    if(dim==='pg'){
+    if(MULTI_DIMS.includes(dim)){
       if(val===-1){
-        FILTER.pg = [];
+        FILTER[dim] = [];
       } else {
-        const idx = FILTER.pg.indexOf(val);
-        if(idx>=0) FILTER.pg.splice(idx,1); else FILTER.pg.push(val);
+        const idx = FILTER[dim].indexOf(val);
+        if(idx>=0) FILTER[dim].splice(idx,1); else FILTER[dim].push(val);
       }
-      document.querySelectorAll('.filter-pill[data-dim="pg"]').forEach(b=>{
+      document.querySelectorAll(`.filter-pill[data-dim="${dim}"]`).forEach(b=>{
         const bVal = parseInt(b.dataset.val,10);
-        b.classList.toggle('active', bVal===-1 ? FILTER.pg.length===0 : FILTER.pg.includes(bVal));
+        b.classList.toggle('active', bVal===-1 ? FILTER[dim].length===0 : FILTER[dim].includes(bVal));
       });
     } else {
       FILTER[dim] = val;
@@ -4478,7 +4479,7 @@ document.querySelectorAll('.filter-pill').forEach(btn=>{
   });
 });
 document.getElementById('filterReset').addEventListener('click', ()=>{
-  FILTER.pg=[]; FILTER.fac=-1; FILTER.st=-1; FILTER.mn=-1;
+  FILTER.pg=[]; FILTER.fac=[]; FILTER.st=-1; FILTER.mn=-1;
   document.querySelectorAll('.filter-pill').forEach(b=>b.classList.toggle('active', b.dataset.val==='-1'));
   applyFilters();
 });
@@ -4759,7 +4760,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-17.0';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-18.0';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
