@@ -4456,7 +4456,10 @@ function applyFilters(){
 // ===== Filter pill wiring =====
 // "กลุ่มผลิตภัณฑ์" (pg) กับ "โรงงาน" (fac) เลือกได้หลายค่า — กดค่าหนึ่งคือสลับเปิด/ปิดค่านั้น
 // กด "ทั้งหมด" คือล้างการเลือกของมิตินั้น · มิติที่เหลือ (st/mn) ยังเลือกได้ทีละค่า
-const MULTI_DIMS = ['pg','fac'];
+// ⚠ ต้องเป็น var ห้าม const/let — สคริปต์นี้ถูกฉีดเป็นแท็ก script ใหม่ทุกครั้งที่เปิดหน้า DO
+//   (runDeferredScript) ซึ่งรันที่ระดับ global ถ้าใช้ const พอเปิดหน้าครั้งที่ 2 จะ error
+//   "Identifier has already been declared" ทั้งก้อน ปุ่มตัวกรองกดไม่ติดจนกว่าจะรีเฟรชเบราว์เซอร์
+var MULTI_DIMS = ['pg','fac'];
 document.querySelectorAll('.filter-pill').forEach(btn=>{
   btn.addEventListener('click', ()=>{
     const dim = btn.dataset.dim, val = parseInt(btn.dataset.val,10);
@@ -4760,7 +4763,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-19.0';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-20.0';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -4832,19 +4835,39 @@ function clearCache(){ Object.keys(CACHE).forEach(k=>delete CACHE[k]);
    (ฝั่งเซิร์ฟเวอร์ยังต้องไล่ข้อมูล 219,114 แถวอยู่ จึงช้าเฉพาะครั้งแรกของแต่ละชุด) */
 const ARG_CACHE = {};
 const INFLIGHT   = {};   // คำขอที่กำลังวิ่งอยู่ กันยิงซ้ำซ้อนตอนกดรัวๆ
-async function rpcCached(fn, args){
+
+/* เลขรุ่นของหน้าจอ — เพิ่มทุกครั้งที่เปลี่ยนหน้า หรือเปลี่ยนตัวกรอง
+   🐞 บั๊กเดิม: body() เขียนทับหน้าโดยไม่ดูว่าผู้ใช้ย้ายไปไหนแล้ว
+      - กด FG แล้วรีบกด Overview → FG โหลดเสร็จทีหลัง เอาหน้า FG มาทับ Overview
+      - ติ๊กตัวกรองเร็วๆ → ผลชุดเก่าที่ช้ากว่ากลับมาทีหลัง ทับผลชุดใหม่
+        ตัวเลขบนจอเลยไม่ตรงกับตัวกรองที่เห็น
+   แก้: ผลที่กลับมาหลังรุ่นเปลี่ยนแล้วจะถูกทิ้งเงียบๆ (ยังเก็บลงแคชไว้ใช้ทีหลังได้) */
+let PAGE_GEN = 0;
+const NEVER = () => new Promise(()=>{});   // คำขอที่ล้าสมัย: ค้างไว้เฉยๆ ไม่ให้ไปถึง body()
+
+async function rpcCached(fn, args, opts){
+  const bg  = !!(opts && opts.bg);          // งานเบื้องหลัง (prefetch) ไม่ผูกกับหน้าจอ
+  const gen = PAGE_GEN;
   const key = fn + '|' + JSON.stringify(args || {});
   if(ARG_CACHE[key] !== undefined) return ARG_CACHE[key];
   /* ถ้าคำขอเดียวกันกำลังวิ่งอยู่ ให้รอผลอันเดิม ไม่ยิงซ้ำ */
-  if(INFLIGHT[key]) return INFLIGHT[key];
-  INFLIGHT[key] = (async ()=>{
-    try{
-      const r = await rpc(fn, args);
-      ARG_CACHE[key] = r;
-      return r;
-    } finally { delete INFLIGHT[key]; }
-  })();
-  return INFLIGHT[key];
+  if(!INFLIGHT[key]){
+    INFLIGHT[key] = (async ()=>{
+      try{
+        const r = await rpc(fn, args);
+        ARG_CACHE[key] = r;
+        return r;
+      } finally { delete INFLIGHT[key]; }
+    })();
+  }
+  let r;
+  try{ r = await INFLIGHT[key]; }
+  catch(ex){
+    if(!bg && gen !== PAGE_GEN) return NEVER();   // error ของหน้าเก่า ไม่ต้องโชว์ทับหน้าใหม่
+    throw ex;
+  }
+  if(!bg && gen !== PAGE_GEN) return NEVER();
+  return r;
 }
 
 /* โหลดข้อมูลหน้าที่หนักไว้เบื้องหลัง ตั้งแต่ยังอยู่หน้าแรก
@@ -4880,7 +4903,9 @@ function prefetchHeavy(){
     /* แท็บที่ถูกซ่อนอยู่ไม่ต้องอุ่น รอจนกลับมาดูค่อยทำต่อ */
     if(document.hidden){ setTimeout(next, 2000); return; }
     const [fn,args] = jobs[i++];
-    rpcCached(fn, args).catch(()=>{}).then(()=>setTimeout(next, 1200));
+    /* bg = ไม่ผูกกับหน้าจอ ผลต้องลงแคชเสมอแม้ผู้ใช้จะเปลี่ยนหน้าไปแล้ว
+       และห้ามค้างแบบ NEVER ไม่งั้นคิวอุ่นข้อมูลจะหยุดกลางทาง */
+    rpcCached(fn, args, {bg:true}).catch(()=>{}).then(()=>setTimeout(next, 1200));
   };
   setTimeout(next, 2500);   // รอให้หน้าแรกวาดเสร็จและนิ่งก่อน
 }
@@ -5477,9 +5502,31 @@ function msAll(id, on){
 function msValues(id){
   return [...document.querySelectorAll(`input[data-ms="${id}"]`)].filter(c=>c.checked).map(c=>c.value);
 }
+/* 🐞 บั๊กเดิม: ติ๊กแต่ละช่องยิงโหลดหน้าใหม่ทันที — ติ๊ก 3 เดือนติดกัน = ยิง RPC หนัก 3 ชุดซ้อนกัน
+   บนเซิร์ฟเวอร์แพลนฟรี คำขอที่ซ้อนกันแย่ง CPU กันจนทุกตัวช้าลงและชนเพดานเวลาพร้อมกัน
+   (ล็อกจริงเคยเจอ app_dash_fg_agg ถูกเรียก 5 ครั้งใน 8 วินาที)
+   แก้: รอให้ผู้ใช้หยุดติ๊กก่อน 600ms ค่อยโหลด และเปลี่ยนป้ายบนปุ่มทันทีให้เห็นว่ารับรู้แล้ว */
+let MS_TIMER = null;
 function msChange(id, fn){
   FILTERS[id] = msValues(id);
-  if(window[fn]) window[fn]();
+  msLabelNow(id);
+  clearTimeout(MS_TIMER);
+  MS_TIMER = setTimeout(()=>{
+    MS_TIMER = null;
+    PAGE_GEN++;                          // ผลของตัวกรองชุดก่อนที่ยังวิ่งอยู่ จะไม่มาทับ
+    if(window[fn]) window[fn]();
+  }, 600);
+}
+/* อัปเดตข้อความบนปุ่มตัวกรองทันที โดยไม่ต้องรอหน้าโหลดใหม่ */
+function msLabelNow(id){
+  const btn = document.querySelector(`#ms_${id} .msBtn`);
+  if(!btn) return;
+  const on = [...document.querySelectorAll(`input[data-ms="${id}"]`)].filter(c=>c.checked);
+  const span = btn.querySelector('span');
+  if(span) span.textContent = !on.length ? 'ทั้งหมด'
+    : on.length === 1 ? (on[0].nextElementSibling ? on[0].nextElementSibling.textContent : on[0].value)
+    : `เลือกไว้ ${on.length}`;
+  btn.classList.toggle('on', on.length > 0);
 }
 document.addEventListener('click', ()=>{
   if(MS_OPEN){ const p = el('msp_'+MS_OPEN); if(p) p.classList.add('hide'); MS_OPEN = null; }
@@ -5529,6 +5576,10 @@ function go(p,e){
   el('side').classList.remove('open');
   Object.values(CHARTS).forEach(c=>{try{c.destroy()}catch(_){}}); CHARTS={};
   el('pageBody').innerHTML = '<div class="skel"></div><div class="skel" style="height:250px"></div>';
+  /* ตัวกรองที่ติ๊กค้างไว้แต่ยังไม่ถึงเวลาโหลด ต้องยกเลิก
+     ไม่งั้นอีก 600ms มันจะเรียกฟังก์ชันของหน้าเก่าขึ้นมาทับหน้าใหม่ */
+  clearTimeout(MS_TIMER); MS_TIMER = null;
+  PAGE_GEN++;                            // ผลของหน้าเก่าที่ยังวิ่งอยู่ จะไม่มาทับหน้านี้
   PAGES[p].f();
 }
 
@@ -5894,6 +5945,8 @@ function resetFilters(fn){
   // ถ้าล้างเป็นว่าง = รวมทุกเดือน ซึ่งช้าขึ้นเรื่อยๆ ตามข้อมูลที่สะสม
   // อยากดูทุกเดือนให้กด "เลือกทั้งหมด" ในตัวกรองเดือนเอง
   FILTERS.months = DEFAULT_MONTH ? [DEFAULT_MONTH] : [];
+  clearTimeout(MS_TIMER); MS_TIMER = null;   // ตัวกรองที่ค้างรอโหลดอยู่ ไม่ต้องทำแล้ว
+  PAGE_GEN++;
   FILTERS.factories=[]; FILTERS.shtys=[]; FILTERS.keys=[];
   FILTERS.mrorg=[]; FILTERS.mrdst=[];
   FILTERS.mstat=['Completed'];   // สถานะ Milk Run กลับไปเป็นค่าตั้งต้น = นับเฉพาะที่ทำสำเร็จ
@@ -10702,11 +10755,15 @@ async function pageDO(){
   const tpl = el('doTpl');
   if(!tpl){ body(errCard('ไม่พบโครงหน้า DO')); return; }
   body(tpl.innerHTML);
+  const gen = PAGE_GEN;   // หน้านี้โหลดข้อมูลเองไม่ผ่าน rpcCached จึงต้องเช็ครุ่นเอง
   const root = el('doRoot');
   if(root) root.classList.add('dq-loading');   // ซ่อนโครงเปล่าไว้ก่อน
   try{
     await DOPAGE.mount();
   }catch(ex){
+    /* ผู้ใช้ย้ายไปหน้าอื่นระหว่างโหลด — โครงหน้า DO หายไปแล้ว mount เลยพัง
+       ห้ามเอา error card ไปทับหน้าที่ผู้ใช้เปิดอยู่ตอนนี้ */
+    if(gen !== PAGE_GEN) return;
     if(root) root.classList.remove('dq-loading');
     if(ex && ex.session){ body(sessionExpiredCard()); return; }
     body(errCard(ex && ex.message ? ex.message : String(ex)));
@@ -13936,10 +13993,29 @@ async function doDelete(table, sheet){
       ? await rpc('app_stock_delete',{p_factory:fac, p_all:false})
       : await rpc('app_delete_data',{p_table:table, p_month:m || null});
     closeModal();
-    el('preview').innerHTML = `<div class="card anim"><div class="msg ok">
-      ลบข้อมูลชีท <b>${esc(sheet)}</b> ${fac?`เฉพาะโรง ${esc(fac)}`:(m?`เฉพาะ ${monthLabel(m)}`:'ทั้งหมด')} เรียบร้อย —
-      ลบไป <b>${fmt(r.deleted)}</b> แถว</div></div>`;
+    const delMsg = `ลบข้อมูลชีท <b>${esc(sheet)}</b> ${fac?`เฉพาะโรง ${esc(fac)}`:(m?`เฉพาะ ${monthLabel(m)}`:'ทั้งหมด')} เรียบร้อย —
+      ลบไป <b>${fmt(r.deleted)}</b> แถว`;
+    el('preview').innerHTML = `<div class="card anim"><div class="msg ok">${delMsg}</div></div>`;
     clearCache();
+
+    /* 🐞 บั๊กเดิม: ลบแล้วไม่ได้สั่งสรุปข้อมูลใหม่
+       หน้า Dashboard อ่านจากตารางสรุป (materialized view) ไม่ใช่ตารางดิบ
+       ผลคือข้อมูลที่ลบไปแล้วยังโชว์อยู่บนกราฟทุกหน้า จนกว่าจะมีการนำเข้าครั้งถัดไป
+       สต็อกไม่ต้องทำ เพราะหน้าสต็อกอ่านตารางจริงตรงๆ ไม่ผ่านตารางสรุป */
+    if(!fac && +r.deleted > 0){
+      el('preview').innerHTML = `<div class="card anim"><div class="msg ok">${delMsg}<br>
+        <span class="sm">กำลังสรุปข้อมูลใหม่ให้ Dashboard…</span></div></div>`;
+      try{
+        const rc = await rpc('app_refresh_cubes');
+        el('preview').innerHTML = `<div class="card anim"><div class="msg ok">${delMsg}<br>
+          <span class="sm">✔ สรุปข้อมูลใหม่เสร็จใน ${((+rc.ms||0)/1000).toFixed(1)} วินาที — Dashboard แสดงข้อมูลล่าสุดแล้ว</span></div></div>`;
+      }catch(ex){
+        el('preview').innerHTML = `<div class="card anim"><div class="msg warn">${delMsg}<br>
+          <span class="sm">⚠ สรุปข้อมูลใหม่ไม่สำเร็จ: ${esc(ex.message||'')} — กราฟอาจยังแสดงข้อมูลที่ลบไปแล้ว
+          ลองนำเข้าไฟล์ใดก็ได้อีกครั้งเพื่อสั่งสรุปใหม่</span></div></div>`;
+      }
+      clearCache();
+    }
     loadDataSummary();
     loadImportLog();
   }catch(ex){
