@@ -4760,7 +4760,7 @@ applyFilters();</script>
 /* =========================================================================
    CONFIG — ระบบล็อกอินของเราเอง ไม่ใช้ Supabase Auth ไม่มี email
    ========================================================================= */
-const BUILD        = '2026-08-18.0';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
+const BUILD        = '2026-08-19.0';   // ใช้เช็คว่าไฟล์ที่ deploy เป็นเวอร์ชันล่าสุดหรือยัง
 const SUPABASE_URL = 'https://ocdfmodlisgobvrmhqst.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_QZfonaOZEX3w3fIVtajeQw_k0WM3HmA';
 const TOKEN_KEY    = 'wh2_token';
@@ -4796,6 +4796,12 @@ let DATE_ISSUES = [];   // ปัญหาวันเวลาที่ตร�
 
 /* ตัวกรองใช้ร่วมกันทุกหน้า + แคชข้อมูลไว้ ไม่ต้องยิงซ้ำตอนเปลี่ยนตัวกรอง */
 let FILTERS = { months:[], factories:[], shtys:[], mrorg:[], mrdst:[], mstat:['Completed'], opsloc:[], dim:'gate', keys:[] };
+
+/* เดือนล่าสุดที่มีข้อมูล — เซ็ตครั้งเดียวตอน boot แล้วใช้เป็นค่าเริ่มต้นของตัวกรองเดือน
+   เหตุผล: เวลาโหลดแปรตรงตามจำนวนเดือน (9 เดือน 7.6 วิ · เดือนเดียว 1.4 วิ)
+   ถ้าปล่อยให้เปิดมาเป็น "ทุกเดือน" พอข้อมูลสะสมไปอีก 3-4 เดือนจะชนเพดานเวลาแล้วหน้าพัง
+   ผู้ใช้ยังกด "เลือกทั้งหมด" ในตัวกรองเดือนเพื่อดูทุกเดือนได้เหมือนเดิม */
+let DEFAULT_MONTH = null;
 
 /* ค่าเป้าหมายที่ตั้งไว้ในระบบ — โหลดครั้งเดียวตอนเข้าระบบ แก้ได้ที่หน้าตั้งค่า */
 const TARGETS = {};
@@ -4858,10 +4864,14 @@ function prefetchHeavy(){
   /* เรียงตามโอกาสที่ผู้ใช้จะเข้าไปดูจริง เอาอันที่คุ้มที่สุดก่อน
      หมายเหตุ: ไม่ใส่ app_dash_shipment_agg เพราะหน้า Shipment ไม่ได้เรียกผ่าน
      rpcCached จึงอุ่นไว้ก็ไม่มีใครมาหยิบใช้ — เปลืองคิวเปล่าๆ */
+  /* ⚠ ต้องอุ่นด้วย "ตัวกรองเดือนที่ใช้จริงตอนนี้" ไม่ใช่ null ตายตัว
+     เดิมอุ่นแบบ null = ทุกเดือน ซึ่งทั้งช้าที่สุดและคนละคีย์แคชกับที่หน้าจะเรียกจริง
+     (ตอนนี้หน้าเปิดมาที่เดือนล่าสุด) จึงเสียเวลาเซิร์ฟเวอร์ฟรีโดยไม่มีใครได้ใช้ */
+  const mo = orNull('months');
   const jobs = [
-    ['app_dash_fg_agg', { p_months:null, p_slocs:null, p_facs:null, p_shtys:null }],
-    ['app_dash_ops',    { p_months:null, p_slocs:null }],
-    ['app_fac_compare', { p_months:null }],
+    ['app_dash_fg_agg', { p_months:mo, p_slocs:null, p_facs:null, p_shtys:null }],
+    ['app_dash_ops',    { p_months:mo, p_slocs:null }],
+    ['app_fac_compare', { p_months:mo }],
     ['app_stock_monitor',{}]
   ];
   let i = 0;
@@ -5326,6 +5336,19 @@ async function boot(){
   show('appView');
   try{ const t = await rpc('app_targets_get');
        (t||[]).forEach(x=>{ TARGETS[x.metric] = x; }); }catch(_){}
+
+  /* ตั้งตัวกรองเดือนเป็น "เดือนล่าสุด" ก่อนเปิดหน้าแรก
+     ต้องทำตรงนี้ ไม่ใช่ในหน้า เพราะถ้ารู้ทีหลังจะต้องโหลดซ้ำสองรอบ
+     (รอบแรกทุกเดือน = ช้า) ซึ่งเสียประโยชน์ที่ควรได้ทั้งหมด
+     RPC ตัวนี้เบามาก ~5 มิลลิวินาที ถ้าพลาดก็ปล่อยผ่าน หน้ายังทำงานได้ */
+  try{
+    const ms = await rpc('app_month_list');
+    if(Array.isArray(ms) && ms.length){
+      DEFAULT_MONTH = ms[ms.length-1];
+      if(!FILTERS.months.length) FILTERS.months = [DEFAULT_MONTH];
+    }
+  }catch(_){ /* ไม่มีรายชื่อเดือนก็เปิดแบบทุกเดือนไปตามเดิม */ }
+
   restoreNavFold();
   go('ov');   // เปิดที่หน้าภาพรวมก่อน
   prefetchHeavy();   // อุ่นข้อมูลหน้าที่หนักไว้เบื้องหลัง
@@ -5867,7 +5890,11 @@ function filterBar(sets, shown, total, fn){
 }
 
 function resetFilters(fn){
-  FILTERS.months=[]; FILTERS.factories=[]; FILTERS.shtys=[]; FILTERS.keys=[];
+  // กลับไปที่ "ค่าเริ่มต้นของหน้า" = เดือนล่าสุด ไม่ใช่ว่างเปล่า
+  // ถ้าล้างเป็นว่าง = รวมทุกเดือน ซึ่งช้าขึ้นเรื่อยๆ ตามข้อมูลที่สะสม
+  // อยากดูทุกเดือนให้กด "เลือกทั้งหมด" ในตัวกรองเดือนเอง
+  FILTERS.months = DEFAULT_MONTH ? [DEFAULT_MONTH] : [];
+  FILTERS.factories=[]; FILTERS.shtys=[]; FILTERS.keys=[];
   FILTERS.mrorg=[]; FILTERS.mrdst=[];
   FILTERS.mstat=['Completed'];   // สถานะ Milk Run กลับไปเป็นค่าตั้งต้น = นับเฉพาะที่ทำสำเร็จ
   FILTERS.opsloc=[];
